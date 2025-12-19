@@ -19,8 +19,6 @@ import {
   Wind,
   Plus,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,8 +82,7 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: { id: string } }) {
-  const { id } = React.use(params);
+export default function PropertyPage({ params: { id } }: { params: { id: string } }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
