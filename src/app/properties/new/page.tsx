@@ -50,7 +50,7 @@ const formSchema = z.object({
   amenities: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one item.",
   }),
-  image: z.instanceof(File).refine((file) => file.size > 0, 'Property image is required.'),
+  images: z.array(z.instanceof(File)).min(1, 'At least one property image is required.'),
 });
 
 export default function NewPropertyPage() {
@@ -58,7 +58,8 @@ export default function NewPropertyPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,18 +74,19 @@ export default function NewPropertyPage() {
       bedrooms: 1,
       bathrooms: 1,
       amenities: [],
+      images: [],
     },
   });
   
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      form.setValue('image', file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      const currentFiles = form.getValues('images') || [];
+      form.setValue('images', [...currentFiles, ...newFiles]);
+      
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      setImagePreviews(prev => [...prev, ...newPreviews]);
     }
   };
 
@@ -109,7 +111,7 @@ export default function NewPropertyPage() {
       toast({
         variant: 'destructive',
         title: 'Image Upload Failed',
-        description: error.message || 'Could not upload image to ImgBB.',
+        description: `Could not upload image: ${image.name}. ${error.message}`,
       });
       return null;
     }
@@ -126,17 +128,29 @@ export default function NewPropertyPage() {
       return;
     }
 
-    const imageUrl = await uploadImage(values.image);
+    setIsSubmitting(true);
 
-    if (!imageUrl) {
+    const uploadPromises = values.images.map(uploadImage);
+    const imageUrls = await Promise.all(uploadPromises);
+
+    const successfulUrls = imageUrls.filter((url): url is string => url !== null);
+
+    if (successfulUrls.length !== values.images.length) {
+       toast({
+        variant: 'destructive',
+        title: 'Image Upload Error',
+        description: 'Some images failed to upload. Please try again.',
+      });
+      setIsSubmitting(false);
       return;
     }
     
-    const { image, ...restOfValues } = values;
+    const { images, ...restOfValues } = values;
 
     const listingData = {
       ...restOfValues,
-      imageUrl,
+      imageUrl: successfulUrls[0], // Use the first image as the primary one
+      imageUrls: successfulUrls,
       ownerId: user.uid,
       rating: 0,
       createdAt: serverTimestamp(),
@@ -166,6 +180,8 @@ export default function NewPropertyPage() {
           title: 'Uh oh! Something went wrong.',
           description: 'Could not create listing. Please try again.',
         });
+      }).finally(() => {
+         setIsSubmitting(false);
       });
   }
 
@@ -183,29 +199,35 @@ export default function NewPropertyPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                <FormField
                 control={form.control}
-                name="image"
+                name="images"
                 render={() => (
                   <FormItem>
-                    <FormLabel>Property Image</FormLabel>
+                    <FormLabel>Property Images</FormLabel>
                     <FormControl>
                       <Input 
                         type="file" 
                         accept="image/*" 
+                        multiple
                         onChange={handleImageChange}
+                        disabled={isSubmitting}
                       />
                     </FormControl>
                     <FormDescription>
-                      A high-quality image of your property. This will be the main image.
+                      Upload one or more high-quality images. The first image will be the cover photo.
                     </FormDescription>
                     <FormMessage />
-                    {imagePreview && (
-                      <div className="mt-4 relative w-full h-64 rounded-md overflow-hidden">
-                        <Image
-                          src={imagePreview}
-                          alt="Image preview"
-                          fill
-                          className="object-cover"
-                        />
+                    {imagePreviews.length > 0 && (
+                       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative w-full aspect-square rounded-md overflow-hidden">
+                            <Image
+                              src={preview}
+                              alt={`Image preview ${index + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </FormItem>
@@ -218,7 +240,7 @@ export default function NewPropertyPage() {
                   <FormItem>
                     <FormLabel>Property Title</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Cozy Forest Cabin" {...field} />
+                      <Input placeholder="e.g., Cozy Forest Cabin" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -231,7 +253,7 @@ export default function NewPropertyPage() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Tell guests about your place" className="resize-none" {...field} />
+                      <Textarea placeholder="Tell guests about your place" className="resize-none" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -244,7 +266,7 @@ export default function NewPropertyPage() {
                   <FormItem>
                     <FormLabel>Location</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Asheville, North Carolina" {...field} />
+                      <Input placeholder="e.g., Asheville, North Carolina" {...field} disabled={isSubmitting} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -258,7 +280,7 @@ export default function NewPropertyPage() {
                     <FormItem>
                       <FormLabel>Price per night ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -271,7 +293,7 @@ export default function NewPropertyPage() {
                     <FormItem>
                       <FormLabel>Cleaning Fee ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -284,7 +306,7 @@ export default function NewPropertyPage() {
                     <FormItem>
                       <FormLabel>Service Fee ($)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -300,7 +322,7 @@ export default function NewPropertyPage() {
                     <FormItem>
                       <FormLabel>Maximum Guests</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -313,7 +335,7 @@ export default function NewPropertyPage() {
                     <FormItem>
                       <FormLabel>Bedrooms</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -326,7 +348,7 @@ export default function NewPropertyPage() {
                     <FormItem>
                       <FormLabel>Bathrooms</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} />
+                        <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -369,6 +391,7 @@ export default function NewPropertyPage() {
                                             )
                                           )
                                     }}
+                                    disabled={isSubmitting}
                                   />
                                 </FormControl>
                                 <FormLabel className="font-normal">
@@ -385,8 +408,8 @@ export default function NewPropertyPage() {
                 )}
               />
 
-              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isUserLoading}>
-                {form.formState.isSubmitting ? (
+              <Button type="submit" size="lg" disabled={isSubmitting || isUserLoading}>
+                {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating...

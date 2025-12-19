@@ -106,7 +106,16 @@
         },
         "imageUrl": {
           "type": "string",
-          "format": "uri"
+          "format": "uri",
+          "description": "The primary image URL for the listing."
+        },
+        "imageUrls": {
+          "type": "array",
+          "description": "A list of image URLs for the listing carousel.",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
         }
       },
       "required": [
@@ -117,6 +126,7 @@
         "pricePerNight",
         "maxGuests",
         "imageUrl",
+        "imageUrls",
         "cleaningFee",
         "serviceFee"
       ]
