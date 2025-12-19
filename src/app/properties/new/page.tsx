@@ -35,14 +35,15 @@ const amenitiesList = [
   "Wifi", "Kitchen", "Free parking", "Heating", "TV", "Air conditioning", "Pool", "Elevator", "Gym"
 ];
 
-// IMPORTANT: Get your free API key from https://api.imgbb.com/
-const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'ed5db0bd942fd835bfbbce28c31bc2b9';
+const IMGBB_API_KEY = "ed5db0bd942fd835bfbbce28c31bc2b9";
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
   location: z.string().min(1, 'Location is required'),
   pricePerNight: z.coerce.number().min(1, 'Price must be greater than 0'),
+  cleaningFee: z.coerce.number().min(0, 'Cleaning fee cannot be negative'),
+  serviceFee: z.coerce.number().min(0, 'Service fee cannot be negative'),
   maxGuests: z.coerce.number().min(1, 'Max guests must be at least 1'),
   bedrooms: z.coerce.number().min(0, 'Bedrooms cannot be negative'),
   bathrooms: z.coerce.number().min(0, 'Bathrooms cannot be negative'),
@@ -66,6 +67,8 @@ export default function NewPropertyPage() {
       description: '',
       location: '',
       pricePerNight: 100,
+      cleaningFee: 50,
+      serviceFee: 25,
       maxGuests: 2,
       bedrooms: 1,
       bathrooms: 1,
@@ -86,16 +89,6 @@ export default function NewPropertyPage() {
   };
 
   async function uploadImage(image: File): Promise<string | null> {
-    if (IMGBB_API_KEY === 'YOUR_IMGBB_API_KEY') {
-      toast({
-        variant: 'destructive',
-        title: 'Image Upload Failed',
-        description: 'Please add your ImgBB API key to continue.',
-      });
-      console.error('ImgBB API key is not set. Please get a free key from https://api.imgbb.com/ and set it as NEXT_PUBLIC_IMGBB_API_KEY in a .env.local file.');
-      return null;
-    }
-
     const formData = new FormData();
     formData.append('image', image);
 
@@ -136,7 +129,6 @@ export default function NewPropertyPage() {
     const imageUrl = await uploadImage(values.image);
 
     if (!imageUrl) {
-      // The uploadImage function already shows a toast on failure.
       return;
     }
     
@@ -146,7 +138,7 @@ export default function NewPropertyPage() {
       ...restOfValues,
       imageUrl,
       ownerId: user.uid,
-      rating: Math.floor(Math.random() * (5 - 3 + 1)) + 3,
+      rating: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
@@ -154,12 +146,12 @@ export default function NewPropertyPage() {
     const listingsColRef = collection(firestore, 'listings');
 
     addDoc(listingsColRef, listingData)
-      .then(() => {
+      .then((docRef) => {
         toast({
           title: 'Listing Created!',
           description: 'Your property has been successfully listed.',
         });
-        router.push('/profile?tab=properties');
+        router.push(`/properties/${docRef.id}`);
       })
       .catch((error: any) => {
         const permissionError = new FirestorePermissionError({
@@ -203,7 +195,7 @@ export default function NewPropertyPage() {
                       />
                     </FormControl>
                     <FormDescription>
-                      A high-quality image of your property.
+                      A high-quality image of your property. This will be the main image.
                     </FormDescription>
                     <FormMessage />
                     {imagePreview && (
@@ -258,7 +250,7 @@ export default function NewPropertyPage() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <FormField
                   control={form.control}
                   name="pricePerNight"
@@ -272,6 +264,35 @@ export default function NewPropertyPage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="cleaningFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cleaning Fee ($)</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="serviceFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Service Fee ($)</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <FormField
                   control={form.control}
                   name="maxGuests"
@@ -285,8 +306,6 @@ export default function NewPropertyPage() {
                     </FormItem>
                   )}
                 />
-              </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <FormField
                   control={form.control}
                   name="bedrooms"
@@ -314,6 +333,7 @@ export default function NewPropertyPage() {
                   )}
                 />
               </div>
+              
               <FormField
                 control={form.control}
                 name="amenities"

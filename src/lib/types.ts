@@ -13,6 +13,9 @@ export interface Property {
   amenities: string[];
   ownerId: string;
   imageUrl: string;
+  imageUrls?: string[]; // For carousel
+  cleaningFee: number;
+  serviceFee: number;
   createdAt: any;
   updatedAt: any;
 }
@@ -35,5 +38,3 @@ export interface Booking {
     imageUrl: string;
   };
 }
-
-    

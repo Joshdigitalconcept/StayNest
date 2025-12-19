@@ -81,6 +81,14 @@
         "pricePerNight": {
           "type": "number"
         },
+        "cleaningFee": {
+          "type": "number",
+          "description": "A flat fee for cleaning the property after a stay."
+        },
+        "serviceFee": {
+          "type": "number",
+          "description": "A fee for using the StayNest platform."
+        },
         "maxGuests": {
           "type": "number"
         },
@@ -108,7 +116,9 @@
         "location",
         "pricePerNight",
         "maxGuests",
-        "imageUrl"
+        "imageUrl",
+        "cleaningFee",
+        "serviceFee"
       ]
     },
     "booking": {
@@ -245,4 +255,3 @@
     "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\n*   **Bookings:** Bookings are stored in a top-level `/bookings` collection. `guestId` and `hostId` are denormalized for authorization independence. This allows guests to see their bookings and hosts to see bookings for their properties without complex queries or rules.\n\nThe data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
   }
 }
-    

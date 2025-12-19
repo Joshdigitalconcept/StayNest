@@ -4,9 +4,7 @@ import Image from "next/image";
 import { notFound, useRouter } from "next/navigation";
 import * as React from 'react';
 import {
-  findUserById,
   findReviewsByPropertyId,
-  findImageById,
 } from "@/lib/placeholder-data";
 import {
   Star,
@@ -21,6 +19,8 @@ import {
   Wind,
   Plus,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,12 +29,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where } from "firebase/firestore";
 import type { Property } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 const amenityIcons: { [key: string]: React.ElementType } = {
   Wifi,
@@ -43,8 +44,8 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Heating: Wind,
   TV: Tv,
   "Air conditioning": Wind,
-  Pool: Plus, // Placeholder
-  Elevator: Plus, // Placeholder
+  Pool: Plus,
+  Elevator: Plus, 
   Gym: Plus,
 };
 
@@ -62,6 +63,12 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
   
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
 
+  const hostQuery = useMemoFirebase(
+    () => (firestore && property) ? doc(firestore, "users", property.ownerId) : null,
+    [firestore, property]
+  );
+  const { data: host } = useDoc(hostQuery);
+
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(),
     to: addDays(new Date(), 5),
@@ -70,9 +77,9 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
   const [isReserving, setIsReserving] = React.useState(false);
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
-  const cleaningFee = 50;
-  const serviceFee = 75;
   const subtotal = property ? property.pricePerNight * duration : 0;
+  const cleaningFee = property?.cleaningFee || 0;
+  const serviceFee = property?.serviceFee || 0;
   const totalPrice = subtotal + cleaningFee + serviceFee;
 
   const handleReservation = async () => {
@@ -107,7 +114,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       totalPrice,
       status: 'pending' as const,
       createdAt: serverTimestamp(),
-      listing: { // Denormalized data
+      listing: {
         title: property.title,
         location: property.location,
         imageUrl: property.imageUrl,
@@ -143,11 +150,8 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       });
   };
 
-  // Still using mock data for host and reviews for now
-  const host = findUserById('user-1'); // Placeholder
   const reviews = findReviewsByPropertyId(resolvedParams.id);
-  const hostAvatar = findImageById(host?.avatarId || "");
-
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -160,6 +164,12 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
     notFound();
   }
 
+  const images = property.imageUrls || [property.imageUrl];
+  const reviewCount = reviews.length;
+  const rating = property.rating || 0;
+  const ratingDisplay = reviewCount > 0 ? `${rating.toFixed(1)} (${reviewCount} reviews)` : 'New listing';
+
+
   return (
     <div className="container mx-auto py-8 lg:py-12">
       <div className="space-y-4 mb-8">
@@ -169,8 +179,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
         <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span className="font-semibold text-foreground">{property.rating.toFixed(1)}</span>
-            <span className="underline">({reviews.length} reviews)</span>
+            <span className="font-semibold text-foreground">{ratingDisplay}</span>
           </div>
           <Separator orientation="vertical" className="h-4" />
           <div className="flex items-center gap-1">
@@ -180,17 +189,24 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      <div className="relative w-full h-[300px] md:h-[500px] rounded-lg overflow-hidden mb-8">
-        {property.imageUrl && (
-          <Image
-            src={property.imageUrl}
-            alt={property.title}
-            fill
-            className="object-cover"
-            priority
-          />
-        )}
-      </div>
+       <Carousel className="w-full mb-8">
+        <CarouselContent>
+          {images.map((url, index) => (
+            <CarouselItem key={index} className="relative aspect-video">
+               <Image
+                src={url}
+                alt={`${property.title} image ${index + 1}`}
+                fill
+                className="object-cover rounded-lg"
+                priority={index === 0}
+              />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
+        <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+      </Carousel>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
@@ -198,7 +214,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-semibold">
-                  Entire place hosted by {host?.name}
+                  Entire place hosted by {host?.firstName || 'Host'}
                 </h2>
                 <div className="flex items-center gap-4 text-muted-foreground mt-1">
                   <span>{property.maxGuests} guests</span>
@@ -209,8 +225,8 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
                 </div>
               </div>
               <Avatar className="h-16 w-16">
-                {hostAvatar && <AvatarImage src={hostAvatar.imageUrl} alt={host?.name} />}
-                <AvatarFallback>{host?.name?.charAt(0)}</AvatarFallback>
+                {host?.profilePictureUrl && <AvatarImage src={host.profilePictureUrl} alt={host.firstName} />}
+                <AvatarFallback>{host?.firstName?.charAt(0) || 'H'}</AvatarFallback>
               </Avatar>
             </div>
           </div>
@@ -237,34 +253,34 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
           <div>
             <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
               <Star className="w-5 h-5" />
-              <span>{property.rating.toFixed(1)} ({reviews.length} reviews)</span>
+               <span>{ratingDisplay}</span>
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-              {reviews.map((review) => {
-                const user = findUserById(review.userId);
-                const userAvatar = findImageById(user?.avatarId || "");
-                return (
-                  <div key={review.id} className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                         {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={user?.name} />}
-                        <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold">{user?.name}</p>
-                        <p className="text-sm text-muted-foreground">{new Date(review.date).toLocaleDateString("en-US", { year: 'numeric', month: 'long' })}</p>
+            {reviewCount > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                {reviews.map((review) => (
+                    <div key={review.id} className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                           <AvatarFallback>{review.userId.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{review.userId}</p>
+                          <p className="text-sm text-muted-foreground">{new Date(review.date).toLocaleDateString("en-US", { year: 'numeric', month: 'long' })}</p>
+                        </div>
                       </div>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                      <p className="text-foreground/90">{review.comment}</p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
-                      ))}
-                    </div>
-                    <p className="text-foreground/90">{review.comment}</p>
-                  </div>
-                );
-              })}
-            </div>
+                  )
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Be the first to review this listing!</p>
+            )}
           </div>
         </div>
 
@@ -304,20 +320,20 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>${property.pricePerNight} x {duration} nights</span>
-                    <span>${subtotal}</span>
+                    <span>${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Cleaning fee</span>
-                    <span>${cleaningFee}</span>
+                    <span>${cleaningFee.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Service fee</span>
-                    <span>${serviceFee}</span>
+                    <span>${serviceFee.toFixed(2)}</span>
                   </div>
                   <Separator className="my-2" />
                   <div className="flex justify-between font-bold">
                     <span>Total</span>
-                    <span>${totalPrice}</span>
+                    <span>${totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
               )}
@@ -328,5 +344,3 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
     </div>
   );
 }
-
-    
