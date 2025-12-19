@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import * as React from 'react';
 import {
   findUserById,
   findReviewsByPropertyId,
@@ -40,23 +41,24 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   TV: Tv,
   "Air conditioning": Wind,
   Pool: Plus, // Placeholder
-  Elevator: Plus,
+  Elevator: Plus, // Placeholder
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: { id: string } }) {
+export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = React.use(params);
   const firestore = useFirestore();
   
   const propertyRef = useMemoFirebase(
-    () => (firestore && params.id) ? doc(firestore, "listings", params.id) : null,
-    [firestore, params.id]
+    () => (firestore && resolvedParams.id) ? doc(firestore, "listings", resolvedParams.id) : null,
+    [firestore, resolvedParams.id]
   );
   
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
 
   // Still using mock data for host and reviews for now
   const host = findUserById('user-1'); // Placeholder
-  const reviews = findReviewsByPropertyId(params.id);
+  const reviews = findReviewsByPropertyId(resolvedParams.id);
   const hostAvatar = findImageById(host?.avatarId || "");
 
   if (isLoading) {
