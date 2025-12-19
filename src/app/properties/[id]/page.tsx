@@ -50,10 +50,10 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-function HostProfile({ ownerId }: { ownerId: string }) {
+function HostProfile({ ownerId, property }: { ownerId: string, property: Property }) {
   const firestore = useFirestore();
   const hostRef = useMemoFirebase(
-    () => firestore ? doc(firestore, "users", ownerId) : null,
+    () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
     [firestore, ownerId]
   );
   const { data: host } = useDoc<User>(hostRef);
@@ -65,7 +65,11 @@ function HostProfile({ ownerId }: { ownerId: string }) {
           Entire place hosted by {host?.firstName || 'Host'}
         </h2>
         <div className="flex items-center gap-4 text-muted-foreground mt-1">
-          <slot name="property-details" />
+          <span>{property.maxGuests} guests</span>
+          <span>&middot;</span>
+          <span>{property.bedrooms} bedrooms</span>
+          <span>&middot;</span>
+          <span>{property.bathrooms} bathrooms</span>
         </div>
       </div>
       <Avatar className="h-16 w-16">
@@ -77,8 +81,8 @@ function HostProfile({ ownerId }: { ownerId: string }) {
 }
 
 
-export default function PropertyPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -97,6 +101,8 @@ export default function PropertyPage({ params }: { params: { id: string } }) {
   });
   const [guests, setGuests] = React.useState(2);
   const [isReserving, setIsReserving] = React.useState(false);
+
+  const reviews = React.useMemo(() => findReviewsByPropertyId(id), [id]);
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
   const subtotal = property ? property.pricePerNight * duration : 0;
@@ -172,8 +178,6 @@ export default function PropertyPage({ params }: { params: { id: string } }) {
         setIsReserving(false);
       });
   };
-
-  const reviews = findReviewsByPropertyId(id);
   
   if (isLoading) {
     return (
@@ -234,15 +238,7 @@ export default function PropertyPage({ params }: { params: { id: string } }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
           <div className="border-b pb-6">
-            <HostProfile ownerId={property.ownerId}>
-              <div slot="property-details">
-                <span>{property.maxGuests} guests</span>
-                <span>&middot;</span>
-                <span>{property.bedrooms} bedrooms</span>
-                <span>&middot;</span>
-                <span>{property.bathrooms} bathrooms</span>
-              </div>
-            </HostProfile>
+            <HostProfile ownerId={property.ownerId} property={property} />
           </div>
 
           <div className="border-b pb-6">
