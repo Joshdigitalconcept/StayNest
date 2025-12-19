@@ -29,6 +29,7 @@ import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import Image from 'next/image';
+import { Loader2 } from 'lucide-react';
 
 const amenitiesList = [
   "Wifi", "Kitchen", "Free parking", "Heating", "TV", "Air conditioning", "Pool", "Elevator", "Gym"
@@ -212,8 +213,8 @@ export default function NewPropertyPage() {
                         <Image
                           src={imagePreview}
                           alt="Image preview"
-                          layout="fill"
-                          objectFit="cover"
+                          fill
+                          className="object-cover"
                         />
                       </div>
                     )}
@@ -298,7 +299,7 @@ export default function NewPropertyPage() {
                         <Input type="number" {...field} />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
+                    </Ite'm>
                   )}
                 />
                 <FormField
@@ -367,7 +368,14 @@ export default function NewPropertyPage() {
               />
 
               <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isUserLoading}>
-                {form.formState.isSubmitting ? 'Creating...' : 'Create Listing'}
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Listing'
+                )}
               </Button>
             </form>
           </Form>
