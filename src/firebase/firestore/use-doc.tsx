@@ -63,7 +63,7 @@ export function useDoc<T = any>(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
         if (snapshot.exists()) {
-          setData({ ...(snapshot.data() as T), id: snapshot.id });
+          setData({ id: snapshot.id, ...(snapshot.data() as T) });
         } else {
           // Document does not exist
           setData(null);
