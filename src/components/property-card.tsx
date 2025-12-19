@@ -32,7 +32,7 @@ export default function PropertyCard({ property }: PropertyCardProps) {
            )}
           <Badge className="absolute top-2 right-2 flex items-center gap-1">
             <Star className="h-3 w-3" />
-            <span>{property.rating.toFixed(1)}</span>
+            <span>{property.rating ? property.rating.toFixed(1) : 'New'}</span>
           </Badge>
         </div>
         <CardContent className="p-4">
