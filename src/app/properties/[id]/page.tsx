@@ -40,7 +40,7 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: { id: string } }) {
+export default async function PropertyPage({ params }: { params: { id: string } }) {
   const property = findPropertyById(params.id);
   if (!property) {
     notFound();
