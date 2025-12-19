@@ -299,7 +299,7 @@ export default function NewPropertyPage() {
                         <Input type="number" {...field} />
                       </FormControl>
                       <FormMessage />
-                    </Ite'm>
+                    </FormItem>
                   )}
                 />
                 <FormField
