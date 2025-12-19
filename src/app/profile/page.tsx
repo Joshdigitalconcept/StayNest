@@ -172,7 +172,7 @@ export default function ProfilePage() {
                   {arePropertiesLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
                     userProperties && userProperties.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
-                        {userProperties.map((property) => <PropertyCard key={property.id} property={property} />)}
+                        {userProperties.map((property) => <PropertyCard key={property.id} property={property} showAdminControls={true} />)}
                       </div>
                     ) : (
                       <div className="text-center py-12">

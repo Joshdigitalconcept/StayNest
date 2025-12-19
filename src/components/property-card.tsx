@@ -2,18 +2,58 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Star, Edit, Trash2 } from "lucide-react";
 import type { Property } from "@/lib/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useFirestore } from "@/firebase";
+import { doc, deleteDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 interface PropertyCardProps {
   property: Property;
+  showAdminControls?: boolean;
 }
 
-export default function PropertyCard({ property }: PropertyCardProps) {
+export default function PropertyCard({ property, showAdminControls = false }: PropertyCardProps) {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation
+    if (!firestore) return;
+
+    const docRef = doc(firestore, 'listings', property.id);
+    try {
+      await deleteDoc(docRef);
+      toast({
+        title: "Listing Deleted",
+        description: "Your property has been successfully deleted.",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not delete the listing. Please try again.",
+      });
+    }
+  };
+
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-xl">
+    <Card className="overflow-hidden transition-shadow hover:shadow-xl flex flex-col">
       <Link href={`/properties/${property.id}`} className="block">
         <div className="relative h-48 w-full">
           {property.imageUrl && (
@@ -44,6 +84,35 @@ export default function PropertyCard({ property }: PropertyCardProps) {
           </div>
         </CardContent>
       </Link>
+      {showAdminControls && (
+        <div className="mt-auto p-4 pt-0 flex gap-2">
+          <Button variant="outline" size="sm" className="w-full" asChild>
+             <Link href={`/properties/edit/${property.id}`}>
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </Link>
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" className="w-full" onClick={(e) => e.preventDefault()}>
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your
+                  listing and remove its data from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Continue</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      )}
     </Card>
   );
 }
