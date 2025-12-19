@@ -65,13 +65,28 @@
       "description": "Represents a property listing on the StayNest platform.",
       "type": "object",
       "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "pricePerNight": { "type": "number" },
+        "maxGuests": { "type": "number" },
+        "bedrooms": { "type": "number" },
+        "bathrooms": { "type": "number" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "imageUrl": { "type": "string", "format": "uri" },
         "ownerId": {
           "type": "string",
           "description": "The UID of the user who owns this listing."
         }
       },
       "required": [
-        "ownerId"
+        "ownerId",
+        "title",
+        "description",
+        "location",
+        "pricePerNight",
+        "maxGuests",
+        "imageUrl"
       ]
     }
   },

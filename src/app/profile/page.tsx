@@ -12,14 +12,26 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Loader2 } from "lucide-react";
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { collection, query, where } from 'firebase/firestore';
+import PropertyCard from '@/components/property-card';
+import type { Property } from '@/lib/types';
+
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'bookings');
+  const firestore = useFirestore();
+  
+  const userListingsQuery = useMemoFirebase(
+    () => (user && firestore) ? query(collection(firestore, 'listings'), where('ownerId', '==', user.uid)) : null,
+    [user, firestore]
+  );
+
+  const { data: userProperties, isLoading: arePropertiesLoading } = useCollection<Property>(userListingsQuery);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -40,6 +52,9 @@ export default function ProfilePage() {
     return (
       <div className="container mx-auto py-8 text-center">
         <p>Please log in to view your profile.</p>
+        <Button asChild className="mt-4">
+          <Link href="/login">Log In</Link>
+        </Button>
       </div>
     );
   }
@@ -101,10 +116,29 @@ export default function ProfilePage() {
                     <Link href="/properties/new">Create Listing</Link>
                   </Button>
                 </CardHeader>
-                <CardContent className="text-center py-12">
-                   <h3 className="text-lg font-semibold text-muted-foreground">
-                    You have no properties listed.
-                  </h3>
+                <CardContent>
+                  {arePropertiesLoading && (
+                    <div className="flex justify-center items-center py-12">
+                      <Loader2 className="animate-spin h-8 w-8" />
+                    </div>
+                  )}
+                  {!arePropertiesLoading && userProperties && userProperties.length > 0 && (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+                        {userProperties.map((property) => (
+                          <PropertyCard key={property.id} property={property} />
+                        ))}
+                      </div>
+                  )}
+                   {!arePropertiesLoading && (!userProperties || userProperties.length === 0) && (
+                    <div className="text-center py-12">
+                      <h3 className="text-lg font-semibold text-muted-foreground">
+                        You have no properties listed.
+                      </h3>
+                       <p className="text-sm text-muted-foreground">
+                        Click "Create Listing" to get started.
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

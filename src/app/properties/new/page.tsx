@@ -27,10 +27,15 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useState } from 'react';
+import Image from 'next/image';
 
 const amenitiesList = [
   "Wifi", "Kitchen", "Free parking", "Heating", "TV", "Air conditioning", "Pool", "Elevator", "Gym"
 ];
+
+// IMPORTANT: Get your free API key from https://api.imgbb.com/
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -43,6 +48,7 @@ const formSchema = z.object({
   amenities: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one item.",
   }),
+  image: z.instanceof(File).refine((file) => file.size > 0, 'Property image is required.'),
 });
 
 export default function NewPropertyPage() {
@@ -50,6 +56,7 @@ export default function NewPropertyPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,6 +71,56 @@ export default function NewPropertyPage() {
       amenities: [],
     },
   });
+  
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      form.setValue('image', file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  async function uploadImage(image: File): Promise<string | null> {
+    if (IMGBB_API_KEY === 'YOUR_IMGBB_API_KEY') {
+      toast({
+        variant: 'destructive',
+        title: 'Image Upload Failed',
+        description: 'Please add your ImgBB API key to continue.',
+      });
+      console.error('ImgBB API key is not set. Please get a free key from https://api.imgbb.com/ and set it as NEXT_PUBLIC_IMGBB_API_KEY in a .env.local file.');
+      return null;
+    }
+
+    const formData = new FormData();
+    formData.append('image', image);
+
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        return result.data.url;
+      } else {
+        throw new Error(result.error.message || 'ImgBB upload failed');
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Image Upload Failed',
+        description: error.message || 'Could not upload image to ImgBB.',
+      });
+      return null;
+    }
+  }
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
@@ -74,9 +131,21 @@ export default function NewPropertyPage() {
       });
       return;
     }
+    
+    if (form.formState.isSubmitting) return;
+
+    const imageUrl = await uploadImage(values.image);
+
+    if (!imageUrl) {
+      // The uploadImage function already shows a toast on failure.
+      return;
+    }
+    
+    const { image, ...restOfValues } = values;
 
     const listingData = {
-      ...values,
+      ...restOfValues,
+      imageUrl,
       ownerId: user.uid,
       rating: 0,
       createdAt: serverTimestamp(),
@@ -121,6 +190,36 @@ export default function NewPropertyPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+               <FormField
+                control={form.control}
+                name="image"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Property Image</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageChange}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      A high-quality image of your property.
+                    </FormDescription>
+                    <FormMessage />
+                    {imagePreview && (
+                      <div className="mt-4 relative w-full h-64 rounded-md overflow-hidden">
+                        <Image
+                          src={imagePreview}
+                          alt="Image preview"
+                          layout="fill"
+                          objectFit="cover"
+                        />
+                      </div>
+                    )}
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="title"

@@ -1,18 +1,31 @@
+'use client';
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent } from '@/components/ui/card';
-import { Search, MapPin, Calendar as CalendarIcon, Users, ArrowRight } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Search, MapPin, Calendar as CalendarIcon, Users, ArrowRight, Loader2 } from 'lucide-react';
 import PropertyCard from '@/components/property-card';
-import { mockProperties } from '@/lib/placeholder-data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import type { Property } from '@/lib/types';
+
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find(img => img.id === 'hero');
+  const firestore = useFirestore();
+
+  const listingsQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'listings'), orderBy('createdAt', 'desc'), limit(8)) : null,
+    [firestore]
+  );
+  
+  const { data: properties, isLoading } = useCollection<Property>(listingsQuery);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -100,11 +113,28 @@ export default function Home() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {mockProperties.slice(0, 8).map((property) => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
-          </div>
+          {isLoading && (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="animate-spin h-12 w-12" />
+            </div>
+          )}
+          {!isLoading && properties && properties.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {properties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))}
+            </div>
+          )}
+           {!isLoading && (!properties || properties.length === 0) && (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-semibold text-muted-foreground">
+                No listings available yet.
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Check back later or be the first to host!
+              </p>
+            </div>
+          )}
         </div>
       </section>
       

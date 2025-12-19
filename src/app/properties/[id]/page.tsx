@@ -1,7 +1,8 @@
+'use client';
+
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
-  findPropertyById,
   findUserById,
   findReviewsByPropertyId,
   findImageById,
@@ -18,15 +19,18 @@ import {
   Soup,
   Wind,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import type { Property } from "@/lib/types";
 
 const amenityIcons: { [key: string]: React.ElementType } = {
   Wifi,
@@ -40,16 +44,32 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default async function PropertyPage({ params }: { params: { id: string } }) {
-  const property = findPropertyById(params.id);
+export default function PropertyPage({ params }: { params: { id: string } }) {
+  const firestore = useFirestore();
+  
+  const propertyRef = useMemoFirebase(
+    () => (firestore && params.id) ? doc(firestore, "listings", params.id) : null,
+    [firestore, params.id]
+  );
+  
+  const { data: property, isLoading } = useDoc<Property>(propertyRef);
+
+  // Still using mock data for host and reviews for now
+  const host = findUserById('user-1'); // Placeholder
+  const reviews = findReviewsByPropertyId(params.id);
+  const hostAvatar = findImageById(host?.avatarId || "");
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12" />
+      </div>
+    );
+  }
+
   if (!property) {
     notFound();
   }
-
-  const host = findUserById(property.hostId);
-  const reviews = findReviewsByPropertyId(property.id);
-  const image = findImageById(property.imageId);
-  const hostAvatar = findImageById(host?.avatarId || "");
 
   return (
     <div className="container mx-auto py-8 lg:py-12">
@@ -72,14 +92,13 @@ export default async function PropertyPage({ params }: { params: { id: string } 
       </div>
 
       <div className="relative w-full h-[300px] md:h-[500px] rounded-lg overflow-hidden mb-8">
-        {image && (
+        {property.imageUrl && (
           <Image
-            src={image.imageUrl}
+            src={property.imageUrl}
             alt={property.title}
             fill
             className="object-cover"
             priority
-            data-ai-hint={image.imageHint}
           />
         )}
       </div>
