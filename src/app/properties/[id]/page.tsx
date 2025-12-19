@@ -49,8 +49,8 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
+export default function PropertyPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -115,7 +115,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       status: 'pending' as const,
       createdAt: serverTimestamp(),
       listing: {
-        id: property.id, // Ensure listing ID is stored here
+        id: property.id,
         title: property.title,
         location: property.location,
         imageUrl: property.imageUrl,
