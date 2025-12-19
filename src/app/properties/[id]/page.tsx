@@ -109,6 +109,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
   const reviews = React.useMemo(() => findReviewsByPropertyId(id), [id]);
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
+  
   const subtotal = property ? property.pricePerNight * duration : 0;
   const cleaningFee = property?.cleaningFee || 0;
   const serviceFee = property?.serviceFee || 0;
@@ -191,8 +192,14 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
     );
   }
 
-  if (!property) {
+  if (!isLoading && !property) {
     notFound();
+  }
+  
+  // This check is now safe because we've handled the loading state above.
+  if (!property) {
+    // This return is needed for type-safety, even though notFound() will be called above.
+    return null;
   }
 
   const images = property.imageUrls || [property.imageUrl];
