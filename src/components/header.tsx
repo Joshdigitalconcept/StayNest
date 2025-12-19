@@ -4,8 +4,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { Logo } from "./logo";
+import { useUser } from "@/firebase";
 
 export default function Header() {
+  const { user } = useUser();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -19,9 +22,11 @@ export default function Header() {
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
+            {user && (
             <Button variant="ghost" asChild>
-              <Link href="#">Become a Host</Link>
+              <Link href="/profile?tab=properties">Become a Host</Link>
             </Button>
+            )}
             <UserNav />
           </nav>
         </div>

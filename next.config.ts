@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
         hostname: 'firebasestudio.ai',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

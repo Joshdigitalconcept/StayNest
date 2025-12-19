@@ -4,7 +4,7 @@ import Image from 'next/image';
 export function Logo({ className }: { className?: string }) {
   return (
     <Image
-      src="https://firebasestudio.ai/codelabs/staynest-logo.png"
+      src="https://storage.googleapis.com/static.fast.ai/staynest-logo.png"
       alt="StayNest Logo"
       className={className}
       width={100}

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Loader2 } from "lucide-react";
 import { useUser } from '@/firebase';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -89,19 +90,21 @@ export default function ProfilePage() {
             </TabsContent>
             <TabsContent value="properties">
               <Card>
-                <CardHeader>
-                  <CardTitle>My Properties</CardTitle>
-                  <CardDescription>
-                    Manage your listings and view guest requests.
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>My Properties</CardTitle>
+                    <CardDescription>
+                      Manage your listings and view guest requests.
+                    </CardDescription>
+                  </div>
+                   <Button asChild>
+                    <Link href="/properties/new">Create Listing</Link>
+                  </Button>
                 </CardHeader>
                 <CardContent className="text-center py-12">
                    <h3 className="text-lg font-semibold text-muted-foreground">
                     You have no properties listed.
                   </h3>
-                  <Button asChild className="mt-4">
-                    <a href="#">Become a Host</a>
-                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
