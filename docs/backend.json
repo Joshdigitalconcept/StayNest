@@ -65,18 +65,40 @@
       "description": "Represents a property listing on the StayNest platform.",
       "type": "object",
       "properties": {
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "location": { "type": "string" },
-        "pricePerNight": { "type": "number" },
-        "maxGuests": { "type": "number" },
-        "bedrooms": { "type": "number" },
-        "bathrooms": { "type": "number" },
-        "amenities": { "type": "array", "items": { "type": "string" } },
-        "imageUrl": { "type": "string", "format": "uri" },
         "ownerId": {
           "type": "string",
           "description": "The UID of the user who owns this listing."
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "pricePerNight": {
+          "type": "number"
+        },
+        "maxGuests": {
+          "type": "number"
+        },
+        "bedrooms": {
+          "type": "number"
+        },
+        "bathrooms": {
+          "type": "number"
+        },
+        "amenities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "imageUrl": {
+          "type": "string",
+          "format": "uri"
         }
       },
       "required": [
@@ -87,6 +109,62 @@
         "pricePerNight",
         "maxGuests",
         "imageUrl"
+      ]
+    },
+    "booking": {
+      "title": "Booking",
+      "description": "Represents a booking made by a guest for a listing.",
+      "type": "object",
+      "properties": {
+        "listingId": {
+          "type": "string",
+          "description": "The ID of the booked listing."
+        },
+        "guestId": {
+          "type": "string",
+          "description": "The UID of the guest who made the booking."
+        },
+        "hostId": {
+          "type": "string",
+          "description": "The UID of the host who owns the listing."
+        },
+        "checkInDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "checkOutDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "totalPrice": {
+          "type": "number"
+        },
+        "guests": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "confirmed",
+            "declined"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "listingId",
+        "guestId",
+        "hostId",
+        "checkInDate",
+        "checkOutDate",
+        "totalPrice",
+        "guests",
+        "status",
+        "createdAt"
       ]
     }
   },
@@ -146,8 +224,25 @@
             }
           ]
         }
+      },
+      {
+        "path": "/bookings/{bookingId}",
+        "definition": {
+          "entityName": "booking",
+          "schema": {
+            "$ref": "#/backend/entities/booking"
+          },
+          "description": "Stores booking information. Guests can create bookings, and both guest and host can read them.",
+          "params": [
+            {
+              "name": "bookingId",
+              "description": "The unique identifier of the booking."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\nThe data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
+    "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\n*   **Bookings:** Bookings are stored in a top-level `/bookings` collection. `guestId` and `hostId` are denormalized for authorization independence. This allows guests to see their bookings and hosts to see bookings for their properties without complex queries or rules.\n\nThe data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
   }
 }
+    

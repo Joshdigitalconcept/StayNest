@@ -10,6 +10,8 @@
  * - /roles_admin/{userId}: An existence-based collection to grant users admin
  *   privileges across the application.
  * - /listings/{listingId}: Publicly accessible property listings.
+ * - /bookings/{bookingId}: Private booking details accessible only to the
+ *   guest who made the booking and the host of the property.
  *
  * Key Security Decisions:
  * - User privacy is paramount; listing documents in the /users collection is
@@ -17,9 +19,9 @@
  * - Admin roles are managed via the /roles_admin collection. Client-side
  *   writes to this collection are blocked; it must be managed via a trusted
  *   server environment or the Firebase console.
- * - Authorization data (like 'ownerId') is denormalized directly onto documents
- *   (e.g., listings) to create simple, fast, and scalable security rules that
- *   do not require expensive cross-document `get()` calls.
+ * - Authorization data (like 'ownerId', 'guestId', 'hostId') is denormalized directly onto documents
+ *   to create simple, fast, and scalable security rules that do not require
+ *   expensive cross-document `get()` or `exists()` calls.
  * - By default, all operations are denied unless explicitly granted.
  */
 rules_version = '2';
@@ -64,22 +66,13 @@ service cloud.firestore {
      *   and can only read or write their own data. Admins have read/write
      *   access for moderation.
      * @path /users/{userId}
-     * @allow (create) A new user with uid 'user_abc' creating their own profile
-     *   document at /users/user_abc.
-     * @allow (get) An admin reading the profile of user 'user_abc'.
-     * @deny (list) Any user, including an admin, attempting to list all
-     *   documents in the /users collection.
-     * @deny (update) A user 'user_abc' trying to modify the profile of another
-     *   user 'user_xyz'.
-     * @principle Restricts access to a user's own data tree and enforces
-     *   relational integrity between the document ID and its content.
      */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if (isOwner(userId) || isAdmin()) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
+      allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
+      allow delete: if (isOwner(userId) || isAdmin());
     }
 
     /**
@@ -87,11 +80,6 @@ service cloud.firestore {
      *   a user admin privileges. This collection is read-only for admins and
      *   completely inaccessible to non-admins to prevent role enumeration.
      * @path /roles_admin/{userId}
-     * @allow (get) An authenticated admin checking if 'user_xyz' is also an admin.
-     * @deny (get) A non-admin user trying to read any document in this collection.
-     * @deny (create, update, delete) Any user attempting to modify roles from the client.
-     * @principle Implements existence-based global roles and protects role
-     *   information from being discovered or modified by unauthorized users.
      */
     match /roles_admin/{userId} {
       allow get: if isAdmin();
@@ -106,21 +94,28 @@ service cloud.firestore {
      *   to read. Only the user who created the listing (the owner) can create,
      *   update, or delete it.
      * @path /listings/{listingId}
-     * @allow (get, list) Any user, signed in or not, viewing a specific
-     *   listing or a list of all listings.
-     * @deny (create) An authenticated user trying to create a listing without
-     *   a valid 'ownerId' field matching their own UID.
-     * @deny (update) A user 'user_abc' trying to update a listing owned by
-     *   'user_xyz'.
-     * @principle Implements a public-read, owner-only-write model for shared
-     *   content, enforced by a denormalized ownership field.
      */
     match /listings/{listingId} {
-      allow get: if true;
-      allow list: if true;
+      allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
-      allow delete: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    /**
+     * @description Stores booking details.
+     *   - Guests can create their own bookings.
+     *   - The guest who made the booking and the host of the property can read it.
+     *   - The host can update the booking status (e.g., to confirm or decline).
+     *   - The guest can cancel (delete) their own booking.
+     * @path /bookings/{bookingId}
+     */
+    match /bookings/{bookingId} {
+      allow get, list: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.hostId == request.auth.uid; // Host can change status
+      allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid; // Guest can cancel
     }
   }
 }
+    

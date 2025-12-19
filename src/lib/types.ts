@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export interface Property {
   id: string;
   title: string;
@@ -14,3 +16,24 @@ export interface Property {
   createdAt: any;
   updatedAt: any;
 }
+
+export interface Booking {
+  id: string;
+  listingId: string;
+  guestId: string;
+  hostId: string;
+  checkInDate: Timestamp;
+  checkOutDate: Timestamp;
+  totalPrice: number;
+  guests: number;
+  status: 'pending' | 'confirmed' | 'declined';
+  createdAt: Timestamp;
+  // Denormalized data for easier display
+  listing?: {
+    title: string;
+    location: string;
+    imageUrl: string;
+  };
+}
+
+    

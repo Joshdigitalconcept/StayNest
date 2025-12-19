@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import * as React from 'react';
 import {
   findUserById,
@@ -29,9 +29,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { doc, addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
 import type { Property } from "@/lib/types";
+import { DateRange } from "react-day-picker";
+import { addDays, differenceInCalendarDays } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const amenityIcons: { [key: string]: React.ElementType } = {
   Wifi,
@@ -48,6 +51,9 @@ const amenityIcons: { [key: string]: React.ElementType } = {
 export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const firestore = useFirestore();
+  const { user } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
   
   const propertyRef = useMemoFirebase(
     () => (firestore && resolvedParams.id) ? doc(firestore, "listings", resolvedParams.id) : null,
@@ -55,6 +61,87 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
   );
   
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
+
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(),
+    to: addDays(new Date(), 5),
+  });
+  const [guests, setGuests] = React.useState(2);
+  const [isReserving, setIsReserving] = React.useState(false);
+
+  const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
+  const cleaningFee = 50;
+  const serviceFee = 75;
+  const subtotal = property ? property.pricePerNight * duration : 0;
+  const totalPrice = subtotal + cleaningFee + serviceFee;
+
+  const handleReservation = async () => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please log in to reserve a property.",
+      });
+      router.push('/login');
+      return;
+    }
+
+    if (!property || !date?.from || !date?.to || !duration) {
+      toast({
+        variant: "destructive",
+        title: "Reservation Error",
+        description: "Please select valid dates for your stay.",
+      });
+      return;
+    }
+
+    setIsReserving(true);
+
+    const bookingData = {
+      guestId: user.uid,
+      hostId: property.ownerId,
+      listingId: property.id,
+      checkInDate: Timestamp.fromDate(date.from),
+      checkOutDate: Timestamp.fromDate(date.to),
+      guests,
+      totalPrice,
+      status: 'pending' as const,
+      createdAt: serverTimestamp(),
+      listing: { // Denormalized data
+        title: property.title,
+        location: property.location,
+        imageUrl: property.imageUrl,
+      },
+    };
+
+    const bookingsColRef = collection(firestore, 'bookings');
+    
+    addDoc(bookingsColRef, bookingData)
+      .then(() => {
+        toast({
+          title: "Reservation Submitted!",
+          description: "Your request has been sent to the host for approval.",
+        });
+        router.push('/profile?tab=bookings');
+      })
+      .catch((error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: bookingsColRef.path,
+          operation: 'create',
+          requestResourceData: bookingData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
+        toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: "Could not submit your reservation. Please try again.",
+        });
+      })
+      .finally(() => {
+        setIsReserving(false);
+      });
+  };
 
   // Still using mock data for host and reviews for now
   const host = findUserById('user-1'); // Placeholder
@@ -192,33 +279,48 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
             <CardContent className="space-y-4">
               <Calendar
                 mode="range"
+                selected={date}
+                onSelect={setDate}
+                numberOfMonths={1}
                 className="rounded-md border"
+                disabled={{ before: new Date() }}
               />
                <div className="grid gap-2">
                  <Label htmlFor="guests">Guests</Label>
-                 <Input id="guests" type="number" defaultValue={2} min={1} max={property.maxGuests} />
+                 <Input 
+                   id="guests" 
+                   type="number" 
+                   value={guests} 
+                   onChange={(e) => setGuests(Number(e.target.value))} 
+                   min={1} 
+                   max={property.maxGuests} 
+                  />
                </div>
-              <Button className="w-full" size="lg">Reserve</Button>
+              <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving}>
+                {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
+              </Button>
               <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>${property.pricePerNight} x 5 nights</span>
-                  <span>${property.pricePerNight * 5}</span>
+              {duration > 0 && (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>${property.pricePerNight} x {duration} nights</span>
+                    <span>${subtotal}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cleaning fee</span>
+                    <span>${cleaningFee}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Service fee</span>
+                    <span>${serviceFee}</span>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex justify-between font-bold">
+                    <span>Total</span>
+                    <span>${totalPrice}</span>
+                  </div>
                 </div>
-                 <div className="flex justify-between">
-                  <span>Cleaning fee</span>
-                  <span>$50</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Service fee</span>
-                  <span>$75</span>
-                </div>
-                <Separator className="my-2" />
-                <div className="flex justify-between font-bold">
-                  <span>Total</span>
-                  <span>${property.pricePerNight * 5 + 50 + 75}</span>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -226,3 +328,5 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
     </div>
   );
 }
+
+    
