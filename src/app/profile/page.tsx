@@ -103,7 +103,11 @@ export default function ProfilePage() {
               <CardDescription>Joined in {user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : ''}</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <Button variant="outline"><Edit className="mr-2 h-4 w-4" /> Edit Profile</Button>
+               <Button variant="outline" asChild>
+                <Link href="/profile/edit">
+                  <Edit className="mr-2 h-4 w-4" /> Edit Profile
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
