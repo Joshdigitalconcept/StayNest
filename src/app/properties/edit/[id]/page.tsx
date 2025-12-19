@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError, useDoc, useMemoFirebase } from '@/firebase';
 import { updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
@@ -52,7 +52,9 @@ const formSchema = z.object({
   }),
 });
 
-export default function EditPropertyPage({ params: { id } }: { params: { id: string } }) {
+export default function EditPropertyPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
