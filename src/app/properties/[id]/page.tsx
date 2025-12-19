@@ -49,8 +49,8 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -345,5 +345,3 @@ export default function PropertyPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    
