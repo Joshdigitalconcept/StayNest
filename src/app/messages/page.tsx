@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Avatar,
   AvatarFallback,
@@ -8,11 +10,12 @@ import { Input } from "@/components/ui/input";
 import {
   findUserById,
   findImageById,
-  mockUsers,
 } from "@/lib/placeholder-data";
 import { SendHorizonal } from "lucide-react";
+import { useUser } from "@/firebase";
 
 export default function MessagesPage() {
+  const { user } = useUser();
   const conversations = [
     {
       userId: "user-1",
@@ -101,9 +104,9 @@ export default function MessagesPage() {
               <div className="bg-primary text-primary-foreground p-3 rounded-lg max-w-xs">
                 <p>Hi! Your check-in is confirmed for 3 PM next Friday. We look forward to hosting you!</p>
               </div>
-              <Avatar className="h-8 w-8">
-                 <AvatarImage src="https://picsum.photos/seed/my-avatar/100/100" alt="My avatar" />
-                <AvatarFallback>ME</AvatarFallback>
+               <Avatar className="h-8 w-8">
+                 {user?.photoURL && <AvatarImage src={user.photoURL} alt="My avatar" />}
+                <AvatarFallback>{user?.displayName?.charAt(0) || 'ME'}</AvatarFallback>
               </Avatar>
             </div>
              <div className="flex items-end gap-2">

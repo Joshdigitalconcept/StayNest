@@ -1,3 +1,6 @@
+'use client';
+
+import { useSearchParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,11 +11,37 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { findImageById } from "@/lib/placeholder-data";
-import { Edit } from "lucide-react";
+import { Edit, Loader2 } from "lucide-react";
+import { useUser } from '@/firebase';
+import { useEffect, useState } from 'react';
 
 export default function ProfilePage() {
-  const avatarImage = findImageById("avatar-1");
+  const { user, isUserLoading } = useUser();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'bookings');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  if (isUserLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <p>Please log in to view your profile.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -21,11 +50,11 @@ export default function ProfilePage() {
           <Card>
             <CardHeader className="items-center text-center">
               <Avatar className="h-24 w-24 mb-4">
-                {avatarImage && <AvatarImage src={avatarImage.imageUrl} alt="User Avatar" />}
-                <AvatarFallback className="text-3xl">U</AvatarFallback>
+                {user.photoURL && <AvatarImage src={user.photoURL} alt="User Avatar" />}
+                <AvatarFallback className="text-3xl">{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
               </Avatar>
-              <CardTitle className="text-2xl">Sarah Lee</CardTitle>
-              <CardDescription>Joined in 2023</CardDescription>
+              <CardTitle className="text-2xl">{user.displayName}</CardTitle>
+              <CardDescription>Joined in {user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : ''}</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <Button variant="outline">
@@ -35,7 +64,7 @@ export default function ProfilePage() {
           </Card>
         </div>
         <div className="md:col-span-3">
-          <Tabs defaultValue="bookings">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="properties">My Properties</TabsTrigger>

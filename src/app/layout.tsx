@@ -3,6 +3,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import Header from '@/components/header';
 import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'StayNest - Find Your Perfect Getaway',
@@ -22,9 +23,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased')}>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Toaster />
+        <FirebaseClientProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );
