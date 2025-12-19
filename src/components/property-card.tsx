@@ -6,7 +6,7 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Edit, Trash2 } from "lucide-react";
+import { Star, Edit, Trash2, Loader2 } from "lucide-react";
 import type { Property } from "@/lib/types";
 import {
   AlertDialog,
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useFirestore } from "@/firebase";
+import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { doc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,24 +31,35 @@ interface PropertyCardProps {
 export default function PropertyCard({ property, showAdminControls = false }: PropertyCardProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigation
-    if (!firestore) return;
-
+    e.preventDefault(); 
+    if (!firestore || !property.id) return;
+    
+    setIsDeleting(true);
     const docRef = doc(firestore, 'listings', property.id);
+
     try {
       await deleteDoc(docRef);
       toast({
         title: "Listing Deleted",
         description: "Your property has been successfully deleted.",
       });
+      // The component will unmount as the data is removed from the collection
     } catch (error) {
+       const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
       toast({
         variant: "destructive",
         title: "Error",
         description: "Could not delete the listing. Please try again.",
       });
+      setIsDeleting(false); // Only reset if there's an error
     }
   };
 
@@ -91,7 +102,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
               <Edit className="mr-2 h-4 w-4" /> Edit
             </Link>
           </Button>
-          <AlertDialog>
+          <AlertDialog onOpenChange={() => setIsDeleting(false)}>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" className="w-full" onClick={(e) => e.preventDefault()}>
                 <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -106,8 +117,11 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Continue</AlertDialogAction>
+                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Continue
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
