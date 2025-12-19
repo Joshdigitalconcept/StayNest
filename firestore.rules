@@ -118,10 +118,9 @@ service cloud.firestore {
     match /listings/{listingId} {
       allow get: if true;
       allow list: if true;
-      // CRITICAL: Cannot implement owner-only writes. The 'listing' entity (or the entity it references) is missing an 'ownerId' or 'authorId' field.
-      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field. (e.g., isSignedIn() && request.resource.data.ownerId == request.auth.uid)
-      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field. (e.g., isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid)
-      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field. (e.g., isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid)
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid;
     }
   }
 }

@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 const amenitiesList = [
@@ -48,7 +48,7 @@ const formSchema = z.object({
 export default function NewPropertyPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -75,27 +75,38 @@ export default function NewPropertyPage() {
       return;
     }
 
-    try {
-      await addDoc(collection(firestore, 'listings'), {
-        ...values,
-        ownerId: user.uid,
-        rating: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+    const listingData = {
+      ...values,
+      ownerId: user.uid,
+      rating: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
 
-      toast({
-        title: 'Listing Created!',
-        description: 'Your property has been successfully listed.',
+    const listingsColRef = collection(firestore, 'listings');
+
+    addDoc(listingsColRef, listingData)
+      .then(() => {
+        toast({
+          title: 'Listing Created!',
+          description: 'Your property has been successfully listed.',
+        });
+        router.push('/profile?tab=properties');
+      })
+      .catch((error: any) => {
+        const permissionError = new FirestorePermissionError({
+          path: listingsColRef.path,
+          operation: 'create',
+          requestResourceData: listingData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
+        toast({
+          variant: 'destructive',
+          title: 'Uh oh! Something went wrong.',
+          description: 'Could not create listing. Please try again.',
+        });
       });
-      router.push('/profile?tab=properties');
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: 'Could not create listing. Please try again.',
-      });
-    }
   }
 
   return (
@@ -256,7 +267,7 @@ export default function NewPropertyPage() {
                 )}
               />
 
-              <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isUserLoading}>
                 {form.formState.isSubmitting ? 'Creating...' : 'Create Listing'}
               </Button>
             </form>

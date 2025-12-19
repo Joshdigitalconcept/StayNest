@@ -59,6 +59,20 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "listing": {
+      "title": "Listing",
+      "description": "Represents a property listing on the StayNest platform.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the user who owns this listing."
+        }
+      },
+      "required": [
+        "ownerId"
+      ]
     }
   },
   "auth": {
@@ -107,7 +121,7 @@
         "definition": {
           "entityName": "listing",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/backend/entities/listing"
           },
           "description": "Stores property listings. Includes denormalized `ownerId` for authorization independence.",
           "params": [
