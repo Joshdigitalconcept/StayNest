@@ -87,7 +87,7 @@ const amenityIcons: { [key: string]: React.ElementType } = {
 
 export default function PropertyPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = params?.id as string || '';
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -114,9 +114,8 @@ export default function PropertyPage() {
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property?.id), [favorites, property]);
 
-
   const reviews = React.useMemo(() => findReviewsByPropertyId(id), [id]);
-
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -125,17 +124,13 @@ export default function PropertyPage() {
     );
   }
 
-  if (!isLoading && !property) {
-    notFound();
-  }
-  
   if (!property) {
-    return null;
+    notFound();
   }
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
   
-  const subtotal = property ? property.pricePerNight * duration : 0;
+  const subtotal = property.pricePerNight * duration;
   const cleaningFee = property?.cleaningFee || 0;
   const serviceFee = property?.serviceFee || 0;
   const totalPrice = subtotal + cleaningFee + serviceFee;
