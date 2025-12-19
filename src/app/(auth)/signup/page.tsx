@@ -21,7 +21,7 @@ export default function SignupPage() {
           </div>
           <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
           <CardDescription>
-            Join StayZen to find your perfect stay.
+            Join StayNext to find your perfect stay.
           </CardDescription>
         </CardHeader>
         <CardContent>

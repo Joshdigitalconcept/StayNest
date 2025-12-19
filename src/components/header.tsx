@@ -13,7 +13,7 @@ export default function Header() {
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <MountainSnow className="h-6 w-6 text-primary" />
             <span className="font-bold sm:inline-block font-headline text-lg">
-              StayZen
+              StayNext
             </span>
           </Link>
         </div>

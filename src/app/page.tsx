@@ -33,7 +33,7 @@ export default function Home() {
             Find Your Next Stay
           </h1>
           <p className="text-lg md:text-xl max-w-2xl">
-            Unforgettable trips start with StayZen. Find adventures nearby or in faraway places and access unique homes, experiences, and places around the world.
+            Unforgettable trips start with StayNext. Find adventures nearby or in faraway places and access unique homes, experiences, and places around the world.
           </p>
           <Card className="w-full max-w-4xl p-4 bg-background/90 backdrop-blur-sm">
             <form className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-10 gap-4 items-center">
@@ -110,7 +110,7 @@ export default function Home() {
       
       <footer className="py-6 border-t">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} StayZen. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} StayNext. All rights reserved.</p>
         </div>
       </footer>
     </div>
