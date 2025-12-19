@@ -35,7 +35,7 @@ const amenitiesList = [
 ];
 
 // IMPORTANT: Get your free API key from https://api.imgbb.com/
-const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY';
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'ed5db0bd942fd835bfbbce28c31bc2b9';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
