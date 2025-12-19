@@ -39,3 +39,11 @@ export interface Booking {
     imageUrl: string;
   };
 }
+
+export interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  profilePictureUrl?: string;
+}

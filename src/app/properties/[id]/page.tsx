@@ -29,13 +29,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { doc, addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
 import type { Property } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import type { User } from '@/lib/types';
 
 const amenityIcons: { [key: string]: React.ElementType } = {
   Wifi,
@@ -49,8 +50,35 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
+function HostProfile({ ownerId }: { ownerId: string }) {
+  const firestore = useFirestore();
+  const hostRef = useMemoFirebase(
+    () => firestore ? doc(firestore, "users", ownerId) : null,
+    [firestore, ownerId]
+  );
+  const { data: host } = useDoc<User>(hostRef);
+
+  return (
+    <div className="flex justify-between items-center">
+      <div>
+        <h2 className="text-2xl font-semibold">
+          Entire place hosted by {host?.firstName || 'Host'}
+        </h2>
+        <div className="flex items-center gap-4 text-muted-foreground mt-1">
+          <slot name="property-details" />
+        </div>
+      </div>
+      <Avatar className="h-16 w-16">
+        {host?.profilePictureUrl && <AvatarImage src={host.profilePictureUrl} alt={host.firstName} />}
+        <AvatarFallback>{host?.firstName?.charAt(0) || 'H'}</AvatarFallback>
+      </Avatar>
+    </div>
+  );
+}
+
+
+export default function PropertyPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -62,12 +90,6 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
   );
   
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
-
-  const hostQuery = useMemoFirebase(
-    () => (firestore && property) ? doc(firestore, "users", property.ownerId) : null,
-    [firestore, property]
-  );
-  const { data: host } = useDoc(hostQuery);
 
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(),
@@ -212,24 +234,15 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
           <div className="border-b pb-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-semibold">
-                  Entire place hosted by {host?.firstName || 'Host'}
-                </h2>
-                <div className="flex items-center gap-4 text-muted-foreground mt-1">
-                  <span>{property.maxGuests} guests</span>
-                  <span>&middot;</span>
-                  <span>{property.bedrooms} bedrooms</span>
-                  <span>&middot;</span>
-                  <span>{property.bathrooms} bathrooms</span>
-                </div>
+            <HostProfile ownerId={property.ownerId}>
+              <div slot="property-details">
+                <span>{property.maxGuests} guests</span>
+                <span>&middot;</span>
+                <span>{property.bedrooms} bedrooms</span>
+                <span>&middot;</span>
+                <span>{property.bathrooms} bathrooms</span>
               </div>
-              <Avatar className="h-16 w-16">
-                {host?.profilePictureUrl && <AvatarImage src={host.profilePictureUrl} alt={host.firstName} />}
-                <AvatarFallback>{host?.firstName?.charAt(0) || 'H'}</AvatarFallback>
-              </Avatar>
-            </div>
+            </HostProfile>
           </div>
 
           <div className="border-b pb-6">
@@ -239,7 +252,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
           <div className="border-b pb-6">
             <h3 className="text-xl font-semibold mb-4">What this place offers</h3>
             <div className="grid grid-cols-2 gap-4">
-              {property.amenities.map((amenity) => {
+              {property.amenities && property.amenities.map((amenity) => {
                 const Icon = amenityIcons[amenity] || Plus;
                 return (
                   <div key={amenity} className="flex items-center gap-3">
