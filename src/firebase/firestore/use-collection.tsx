@@ -76,10 +76,13 @@ export function useCollection<T = any>(
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = snapshot.docs.map(doc => ({
-            ...(doc.data() as T),
-            id: doc.id,
-        }));
+        const results: ResultItemType[] = snapshot.docs.map(doc => {
+            const docData = doc.data() as T;
+            return {
+                ...docData,
+                id: doc.id,
+            };
+        });
         setData(results);
         setError(null);
         setIsLoading(false);
@@ -107,8 +110,10 @@ export function useCollection<T = any>(
 
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+    console.warn('The query/reference passed to useCollection was not memoized with useMemoFirebase. This can lead to infinite loops and performance issues.', memoizedTargetRefOrQuery);
   }
+
   return { data, isLoading, error };
 }
