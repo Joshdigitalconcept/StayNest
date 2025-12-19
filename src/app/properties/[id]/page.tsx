@@ -20,6 +20,7 @@ import {
   Plus,
   Loader2,
   Expand,
+  Heart,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,8 +29,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc } from "firebase/firestore";
 import type { Property } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
@@ -106,6 +107,14 @@ export default function PropertyPage() {
   const [guests, setGuests] = React.useState(2);
   const [isReserving, setIsReserving] = React.useState(false);
 
+  const userFavoritesQuery = useMemoFirebase(
+    () => (user && property) ? collection(firestore, `users/${user.uid}/favorites`) : null,
+    [user, firestore, property]
+  );
+  const { data: favorites } = useCollection(userFavoritesQuery);
+  const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property?.id), [favorites, property]);
+
+
   const reviews = React.useMemo(() => findReviewsByPropertyId(id), [id]);
 
   if (isLoading) {
@@ -130,6 +139,44 @@ export default function PropertyPage() {
   const cleaningFee = property?.cleaningFee || 0;
   const serviceFee = property?.serviceFee || 0;
   const totalPrice = subtotal + cleaningFee + serviceFee;
+
+  const handleFavoriteToggle = async () => {
+    if (!user || !property) {
+      toast({
+        variant: "destructive",
+        title: "Please log in",
+        description: "You need to be logged in to favorite a listing.",
+      });
+      router.push('/login');
+      return;
+    }
+
+    const favoriteRef = doc(firestore, `users/${user.uid}/favorites`, property.id);
+
+    try {
+      if (isFavorited) {
+        await deleteDoc(favoriteRef);
+        toast({ title: "Removed from favorites." });
+      } else {
+        await setDoc(favoriteRef, { 
+          listingId: property.id,
+          favoritedAt: serverTimestamp() 
+        });
+        toast({ title: "Added to favorites!" });
+      }
+    } catch (error) {
+       const permissionError = new FirestorePermissionError({
+          path: favoriteRef.path,
+          operation: isFavorited ? 'delete' : 'create',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+      });
+    }
+  };
 
   const handleReservation = async () => {
     if (!user) {
@@ -209,9 +256,17 @@ export default function PropertyPage() {
   return (
     <div className="container mx-auto py-8 lg:py-12">
       <div className="space-y-4 mb-8">
-        <h1 className="text-3xl lg:text-4xl font-bold font-headline">
-          {property.title}
-        </h1>
+        <div className="flex justify-between items-start">
+            <h1 className="text-3xl lg:text-4xl font-bold font-headline">
+            {property.title}
+            </h1>
+            {user && (
+                <Button variant="outline" onClick={handleFavoriteToggle}>
+                <Heart className={`mr-2 h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+                {isFavorited ? 'Favorited' : 'Favorite'}
+                </Button>
+            )}
+        </div>
         <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
@@ -382,3 +437,5 @@ export default function PropertyPage() {
     </div>
   );
 }
+
+    

@@ -46,4 +46,12 @@ export interface User {
   lastName: string;
   email: string;
   profilePictureUrl?: string;
+  favorites?: string[];
 }
+
+export interface Favorite {
+    id: string;
+    listing: Property;
+}
+
+    

@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, MessageSquare, User, LogOut, Loader2 } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, Loader2, Heart } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -72,6 +72,12 @@ export function UserNav() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
+            <Link href="/favorites">
+                <Heart className="mr-2 h-4 w-4" />
+                <span>Favorites</span>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
             <Link href="/messages">
               <MessageSquare className="mr-2 h-4 w-4" />
               <span>Messages</span>
@@ -93,3 +99,5 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
+
+    

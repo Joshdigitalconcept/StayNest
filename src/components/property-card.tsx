@@ -6,7 +6,7 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Edit, Trash2, Loader2 } from "lucide-react";
+import { Star, Edit, Trash2, Loader2, Heart } from "lucide-react";
 import type { Property } from "@/lib/types";
 import {
   AlertDialog,
@@ -19,9 +19,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { doc, deleteDoc } from "firebase/firestore";
+import { useFirestore, errorEmitter, FirestorePermissionError, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { doc, deleteDoc, collection, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 interface PropertyCardProps {
   property: Property;
@@ -30,8 +31,17 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ property, showAdminControls = false }: PropertyCardProps) {
   const firestore = useFirestore();
+  const { user } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = React.useState(false);
+  
+  const userFavoritesQuery = useMemoFirebase(
+    () => user ? collection(firestore, `users/${user.uid}/favorites`) : null,
+    [user, firestore]
+  );
+  const { data: favorites } = useCollection(userFavoritesQuery);
+  const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property.id]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -63,10 +73,64 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
     }
   };
 
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Please log in",
+        description: "You need to be logged in to favorite a listing.",
+      });
+      router.push('/login');
+      return;
+    }
+
+    const favoriteRef = doc(firestore, `users/${user.uid}/favorites`, property.id);
+
+    try {
+      if (isFavorited) {
+        // Unfavorite
+        await deleteDoc(favoriteRef);
+        toast({ title: "Removed from favorites." });
+      } else {
+        // Favorite
+        await setDoc(favoriteRef, { 
+          listingId: property.id,
+          favoritedAt: serverTimestamp() 
+        });
+        toast({ title: "Added to favorites!" });
+      }
+    } catch (error) {
+       const permissionError = new FirestorePermissionError({
+          path: favoriteRef.path,
+          operation: isFavorited ? 'delete' : 'create',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+      });
+    }
+  };
+
+
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-xl flex flex-col">
       <Link href={`/properties/${property.id}`} className="block">
         <div className="relative h-48 w-full">
+          {user && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute top-2 left-2 z-10 rounded-full bg-background/70 hover:bg-background"
+              onClick={handleFavoriteToggle}
+            >
+              <Heart className={`h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-foreground'}`} />
+            </Button>
+          )}
           {property.imageUrl && (
             <Image
               src={property.imageUrl}
@@ -131,3 +195,5 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
     </Card>
   );
 }
+
+    

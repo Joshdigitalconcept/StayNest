@@ -49,6 +49,13 @@
           "type": "string",
           "description": "Timestamp indicating when the user account was last updated.",
           "format": "date-time"
+        },
+        "favorites": {
+          "type": "array",
+          "description": "A list of listing IDs that the user has favorited.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -186,6 +193,26 @@
         "status",
         "createdAt"
       ]
+    },
+    "favorite": {
+      "title": "Favorite",
+      "description": "Represents a user's favorited listing.",
+      "type": "object",
+      "properties": {
+        "listingId": {
+          "type": "string",
+          "description": "The ID of the favorited listing."
+        },
+        "favoritedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp indicating when the listing was favorited."
+        }
+      },
+      "required": [
+        "listingId",
+        "favoritedAt"
+      ]
     }
   },
   "auth": {
@@ -209,6 +236,26 @@
             {
               "name": "userId",
               "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/favorites/{listingId}",
+        "definition": {
+          "entityName": "favorite",
+          "schema": {
+            "$ref": "#/backend/entities/favorite"
+          },
+          "description": "Stores a user's favorite listings. Each document represents a single favorited item.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "listingId",
+              "description": "The unique identifier of the listing."
             }
           ]
         }
@@ -262,6 +309,7 @@
         }
       }
     ],
-    "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\n*   **Bookings:** Bookings are stored in a top-level `/bookings` collection. `guestId` and `hostId` are denormalized for authorization independence. This allows guests to see their bookings and hosts to see bookings for their properties without complex queries or rules.\n\nThe data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
+    "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\n*   **Bookings:** Bookings are stored in a top-level `/bookings` collection. `guestId` and `hostId` are denormalized for authorization independence. This allows guests to see their bookings and hosts to see bookings for their properties without complex queries or rules.\n\n*   **Favorites:** Favorites are stored in a subcollection `users/{userId}/favorites/{listingId}`. This provides a scalable way to store a user's favorite listings. This structure allows for simple, secure queries and avoids the 'array-contains' limitations and the 1MB document size limit.\n\nThe data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
   }
 }
+    
