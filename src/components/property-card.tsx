@@ -34,7 +34,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault(); 
+    e.preventDefault();
     if (!firestore || !property.id) return;
     
     setIsDeleting(true);
@@ -46,7 +46,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
         title: "Listing Deleted",
         description: "Your property has been successfully deleted.",
       });
-      // The component will unmount as the data is removed from the collection
+      // The component will unmount if the parent component's state updates
     } catch (error) {
        const permissionError = new FirestorePermissionError({
           path: docRef.path,
@@ -59,7 +59,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
         title: "Error",
         description: "Could not delete the listing. Please try again.",
       });
-      setIsDeleting(false); // Only reset if there's an error
+      setIsDeleting(false);
     }
   };
 
@@ -102,10 +102,11 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
               <Edit className="mr-2 h-4 w-4" /> Edit
             </Link>
           </Button>
-          <AlertDialog onOpenChange={() => setIsDeleting(false)}>
+          <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="w-full" onClick={(e) => e.preventDefault()}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              <Button variant="destructive" size="sm" className="w-full">
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />} 
+                Delete
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
