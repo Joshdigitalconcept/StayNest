@@ -49,16 +49,16 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = React.use(params);
+export default function PropertyPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   
   const propertyRef = useMemoFirebase(
-    () => (firestore && resolvedParams.id) ? doc(firestore, "listings", resolvedParams.id) : null,
-    [firestore, resolvedParams.id]
+    () => (firestore && id) ? doc(firestore, "listings", id) : null,
+    [firestore, id]
   );
   
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
@@ -151,7 +151,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       });
   };
 
-  const reviews = findReviewsByPropertyId(resolvedParams.id);
+  const reviews = findReviewsByPropertyId(id);
   
   if (isLoading) {
     return (
