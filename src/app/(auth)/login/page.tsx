@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MountainSnow } from "lucide-react";
+import { Logo } from "@/components/logo";
 
 export default function LoginPage() {
   return (
@@ -17,7 +17,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
-             <MountainSnow className="h-8 w-8 text-primary" />
+             <Logo className="h-12 w-12" />
           </div>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>

@@ -17,7 +17,7 @@ import { findImageById } from "@/lib/placeholder-data";
 
 export function UserNav() {
   // Mock a logged-in user to show full nav functionality
-  const currentUser = { name: "Sarah Lee", email: "user@staynext.com" }; 
+  const currentUser = { name: "Sarah Lee", email: "user@staynest.com" }; 
   const avatarImage = findImageById('avatar-1');
 
   if (!currentUser) {

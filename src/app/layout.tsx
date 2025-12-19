@@ -5,7 +5,7 @@ import Header from '@/components/header';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'StayNext - Find Your Perfect Getaway',
+  title: 'StayNest - Find Your Perfect Getaway',
   description: 'Book unique homes and experiences all over the world.',
 };
 

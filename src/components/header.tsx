@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { MountainSnow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
+import { Logo } from "./logo";
 
 export default function Header() {
   return (
@@ -11,9 +11,9 @@ export default function Header() {
       <div className="container flex h-16 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <MountainSnow className="h-6 w-6 text-primary" />
+            <Logo className="h-8 w-8" />
             <span className="font-bold sm:inline-block font-headline text-lg">
-              StayNext
+              StayNest
             </span>
           </Link>
         </div>
