@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useParams } from "next/navigation";
 import * as React from 'react';
 import {
   findReviewsByPropertyId,
@@ -84,7 +84,9 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params: { id } }: { params: { id: string } }) {
+export default function PropertyPage() {
+  const params = useParams();
+  const id = params.id as string;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
