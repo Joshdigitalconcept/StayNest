@@ -1,3 +1,82 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "A beautiful modern living room with a view of a lake and mountains.",
+      "imageUrl": "https://images.unsplash.com/photo-1696986296905-e631802befb0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxsaXZpbmclMjByb29tJTIwbGFrZXxlbnwwfHx8fDE3NjYxMzYwNDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "living room lake"
+    },
+    {
+      "id": "property-1",
+      "description": "A cozy cabin in the woods with a warm interior.",
+      "imageUrl": "https://images.unsplash.com/photo-1574573146255-2670cff03427?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjYWJpbiUyMHdvb2RzfGVufDB8fHx8MTc2NjA2OTU5N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cabin woods"
+    },
+    {
+      "id": "property-2",
+      "description": "A modern, minimalist apartment in a bustling city.",
+      "imageUrl": "https://images.unsplash.com/photo-1738688761832-b6be60fbba6e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjaXR5JTIwYXBhcnRtZW50fGVufDB8fHx8MTc2NjAxMDE2MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city apartment"
+    },
+    {
+      "id": "property-3",
+      "description": "A luxurious beach house with a view of the ocean.",
+      "imageUrl": "https://images.unsplash.com/photo-1544143086-828f66ac3945?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxiZWFjaCUyMGhvdXNlfGVufDB8fHx8MTc2NjEwNjYxMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "beach house"
+    },
+    {
+      "id": "property-4",
+      "description": "A charming rustic farmhouse in the countryside.",
+      "imageUrl": "https://images.unsplash.com/photo-1652117053146-afaaca92b655?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxmYXJtaG91c2UlMjBjb3VudHJ5c2lkZXxlbnwwfHx8fDE3NjYxMzYwNDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "farmhouse countryside"
+    },
+    {
+      "id": "property-5",
+      "description": "A stylish loft with exposed brick walls.",
+      "imageUrl": "https://images.unsplash.com/photo-1505873242700-f289a29e1e0f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsb2Z0JTIwaW50ZXJpb3J8ZW58MHx8fHwxNzY2MTM0NjQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "loft interior"
+    },
+    {
+      "id": "property-6",
+      "description": "A serene villa with a private pool.",
+      "imageUrl": "https://images.unsplash.com/photo-1728049006343-9ee0187643d5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHx2aWxsYSUyMHBvb2x8ZW58MHx8fHwxNzY2MDY0NzE5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "villa pool"
+    },
+    {
+      "id": "property-7",
+      "description": "A downtown penthouse with panoramic city views.",
+      "imageUrl": "https://images.unsplash.com/photo-1568115286680-d203e08a8be6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjaXR5JTIwcGVudGhvdXNlfGVufDB8fHx8MTc2NjEzMTQ2OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city penthouse"
+    },
+    {
+      "id": "property-8",
+      "description": "A quiet suburban house with a green backyard.",
+      "imageUrl": "https://images.unsplash.com/photo-1510627489930-0c1b0bfb6785?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8c3VidXJiYW4lMjBob3VzZXxlbnwwfHx8fDE3NjYwNjkyNDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "suburban house"
+    },
+    {
+      "id": "avatar-1",
+      "description": "Avatar for Sarah Lee",
+      "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc2NjA3MDMzMXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar-2",
+      "description": "Avatar for Mike Johnson",
+      "imageUrl": "https://images.unsplash.com/photo-1636377985931-898218afd306?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjYwNTI3Njl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "Avatar for Emily Chen",
+      "imageUrl": "https://images.unsplash.com/photo-1525134479668-1bee5c7c6845?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx3b21hbiUyMHNtaWxpbmd8ZW58MHx8fHwxNzY2MDY0NDk4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman smiling"
+    },
+    {
+      "id": "avatar-4",
+      "description": "Avatar for David Rodriguez",
+      "imageUrl": "https://images.unsplash.com/photo-1639747280804-dd2d6b3d88ac?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtYW4lMjBzbWlsaW5nfGVufDB8fHx8MTc2NjA4ODk2M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man smiling"
+    }
+  ]
 }
