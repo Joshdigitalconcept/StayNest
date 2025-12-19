@@ -375,7 +375,48 @@ export default function NewPropertyPage() {
                 <FormField control={form.control} name="bathrooms" render={({ field }) => ( <FormItem> <FormLabel>Bathrooms</FormLabel> <FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl> <FormMessage /> </FormItem> )}/>
               </div>
               
-              <FormField control={form.control} name="amenities" render={() => ( <FormItem> <div className="mb-4"><FormLabel className="text-base">Amenities</FormLabel><FormDescription>Select the amenities your place offers.</FormDescription></div> <div className="grid grid-cols-2 md:grid-cols-3 gap-4"> {amenitiesList.map((item) => ( <FormField key={item} control={form.control} name="amenities" render={({ field }) => { return ( <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0"> <FormControl> <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => { return checked ? field.onChange([...field.value, item]) : field.onChange(field.value?.filter((value) => value !== item)) }} disabled={isSubmitting}/> </FormControl> <FormLabel className="font-normal">{item}</FormLabel> </FormItem> )}}/> ))}</div> <FormMessage /></FormItem> )}/>
+              <FormField
+                control={form.control}
+                name="amenities"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="mb-4">
+                      <FormLabel className="text-base">Amenities</FormLabel>
+                      <FormDescription>
+                        Select the amenities your place offers.
+                      </FormDescription>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {amenitiesList.map((item) => (
+                          <FormItem
+                            key={item}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(item)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, item])
+                                    : field.onChange(
+                                        field.value?.filter(
+                                          (value) => value !== item
+                                        )
+                                      )
+                                }}
+                                disabled={isSubmitting}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              {item}
+                            </FormLabel>
+                          </FormItem>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <Button type="submit" size="lg" disabled={isSubmitting || isUserLoading}>
                 {isSubmitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</>) : ('Create Listing')}
@@ -419,3 +460,5 @@ export default function NewPropertyPage() {
     </div>
   );
 }
+
+    
