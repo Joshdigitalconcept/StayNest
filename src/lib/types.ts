@@ -33,6 +33,7 @@ export interface Booking {
   createdAt: Timestamp;
   // Denormalized data for easier display
   listing?: {
+    id: string; // Add the id here
     title: string;
     location: string;
     imageUrl: string;

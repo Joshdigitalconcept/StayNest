@@ -115,6 +115,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       status: 'pending' as const,
       createdAt: serverTimestamp(),
       listing: {
+        id: property.id, // Ensure listing ID is stored here
         title: property.title,
         location: property.location,
         imageUrl: property.imageUrl,

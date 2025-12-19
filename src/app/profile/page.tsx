@@ -127,18 +127,20 @@ export default function ProfilePage() {
                     myBookings && myBookings.length > 0 ? (
                       <div className="space-y-4">
                         {myBookings.map(booking => (
-                          <div key={booking.id} className="flex items-center gap-4 border p-4 rounded-lg">
-                            <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-32"/>
-                            <div className="flex-1">
-                              <h3 className="font-semibold">{booking.listing?.title}</h3>
-                              <p className="text-sm text-muted-foreground">{booking.listing?.location}</p>
-                              <p className="text-sm mt-1">{format(booking.checkInDate.toDate(), 'PPP')} - {format(booking.checkOutDate.toDate(), 'PPP')}</p>
-                            </div>
-                            <div className="flex flex-col items-end gap-2">
-                               <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
-                               <span className="font-semibold">${booking.totalPrice}</span>
-                            </div>
-                          </div>
+                           <Link key={booking.id} href={`/properties/${booking.listing?.id || booking.listingId}`}>
+                            <div className="flex items-center gap-4 border p-4 rounded-lg hover:bg-muted/50">
+                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-32"/>
+                                <div className="flex-1">
+                                  <h3 className="font-semibold">{booking.listing?.title}</h3>
+                                  <p className="text-sm text-muted-foreground">{booking.listing?.location}</p>
+                                  <p className="text-sm mt-1">{format(booking.checkInDate.toDate(), 'PPP')} - {format(booking.checkOutDate.toDate(), 'PPP')}</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                  <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
+                                  <span className="font-semibold">${booking.totalPrice}</span>
+                                </div>
+                              </div>
+                          </Link>
                         ))}
                       </div>
                     ) : (
@@ -192,7 +194,9 @@ export default function ProfilePage() {
                        <div className="space-y-4">
                         {hostReservations.map(booking => (
                           <div key={booking.id} className="flex items-center gap-4 border p-4 rounded-lg">
-                            <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-32"/>
+                            <Link href={`/properties/${booking.listing?.id || booking.listingId}`}>
+                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-32"/>
+                            </Link>
                             <div className="flex-1">
                               <h3 className="font-semibold">{booking.listing?.title}</h3>
                               <p className="text-sm text-muted-foreground">
@@ -227,5 +231,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
