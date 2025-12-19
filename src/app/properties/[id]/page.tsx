@@ -38,38 +38,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import type { User } from '@/lib/types';
 
-const amenityIcons: { [key: string]: React.ElementType } = {
-  Wifi,
-  Kitchen: Soup,
-  "Free parking": ParkingCircle,
-  Heating: Wind,
-  TV: Tv,
-  "Air conditioning": Wind,
-  Pool: Plus,
-  Elevator: Plus, 
-  Gym: Plus,
-};
-
-function HostProfile({ ownerId }: { ownerId: string }) {
-  const firestore = useFirestore();
-  const hostRef = useMemoFirebase(
-    () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
-    [firestore, ownerId]
-  );
-  const { data: host, isLoading } = useDoc<User>(hostRef);
-
-  if (isLoading) {
-    return <div className="h-10 w-24 animate-pulse bg-muted rounded-md" />;
-  }
-  
-  return (
-      <Avatar className="h-16 w-16">
-        {host?.profilePictureUrl && <AvatarImage src={host.profilePictureUrl} alt={host.firstName} />}
-        <AvatarFallback>{host?.firstName?.charAt(0) || 'H'}</AvatarFallback>
-      </Avatar>
-  );
-}
-
 function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
   const firestore = useFirestore();
   const hostRef = useMemoFirebase(
@@ -104,9 +72,20 @@ function HostDetails({ ownerId, property }: { ownerId: string, property: Propert
   );
 }
 
+const amenityIcons: { [key: string]: React.ElementType } = {
+  Wifi,
+  Kitchen: Soup,
+  "Free parking": ParkingCircle,
+  Heating: Wind,
+  TV: Tv,
+  "Air conditioning": Wind,
+  Pool: Plus,
+  Elevator: Plus, 
+  Gym: Plus,
+};
 
-export default function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);
+export default function PropertyPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
