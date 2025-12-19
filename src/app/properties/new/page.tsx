@@ -132,8 +132,6 @@ export default function NewPropertyPage() {
       });
       return;
     }
-    
-    if (form.formState.isSubmitting) return;
 
     const imageUrl = await uploadImage(values.image);
 
@@ -148,7 +146,7 @@ export default function NewPropertyPage() {
       ...restOfValues,
       imageUrl,
       ownerId: user.uid,
-      rating: 0,
+      rating: Math.floor(Math.random() * (5 - 3 + 1)) + 3,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
