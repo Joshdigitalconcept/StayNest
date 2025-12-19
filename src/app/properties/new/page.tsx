@@ -29,7 +29,7 @@ import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import Image from 'next/image';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 const amenitiesList = [
   "Wifi", "Kitchen", "Free parking", "Heating", "TV", "Air conditioning", "Pool", "Elevator", "Gym"
@@ -83,12 +83,25 @@ export default function NewPropertyPage() {
     if (files) {
       const newFiles = Array.from(files);
       const currentFiles = form.getValues('images') || [];
-      form.setValue('images', [...currentFiles, ...newFiles]);
+      form.setValue('images', [...currentFiles, ...newFiles], { shouldValidate: true });
       
       const newPreviews = newFiles.map(file => URL.createObjectURL(file));
       setImagePreviews(prev => [...prev, ...newPreviews]);
     }
   };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    // Revoke the object URL to prevent memory leaks
+    URL.revokeObjectURL(imagePreviews[indexToRemove]);
+
+    // Update previews
+    setImagePreviews(prev => prev.filter((_, index) => index !== indexToRemove));
+
+    // Update form files
+    const currentFiles = form.getValues('images');
+    form.setValue('images', currentFiles.filter((_, index) => index !== indexToRemove), { shouldValidate: true });
+  };
+
 
   async function uploadImage(image: File): Promise<string | null> {
     const formData = new FormData();
@@ -200,7 +213,7 @@ export default function NewPropertyPage() {
                <FormField
                 control={form.control}
                 name="images"
-                render={() => (
+                render={({ field }) => ( // Pass field to use its onChange
                   <FormItem>
                     <FormLabel>Property Images</FormLabel>
                     <FormControl>
@@ -210,6 +223,11 @@ export default function NewPropertyPage() {
                         multiple
                         onChange={handleImageChange}
                         disabled={isSubmitting}
+                        // Reset the input so the same file can be re-added if removed
+                        onClick={(event) => {
+                          const element = event.target as HTMLInputElement;
+                          element.value = '';
+                        }}
                       />
                     </FormControl>
                     <FormDescription>
@@ -219,13 +237,25 @@ export default function NewPropertyPage() {
                     {imagePreviews.length > 0 && (
                        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
                         {imagePreviews.map((preview, index) => (
-                          <div key={index} className="relative w-full aspect-square rounded-md overflow-hidden">
+                          <div key={preview} className="relative w-full aspect-square rounded-md overflow-hidden group">
                             <Image
                               src={preview}
                               alt={`Image preview ${index + 1}`}
                               fill
                               className="object-cover"
+                              onLoad={() => URL.revokeObjectURL(preview)} // Clean up object URL after image loads
                             />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleRemoveImage(index)}
+                              disabled={isSubmitting}
+                            >
+                              <X className="h-4 w-4" />
+                              <span className="sr-only">Remove image {index + 1}</span>
+                            </Button>
                           </div>
                         ))}
                       </div>
