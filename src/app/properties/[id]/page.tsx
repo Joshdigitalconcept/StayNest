@@ -50,7 +50,27 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-function HostProfile({ ownerId, property }: { ownerId: string, property: Property }) {
+function HostProfile({ ownerId }: { ownerId: string }) {
+  const firestore = useFirestore();
+  const hostRef = useMemoFirebase(
+    () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
+    [firestore, ownerId]
+  );
+  const { data: host, isLoading } = useDoc<User>(hostRef);
+
+  if (isLoading) {
+    return <div className="h-10 w-24 animate-pulse bg-muted rounded-md" />;
+  }
+  
+  return (
+      <Avatar className="h-16 w-16">
+        {host?.profilePictureUrl && <AvatarImage src={host.profilePictureUrl} alt={host.firstName} />}
+        <AvatarFallback>{host?.firstName?.charAt(0) || 'H'}</AvatarFallback>
+      </Avatar>
+  );
+}
+
+function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
   const firestore = useFirestore();
   const hostRef = useMemoFirebase(
     () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
@@ -107,6 +127,22 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
   const [isReserving, setIsReserving] = React.useState(false);
 
   const reviews = React.useMemo(() => findReviewsByPropertyId(id), [id]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12" />
+      </div>
+    );
+  }
+
+  if (!isLoading && !property) {
+    notFound();
+  }
+  
+  if (!property) {
+    return null;
+  }
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
   
@@ -184,24 +220,6 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       });
   };
   
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin h-12 w-12" />
-      </div>
-    );
-  }
-
-  if (!isLoading && !property) {
-    notFound();
-  }
-  
-  // This check is now safe because we've handled the loading state above.
-  if (!property) {
-    // This return is needed for type-safety, even though notFound() will be called above.
-    return null;
-  }
-
   const images = property.imageUrls || [property.imageUrl];
   const reviewCount = reviews.length;
   const rating = property.rating || 0;
@@ -249,7 +267,7 @@ export default function PropertyPage({ params }: { params: Promise<{ id: string 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
           <div className="border-b pb-6">
-            <HostProfile ownerId={property.ownerId} property={property} />
+            <HostDetails ownerId={property.ownerId} property={property} />
           </div>
 
           <div className="border-b pb-6">
