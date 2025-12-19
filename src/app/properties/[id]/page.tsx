@@ -85,7 +85,7 @@ const amenityIcons: { [key: string]: React.ElementType } = {
 };
 
 export default function PropertyPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = React.use(params);
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
