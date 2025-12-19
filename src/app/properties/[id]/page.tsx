@@ -4,9 +4,6 @@ import Image from "next/image";
 import { notFound, useRouter, useParams } from "next/navigation";
 import * as React from 'react';
 import {
-  findReviewsByPropertyId,
-} from "@/lib/placeholder-data";
-import {
   Star,
   MapPin,
   Users,
@@ -31,21 +28,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc } from "firebase/firestore";
-import type { Property } from "@/lib/types";
+import type { Property, User as UserType } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import type { User } from '@/lib/types';
 
+// Helper component for Host Details to keep main component cleaner
 function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
   const firestore = useFirestore();
   const hostRef = useMemoFirebase(
     () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
     [firestore, ownerId]
   );
-  const { data: host, isLoading } = useDoc<User>(hostRef);
+  const { data: host, isLoading } = useDoc<UserType>(hostRef);
 
   if (isLoading) {
     return <div className="h-16 animate-pulse bg-muted rounded-md" />;
@@ -73,6 +70,42 @@ function HostDetails({ ownerId, property }: { ownerId: string, property: Propert
   );
 }
 
+// Main Page Component
+export default function PropertyPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const propertyRef = useMemoFirebase(
+    () => (firestore && id) ? doc(firestore, "listings", id) : null,
+    [firestore, id]
+  );
+  
+  const { data: property, isLoading } = useDoc<Property>(propertyRef);
+  
+  // --- START: NEW LOGIC TO FIX 404 ---
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12" />
+      </div>
+    );
+  }
+
+  if (!property) {
+    notFound();
+  }
+  // --- END: NEW LOGIC TO FIX 404 ---
+
+  return <PropertyDetails property={property} />;
+}
+
+
+// --- All Display Logic Moved to a Separate Component ---
+
 const amenityIcons: { [key: string]: React.ElementType } = {
   Wifi,
   Kitchen: Soup,
@@ -85,20 +118,11 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage() {
-  const params = useParams();
-  const id = params?.id as string || '';
-  const firestore = useFirestore();
+function PropertyDetails({ property }: { property: Property }) {
   const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-  
-  const propertyRef = useMemoFirebase(
-    () => (firestore && id) ? doc(firestore, "listings", id) : null,
-    [firestore, id]
-  );
-  
-  const { data: property, isLoading } = useDoc<Property>(propertyRef);
+  const firestore = useFirestore();
 
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(),
@@ -112,21 +136,7 @@ export default function PropertyPage() {
     [user, firestore, property]
   );
   const { data: favorites } = useCollection(userFavoritesQuery);
-  const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property?.id), [favorites, property]);
-
-  const reviews = React.useMemo(() => findReviewsByPropertyId(id), [id]);
-  
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin h-12 w-12" />
-      </div>
-    );
-  }
-
-  if (!property) {
-    notFound();
-  }
+  const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
   
@@ -243,7 +253,7 @@ export default function PropertyPage() {
   };
   
   const images = property.imageUrls || [property.imageUrl];
-  const reviewCount = reviews.length;
+  const reviewCount = property.reviewCount || 0; // Assuming you might add this field later
   const rating = property.rating || 0;
   const ratingDisplay = reviewCount > 0 ? `${rating.toFixed(1)} (${reviewCount} reviews)` : 'New listing';
 
@@ -342,28 +352,7 @@ export default function PropertyPage() {
                <span>{ratingDisplay}</span>
             </h3>
             {reviewCount > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                {reviews.map((review) => (
-                    <div key={review.id} className="flex flex-col gap-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                           <AvatarFallback>{review.userId.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold">{review.userId}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(review.date).toLocaleDateString("en-US", { year: 'numeric', month: 'long' })}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
-                        ))}
-                      </div>
-                      <p className="text-foreground/90">{review.comment}</p>
-                    </div>
-                  )
-                )}
-              </div>
+              <p className="text-muted-foreground">Reviews coming soon!</p>
             ) : (
               <p className="text-muted-foreground">Be the first to review this listing!</p>
             )}
@@ -430,3 +419,5 @@ export default function PropertyPage() {
     </div>
   );
 }
+
+    
