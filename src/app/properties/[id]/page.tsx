@@ -56,7 +56,11 @@ function HostProfile({ ownerId, property }: { ownerId: string, property: Propert
     () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
     [firestore, ownerId]
   );
-  const { data: host } = useDoc<User>(hostRef);
+  const { data: host, isLoading } = useDoc<User>(hostRef);
+
+  if (isLoading) {
+    return <div className="h-16 animate-pulse bg-muted rounded-md" />;
+  }
 
   return (
     <div className="flex justify-between items-center">
