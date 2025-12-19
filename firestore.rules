@@ -1,0 +1,127 @@
+/**
+ * Core Philosophy: This ruleset implements a robust security model based on user
+ * ownership and global administrative roles. User-specific data is strictly
+ * private to the owning user or an admin, while application-wide data like
+ * property listings are publicly readable but have controlled, owner-only write
+ * access.
+ *
+ * Data Structure:
+ * - /users/{userId}: Contains private user profile data.
+ * - /roles_admin/{userId}: An existence-based collection to grant users admin
+ *   privileges across the application.
+ * - /listings/{listingId}: Publicly accessible property listings.
+ *
+ * Key Security Decisions:
+ * - User privacy is paramount; listing documents in the /users collection is
+ *   disallowed to prevent user enumeration.
+ * - Admin roles are managed via the /roles_admin collection. Client-side
+ *   writes to this collection are blocked; it must be managed via a trusted
+ *   server environment or the Firebase console.
+ * - Authorization data (like 'ownerId') is denormalized directly onto documents
+ *   (e.g., listings) to create simple, fast, and scalable security rules that
+ *   do not require expensive cross-document `get()` calls.
+ * - By default, all operations are denied unless explicitly granted.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helper Functions
+    // -------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the authenticated user has administrative privileges.
+     * This is determined by the existence of a document in the /roles_admin
+     * collection with the user's UID as the document ID.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+
+    // -------------------------------------------------------------------------
+    // Collection Rules
+    // -------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profiles. A user can create their own profile,
+     *   and can only read or write their own data. Admins have read/write
+     *   access for moderation.
+     * @path /users/{userId}
+     * @allow (create) A new user with uid 'user_abc' creating their own profile
+     *   document at /users/user_abc.
+     * @allow (get) An admin reading the profile of user 'user_abc'.
+     * @deny (list) Any user, including an admin, attempting to list all
+     *   documents in the /users collection.
+     * @deny (update) A user 'user_abc' trying to modify the profile of another
+     *   user 'user_xyz'.
+     * @principle Restricts access to a user's own data tree and enforces
+     *   relational integrity between the document ID and its content.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if (isOwner(userId) || isAdmin()) && resource != null && request.resource.data.id == resource.data.id;
+      allow delete: if (isOwner(userId) || isAdmin()) && resource != null;
+    }
+
+    /**
+     * @description Defines admin roles. The existence of a document here grants
+     *   a user admin privileges. This collection is read-only for admins and
+     *   completely inaccessible to non-admins to prevent role enumeration.
+     * @path /roles_admin/{userId}
+     * @allow (get) An authenticated admin checking if 'user_xyz' is also an admin.
+     * @deny (get) A non-admin user trying to read any document in this collection.
+     * @deny (create, update, delete) Any user attempting to modify roles from the client.
+     * @principle Implements existence-based global roles and protects role
+     *   information from being discovered or modified by unauthorized users.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Stores all property listings. Listings are public for anyone
+     *   to read. Only the user who created the listing (the owner) can create,
+     *   update, or delete it.
+     * @path /listings/{listingId}
+     * @allow (get, list) Any user, signed in or not, viewing a specific
+     *   listing or a list of all listings.
+     * @deny (create) An authenticated user trying to create a listing without
+     *   a valid 'ownerId' field matching their own UID.
+     * @deny (update) A user 'user_abc' trying to update a listing owned by
+     *   'user_xyz'.
+     * @principle Implements a public-read, owner-only-write model for shared
+     *   content, enforced by a denormalized ownership field.
+     */
+    match /listings/{listingId} {
+      allow get: if true;
+      allow list: if true;
+      // CRITICAL: Cannot implement owner-only writes. The 'listing' entity (or the entity it references) is missing an 'ownerId' or 'authorId' field.
+      allow create: if false; // TODO: Add owner validation once the schema is updated with an ownership field. (e.g., isSignedIn() && request.resource.data.ownerId == request.auth.uid)
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field. (e.g., isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid)
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field. (e.g., isSignedIn() && resource != null && resource.data.ownerId == request.auth.uid)
+    }
+  }
+}
