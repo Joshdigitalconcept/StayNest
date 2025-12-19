@@ -19,6 +19,7 @@ import {
   Wind,
   Plus,
   Loader2,
+  Expand,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,6 +35,7 @@ import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { User } from '@/lib/types';
 
 function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
@@ -82,7 +84,8 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Gym: Plus,
 };
 
-export default function PropertyPage({ params: { id } }: { params: { id: string } }) {
+export default function PropertyPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
@@ -221,23 +224,42 @@ export default function PropertyPage({ params: { id } }: { params: { id: string 
         </div>
       </div>
 
-       <Carousel className="w-full mb-8">
-        <CarouselContent>
-          {images.map((url, index) => (
-            <CarouselItem key={index} className="relative aspect-video">
-               <Image
-                src={url}
-                alt={`${property.title} image ${index + 1}`}
-                fill
-                className="object-cover rounded-lg"
-                priority={index === 0}
-              />
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
-        <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
-      </Carousel>
+       <Dialog>
+         <Carousel className="w-full mb-8">
+          <CarouselContent>
+            {images.map((url, index) => (
+              <CarouselItem key={index} className="relative aspect-video group">
+                 <Image
+                  src={url}
+                  alt={`${property.title} image ${index + 1}`}
+                  fill
+                  className="object-cover rounded-lg"
+                  priority={index === 0}
+                />
+                 <DialogTrigger asChild>
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                    <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full">
+                       <Expand className="w-5 h-5" />
+                    </div>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl p-0 border-0">
+                  <div className="relative w-full h-[80vh]">
+                     <Image
+                      src={url}
+                      alt={`${property.title} image ${index + 1}`}
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </DialogContent>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
+          <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+        </Carousel>
+      </Dialog>
 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
