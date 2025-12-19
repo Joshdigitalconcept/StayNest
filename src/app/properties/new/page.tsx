@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useAuth, useFirestore } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 const amenitiesList = [
@@ -48,9 +48,8 @@ const formSchema = z.object({
 export default function NewPropertyPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const auth = useAuth();
+  const { user } = useUser();
   const firestore = useFirestore();
-  const { user } = auth;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
