@@ -121,16 +121,14 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
     <Card className="overflow-hidden transition-shadow hover:shadow-xl flex flex-col">
       <Link href={`/properties/${property.id}`} className="block">
         <div className="relative h-48 w-full">
-          {user && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="absolute top-2 left-2 z-10 rounded-full bg-background/70 hover:bg-background"
-              onClick={handleFavoriteToggle}
-            >
-              <Heart className={`h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-foreground'}`} />
-            </Button>
-          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute top-2 left-2 z-10 rounded-full bg-background/70 hover:bg-background"
+            onClick={handleFavoriteToggle}
+          >
+            <Heart className={`h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : 'text-foreground'}`} />
+          </Button>
           {property.imageUrl && (
             <Image
               src={property.imageUrl}
@@ -195,5 +193,3 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
     </Card>
   );
 }
-
-    

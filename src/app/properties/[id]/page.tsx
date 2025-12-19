@@ -260,12 +260,10 @@ export default function PropertyPage() {
             <h1 className="text-3xl lg:text-4xl font-bold font-headline">
             {property.title}
             </h1>
-            {user && (
-                <Button variant="outline" onClick={handleFavoriteToggle}>
-                <Heart className={`mr-2 h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
-                {isFavorited ? 'Favorited' : 'Favorite'}
-                </Button>
-            )}
+            <Button variant="outline" onClick={handleFavoriteToggle}>
+              <Heart className={`mr-2 h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+              {isFavorited ? 'Favorited' : 'Favorite'}
+            </Button>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
           <div className="flex items-center gap-1">
@@ -437,5 +435,3 @@ export default function PropertyPage() {
     </div>
   );
 }
-
-    
