@@ -52,8 +52,8 @@ const formSchema = z.object({
   }),
 });
 
-export default function EditPropertyPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function EditPropertyPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
   const { toast } = useToast();
   const router = useRouter();
   const { user, isUserLoading } = useUser();
