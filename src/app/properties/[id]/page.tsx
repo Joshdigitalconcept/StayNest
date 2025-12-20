@@ -108,22 +108,15 @@ export default function PropertyPage() {
 
 // Helper component for Host Details to keep main component cleaner
 function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
-  const firestore = useFirestore();
-  const hostRef = useMemoFirebase(
-    () => (firestore && ownerId) ? doc(firestore, "users", ownerId) : null,
-    [firestore, ownerId]
-  );
-  const { data: host, isLoading } = useDoc<UserType>(hostRef);
-
-  if (isLoading) {
-    return <div className="h-16 animate-pulse bg-muted rounded-md" />;
-  }
+  // The direct fetch of the user document is removed to prevent permission errors.
+  // In a production app, you would denormalize the host's public info (name, picture)
+  // onto the listing document itself. For now, we will just display a generic "Host".
 
   return (
     <div className="flex justify-between items-center">
       <div>
         <h2 className="text-2xl font-semibold">
-          Entire place hosted by {host?.firstName || 'Host'}
+          Entire place hosted by Host
         </h2>
         <div className="flex items-center gap-4 text-muted-foreground mt-1">
           <span>{property.maxGuests} guests</span>
@@ -134,8 +127,7 @@ function HostDetails({ ownerId, property }: { ownerId: string, property: Propert
         </div>
       </div>
       <Avatar className="h-16 w-16">
-        {host?.profilePictureUrl && <AvatarImage src={host.profilePictureUrl} alt={host.firstName} />}
-        <AvatarFallback>{host?.firstName?.charAt(0) || 'H'}</AvatarFallback>
+        <AvatarFallback>{'H'}</AvatarFallback>
       </Avatar>
     </div>
   );
