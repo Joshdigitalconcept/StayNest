@@ -33,10 +33,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, writeBatch } from "firebase/firestore";
-import type { Property, Review } from "@/lib/types";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where } from "firebase/firestore";
+import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { addDays, differenceInCalendarDays, format, eachDayOfInterval, getDay } from "date-fns";
+import { addDays, differenceInCalendarDays, format, eachDayOfInterval, getDay, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -110,7 +110,6 @@ function HostDetails({ property }: { property: Property }) {
   const hostAvatarFallback = hostName.charAt(0);
   
   const propertyTypeLabel = propertyTypes.find(p => p.id === property.propertyType)?.label || 'Property';
-  const guestSpaceLabel = guestSpaces.find(g => g.id === property.guestSpace)?.label.toLowerCase() || 'space';
 
   return (
     <div className="flex justify-between items-center">
@@ -289,13 +288,32 @@ function PropertyDetails({ property }: { property: Property }) {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 5),
-  });
-  const [guests, setGuests] = React.useState(2);
+  const [date, setDate] = React.useState<DateRange | undefined>(undefined);
+  const [guests, setGuests] = React.useState(1);
   const [isReserving, setIsReserving] = React.useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
+
+  const bookingsQuery = useMemoFirebase(
+    () => (firestore && property) ? query(collection(firestore, 'bookings'), where('listingId', '==', property.id)) : null,
+    [firestore, property]
+  );
+  const { data: bookings } = useCollection<Booking>(bookingsQuery);
+
+  const disabledDates = React.useMemo(() => {
+    const dates: (Date | { from: Date; to: Date })[] = [{ before: new Date() }];
+    if (bookings) {
+      bookings.forEach(booking => {
+        if (booking.checkInDate && booking.checkOutDate) {
+          dates.push({
+            from: booking.checkInDate.toDate(),
+            to: booking.checkOutDate.toDate()
+          });
+        }
+      });
+    }
+    return dates;
+  }, [bookings]);
+
 
   const userFavoritesQuery = useMemoFirebase(
     () => (user && property) ? collection(firestore, `users/${user.uid}/favorites`) : null,
@@ -304,6 +322,12 @@ function PropertyDetails({ property }: { property: Property }) {
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
   const isOwner = user?.uid === property.ownerId;
+  const isReservationMade = React.useMemo(() => {
+      if (!user || !bookings || !date?.from || !date?.to) return false;
+      return bookings.some(b => b.guestId === user.uid && 
+        !(b.checkOutDate.toDate() <= date.from! || b.checkInDate.toDate() >= date.to!));
+  }, [user, bookings, date]);
+
 
   const { subtotal, duration, priceForFirstNight } = React.useMemo(() => {
     if (!date?.from || !date?.to) {
@@ -315,10 +339,12 @@ function PropertyDetails({ property }: { property: Property }) {
       return { subtotal: 0, duration: 0, priceForFirstNight: property.pricePerNight };
     }
     
-    const firstDay = getDay(days[0]);
-    let priceForFirstNight = property.pricePerNight;
-    if (property.weekendPrice > 0 && (firstDay === 5 || firstDay === 6)) {
-      priceForFirstNight = property.weekendPrice;
+    let currentPrice = property.pricePerNight;
+    if (property.weekendPrice > 0) {
+        const dayOfWeek = getDay(date.from);
+        if (dayOfWeek === 5 || dayOfWeek === 6) { // Fri or Sat
+            currentPrice = property.weekendPrice;
+        }
     }
 
 
@@ -332,7 +358,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
     const bookingDuration = differenceInCalendarDays(date.to, date.from);
 
-    return { subtotal: sub, duration: bookingDuration, priceForFirstNight };
+    return { subtotal: sub, duration: bookingDuration, priceForFirstNight: currentPrice };
   }, [date, property.pricePerNight, property.weekendPrice]);
 
   const cleaningFee = property?.cleaningFee || 0;
@@ -396,6 +422,16 @@ function PropertyDetails({ property }: { property: Property }) {
       });
       return;
     }
+    
+     if (isReservationMade) {
+        toast({
+            variant: "destructive",
+            title: "Overlapping Reservation",
+            description: "You already have a reservation for these dates.",
+        });
+        return;
+    }
+
 
     setIsReserving(true);
 
@@ -459,6 +495,19 @@ function PropertyDetails({ property }: { property: Property }) {
     const who = property.whoElse.map(id => whoElseOptions.find(o => o.id === id)?.label).join(', ');
     return <p className="flex items-center gap-2"><Users2 /> You may be sharing the space with: {who}</p>;
   };
+  
+  const modifiers = {
+    checkin: date?.from,
+    checkout: date?.to,
+  }
+  
+  const modifiersClassNames = {
+    checkin: "font-bold bg-primary text-primary-foreground rounded-l-full",
+    checkout: "font-bold bg-primary text-primary-foreground rounded-r-full",
+    range_middle: "bg-primary/20",
+    range_start: "bg-primary/50 rounded-l-full",
+    range_end: "bg-primary/50 rounded-r-full",
+  }
 
   return (
     <div className="container mx-auto py-8 lg:py-12">
@@ -600,26 +649,28 @@ function PropertyDetails({ property }: { property: Property }) {
                 <CardContent className="space-y-4">
                 <TooltipProvider>
                     <Calendar
-                    mode="range"
-                    selected={date}
-                    onSelect={setDate}
-                    numberOfMonths={1}
-                    className="p-0 [&_td]:w-auto [&_td]:p-1 [&_th]:w-auto"
-                    disabled={{ before: new Date() }}
-                    footer={
-                        <div className="text-sm text-muted-foreground pt-2 flex justify-between">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                            <span className="font-semibold">Selected: {duration} night{duration !== 1 ? 's' : ''}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                            <p>Check-in: {date?.from ? format(date.from, 'PPP') : 'N/A'}</p>
-                            <p>Check-out: {date?.to ? format(date.to, 'PPP') : 'N/A'}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                        <Button variant="link" className="p-0 h-auto" onClick={() => setDate(undefined)}>Clear</Button>
-                        </div>
-                    }
+                        mode="range"
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={1}
+                        className="p-0 [&_td]:w-auto [&_td]:p-1 [&_th]:w-auto"
+                        disabled={disabledDates}
+                        modifiers={modifiers}
+                        modifiersClassNames={modifiersClassNames}
+                        footer={
+                            <div className="text-sm text-muted-foreground pt-2 flex justify-between">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                <span className="font-semibold">Selected: {duration > 0 ? `${duration} night${duration !== 1 ? 's' : ''}` : '0 nights'}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                <p>Check-in: {date?.from ? format(date.from, 'PPP') : 'N/A'}</p>
+                                <p>Check-out: {date?.to ? format(date.to, 'PPP') : 'N/A'}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                            <Button variant="link" className="p-0 h-auto" onClick={() => setDate(undefined)}>Clear</Button>
+                            </div>
+                        }
                     />
                 </TooltipProvider>
                 <div className="grid gap-2">
@@ -633,8 +684,8 @@ function PropertyDetails({ property }: { property: Property }) {
                     max={property.maxGuests} 
                     />
                 </div>
-                <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0}>
-                    {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
+                <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0 || isReservationMade}>
+                    {isReserving ? <Loader2 className="animate-spin" /> : isReservationMade ? 'Already Booked' : 'Reserve'}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
                 {duration > 0 && (
@@ -667,3 +718,4 @@ function PropertyDetails({ property }: { property: Property }) {
   );
 }
 
+    
