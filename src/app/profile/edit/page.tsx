@@ -198,7 +198,7 @@ export default function EditProfilePage() {
         title: 'Profile Updated!',
         description: 'Your profile has been successfully updated.',
       });
-      router.push('/profile');
+      router.push('/account?section=personal-info');
     } catch (error: any) {
       const isFirestoreError = error.code && error.code.startsWith('permission-denied');
       if (isFirestoreError) {
@@ -357,7 +357,7 @@ export default function EditProfilePage() {
                   )}
                 </Button>
                 <Button variant="outline" size="lg" asChild>
-                  <Link href="/profile">Cancel</Link>
+                  <Link href="/account?section=personal-info">Cancel</Link>
                 </Button>
               </div>
             </form>
@@ -367,5 +367,3 @@ export default function EditProfilePage() {
     </div>
   );
 }
-
-    

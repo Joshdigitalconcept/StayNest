@@ -71,8 +71,7 @@ export function LoginSecuritySection() {
      if (!auth.currentUser) return;
      try {
        // Note: True "sign out everywhere" requires server-side token revocation.
-       // This client-side action signs the user out of the current device,
-       // which is a good first step for v1.
+       // This client-side action signs the user out of the current device.
        await signOut(auth);
        toast({
          title: 'Signed Out',
@@ -136,13 +135,13 @@ export function LoginSecuritySection() {
         
         <Card>
            <CardHeader>
-            <CardTitle>Sign out from all devices</CardTitle>
+            <CardTitle>Sign out from current device</CardTitle>
             <CardDescription>
-              This will sign you out of all active sessions on other computers and phones.
+              This will sign you out of your active session on this computer or phone. True "sign out everywhere" requires server-side implementation.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" onClick={handleLogoutEverywhere}>Sign out everywhere</Button>
+            <Button variant="outline" onClick={handleLogoutEverywhere}>Sign out</Button>
           </CardContent>
         </Card>
     </div>

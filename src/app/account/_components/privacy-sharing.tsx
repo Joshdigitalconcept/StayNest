@@ -27,8 +27,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore } from '@/firebase';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { doc, deleteDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 const deleteFormSchema = z.object({
@@ -40,6 +41,7 @@ export function PrivacySharingSection() {
   const router = useRouter();
   const { user } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
 
   const deleteForm = useForm<z.infer<typeof deleteFormSchema>>({
@@ -48,20 +50,30 @@ export function PrivacySharingSection() {
   });
 
   async function onDeleteSubmit() {
-    if (!user || !user.email) return;
+    if (!user || !user.email || !firestore) return;
 
     setIsDeleteSubmitting(true);
     const password = deleteForm.getValues('password');
     const credential = EmailAuthProvider.credential(user.email, password);
     
     try {
+      // Step 1: Re-authenticate the user to confirm their identity.
       await reauthenticateWithCredential(user, credential);
+      
+      // Step 2: Delete Firestore user document.
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await deleteDoc(userDocRef);
+
+      // Step 3: Delete the Firebase Auth user.
       await deleteUser(user);
+      
       toast({
           title: "Account Deleted",
-          description: "Your account has been permanently deleted.",
+          description: "Your account and all associated data have been permanently deleted.",
       });
+      
       router.push('/');
+
     } catch (error: any) {
        toast({
         variant: 'destructive',
@@ -90,7 +102,7 @@ export function PrivacySharingSection() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete your account, your profile, and all associated listings and bookings. This action cannot be undone. To confirm, please enter your password.
+                            This will permanently delete your account, your profile, and all associated data. This action cannot be undone. To confirm, please enter your password.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                      <Form {...deleteForm}>
