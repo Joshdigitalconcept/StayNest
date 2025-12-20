@@ -17,8 +17,6 @@ interface UploadedImage {
 
 interface Step13Props {
   formData: any;
-  setFormData: (data: any) => void;
-  goToPrevStep: () => void;
   clearDraft: () => void;
 }
 
@@ -42,7 +40,7 @@ async function uploadImage(imageFile: File): Promise<string | null> {
   }
 }
 
-export default function Step13_Review({ formData, clearDraft }: { formData: any; clearDraft: () => void; }) {
+export default function Step13_Review({ formData, clearDraft }: Step13Props) {
   const [isPublishing, setIsPublishing] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();

@@ -41,8 +41,7 @@ const steps = [
 const stepGroups = [
   { number: 1, title: 'Tell us about your place' },
   { number: 2, title: 'Make it stand out' },
-  { number
-: 3, title: 'Finish up and publish' },
+  { number: 3, title: 'Finish up and publish' },
 ];
 
 export default function CreateListingPage() {
@@ -57,7 +56,8 @@ export default function CreateListingPage() {
     isFirstStep,
     isLastStep,
     setFormData,
-    formData
+    formData,
+    clearDraft
   } = useHostOnboarding(steps.length);
   
   if (isUserLoading) {
@@ -105,7 +105,12 @@ export default function CreateListingPage() {
       <main className="flex flex-col">
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto py-16 px-4">
-            <CurrentStepComponent setFormData={setFormData} formData={formData} />
+            <CurrentStepComponent 
+              setFormData={setFormData} 
+              formData={formData} 
+              clearDraft={clearDraft} 
+              goToPrevStep={goToPrevStep}
+            />
           </div>
         </div>
 
