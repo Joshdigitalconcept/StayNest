@@ -18,6 +18,7 @@ export interface Property {
   serviceFee: number;
   createdAt: any;
   updatedAt: any;
+  reviewCount?: number;
 }
 
 export interface Booking {

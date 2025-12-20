@@ -27,13 +27,86 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc } from "firebase/firestore";
 import type { Property, User as UserType } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 1200;
+
+export default function PropertyPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const firestore = useFirestore();
+  const [retryCount, setRetryCount] = React.useState(0);
+  
+  const propertyRef = useMemoFirebase(
+    () => (firestore && id) ? doc(firestore, "listings", id) : null,
+    [firestore, id]
+  );
+  
+  const { data: property, isLoading, error } = useDoc<Property>(propertyRef);
+
+  React.useEffect(() => {
+    // If loading is finished, there's no data, no error, and we haven't exhausted retries
+    if (!isLoading && !property && !error && retryCount < MAX_RETRIES) {
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        // Manually re-fetch, though useDoc doesn't have a built-in refetch.
+        // A change in a dependency would trigger it, but here we just want to wait.
+        // A simple re-render might not be enough. Let's try forcing a re-check.
+        // The best way is often to manage this outside the hook, or have a hook that supports refetching.
+        // For now, we will rebuild the logic inside the page component.
+        const recheck = async () => {
+          if (propertyRef) {
+            const docSnap = await getDoc(propertyRef);
+            if (docSnap.exists()) {
+              // If we found it, the `useDoc` listener will pick it up and update `property`.
+              // No need to do anything here.
+            } else {
+               // If not found, and we are still within retry limit, the loop continues.
+            }
+          }
+        };
+        recheck();
+
+      }, RETRY_DELAY_MS);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, property, error, retryCount, propertyRef]);
+
+
+  if (isLoading && retryCount === 0) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12" />
+      </div>
+    );
+  }
+  
+  // After all retries, if the property is still not found, show 404.
+  if (!isLoading && !property && retryCount >= MAX_RETRIES) {
+    notFound();
+  }
+
+  // Still loading during retries, show a spinner
+  if (!property) {
+     return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-12 w-12" />
+        <p className="ml-4 text-muted-foreground">Locating listing...</p>
+      </div>
+    );
+  }
+
+  return <PropertyDetails property={property} />;
+}
+
 
 // Helper component for Host Details to keep main component cleaner
 function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
@@ -68,39 +141,6 @@ function HostDetails({ ownerId, property }: { ownerId: string, property: Propert
       </Avatar>
     </div>
   );
-}
-
-// Main Page Component
-export default function PropertyPage() {
-  const params = useParams();
-  const id = params?.id as string;
-  const firestore = useFirestore();
-  const { user } = useUser();
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const propertyRef = useMemoFirebase(
-    () => (firestore && id) ? doc(firestore, "listings", id) : null,
-    [firestore, id]
-  );
-  
-  const { data: property, isLoading } = useDoc<Property>(propertyRef);
-  
-  // --- START: NEW LOGIC TO FIX 404 ---
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin h-12 w-12" />
-      </div>
-    );
-  }
-
-  if (!property) {
-    notFound();
-  }
-  // --- END: NEW LOGIC TO FIX 404 ---
-
-  return <PropertyDetails property={property} />;
 }
 
 
@@ -419,5 +459,3 @@ function PropertyDetails({ property }: { property: Property }) {
     </div>
   );
 }
-
-    
