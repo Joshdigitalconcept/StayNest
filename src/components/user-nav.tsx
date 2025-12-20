@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, MessageSquare, User, LogOut, Loader2, Heart } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -89,6 +89,12 @@ export function UserNav() {
               <span>My Bookings</span>
             </Link>
           </DropdownMenuItem>
+           <DropdownMenuItem asChild>
+            <Link href="/account">
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Account</span>
+            </Link>
+          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
@@ -99,5 +105,3 @@ export function UserNav() {
     </DropdownMenu>
   );
 }
-
-    
