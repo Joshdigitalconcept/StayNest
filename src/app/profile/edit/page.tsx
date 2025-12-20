@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -46,7 +47,7 @@ const formSchema = z.object({
   school: z.string().optional(),
   born: z.string().optional(),
   obsessedWith: z.string().optional(),
-  uselessSkill: z-string().optional(),
+  uselessSkill: z.string().optional(),
   biographyTitle: z.string().optional(),
   favoriteSong: z.string().optional(),
   spendTooMuchTime: z.string().optional(),
