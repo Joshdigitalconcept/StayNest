@@ -133,7 +133,7 @@ function HostDetails({ property }: { property: Property }) {
 }
 
 const amenityIcons: { [key: string]: React.ElementType } = {
-    Wifi, Kitchen: Soup, "Free parking": ParkingCircle, Heating: Wind, TV, "Air conditioning": Wind, Pool: Sparkles, Elevator: Users, Gym: Users, Washer: Plus, Dryer: Plus, Iron: Plus, "Hair dryer": Plus, Crib: Plus, "High chair": Plus, Workspace: Plus, "Self check-in": Plus, "Pets allowed": Plus,
+    Wifi, Kitchen: Soup, "Free parking": ParkingCircle, Heating: Wind, TV: Tv, "Air conditioning": Wind, Pool: Sparkles, Elevator: Users, Gym: Users, Washer: Plus, Dryer: Plus, Iron: Plus, "Hair dryer": Plus, Crib: Plus, "High chair": Plus, Workspace: Plus, "Self check-in": Plus, "Pets allowed": Plus,
 };
 
 function ReviewsSection({ propertyId, property }: { propertyId: string; property: Property }) {
@@ -163,12 +163,9 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
     
     setIsSubmitting(true);
     
-    const listingRef = doc(firestore, 'listings', propertyId);
     const reviewColRef = collection(firestore, 'listings', propertyId, 'reviews');
-    const newReviewRef = doc(reviewColRef); // Create a new doc ref to get ID
 
     const reviewData = {
-        id: newReviewRef.id,
         listingId: propertyId,
         userId: user.uid,
         rating,
@@ -181,7 +178,7 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
     };
     
     try {
-        await setDoc(newReviewRef, reviewData);
+        await addDoc(reviewColRef, reviewData);
         toast({ title: "Review submitted!" });
         setRating(0);
         setComment('');
