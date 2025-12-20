@@ -135,7 +135,7 @@ service cloud.firestore {
      */
     match /bookings/{bookingId} {
       allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow list: if true;
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.hostId == request.auth.uid; // Host can change status
       allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid; // Guest can cancel
