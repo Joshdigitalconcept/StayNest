@@ -137,7 +137,7 @@ export default function ProfilePage() {
                                 <div className="flex-1">
                                   <h3 className="font-semibold">{booking.listing?.title}</h3>
                                   <p className="text-sm text-muted-foreground">{booking.listing?.location}</p>
-                                  <p className="text-sm mt-1">{format(booking.checkInDate.toDate(), 'PPP')} - {format(booking.checkOutDate.toDate(), 'PPP')}</p>
+                                  <p className="text-sm mt-1">{booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-2">
                                   <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
@@ -166,7 +166,7 @@ export default function ProfilePage() {
                     <CardTitle>My Properties</CardTitle>
                     <CardDescription>Manage your listings and view guest requests.</CardDescription>
                   </div>
-                  <Button asChild><Link href="/properties/new">Create Listing</Link></Button>
+                  <Button asChild><Link href="/host/create">Create Listing</Link></Button>
                 </CardHeader>
                 <CardContent>
                   {arePropertiesLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                             <div className="flex-1">
                               <h3 className="font-semibold">{booking.listing?.title}</h3>
                               <p className="text-sm text-muted-foreground">
-                                {format(booking.checkInDate.toDate(), 'PPP')} - {format(booking.checkOutDate.toDate(), 'PPP')}
+                                {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
                               </p>
                               <p className="text-sm mt-1">{booking.guests} guest(s) - ${booking.totalPrice}</p>
                             </div>

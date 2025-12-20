@@ -6,7 +6,6 @@ import { useUser } from '@/firebase';
 import { Loader2, Check } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useHostOnboarding } from '@/hooks/use-host-onboarding';
 import Step1_Structure from './_components/step1-structure';
 import Step2_Privacy from './_components/step2-privacy';
@@ -65,16 +64,11 @@ export default function CreateListingPage() {
   }
 
   if (!user) {
-    return (
-      <div className="container mx-auto py-8 text-center">
-        <p>Please log in to become a host.</p>
-        <Button asChild className="mt-4"><Link href="/login">Log In</Link></Button>
-      </div>
-    );
+    router.push('/login');
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
 
   const CurrentStepComponent = steps[currentStep - 1].component;
-  const currentStepInfo = steps[currentStep - 1];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-screen">
@@ -85,7 +79,7 @@ export default function CreateListingPage() {
             <div key={group.number}>
               <h3 className="font-semibold text-sm text-muted-foreground mb-3 px-2">Step {group.number}: {group.title}</h3>
               <ul className="space-y-1">
-                {steps.filter(s => s.group === group.number).map((step, index) => {
+                {steps.filter(s => s.group === group.number).map((step) => {
                   const stepIndex = steps.findIndex(s => s.title === step.title);
                   const isCompleted = stepIndex < currentStep - 1;
                   const isActive = stepIndex === currentStep - 1;
@@ -108,8 +102,7 @@ export default function CreateListingPage() {
             <CurrentStepComponent 
               setFormData={setFormData} 
               formData={formData} 
-              clearDraft={clearDraft} 
-              goToPrevStep={goToPrevStep}
+              clearDraft={clearDraft}
             />
           </div>
         </div>
@@ -124,8 +117,8 @@ export default function CreateListingPage() {
                 <div className="bg-primary h-2 rounded-full" style={{ width: `${(currentStep / totalSteps) * 100}%` }}/>
               </div>
             </div>
-            <Button onClick={goToNextStep}>
-              {isLastStep ? 'Finish' : 'Next'}
+            <Button onClick={isLastStep ? () => {} : goToNextStep} disabled={isLastStep}>
+              {currentStep === totalSteps - 1 ? 'Review' : 'Next'}
             </Button>
           </div>
         </footer>

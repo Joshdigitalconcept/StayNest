@@ -18,6 +18,10 @@ import {
   Loader2,
   Expand,
   Heart,
+  Home,
+  User,
+  Users2,
+  Sparkles
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,7 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, writeBatch } from "firebase/firestore";
 import type { Property, Review } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays, format } from "date-fns";
@@ -36,7 +40,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { propertyTypes, guestSpaces, whoElseOptions, amenitiesList } from "@/lib/types";
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 1200;
@@ -100,42 +104,39 @@ function HostDetails({ property }: { property: Property }) {
   const hostName = property.host?.name || "Host";
   const hostAvatarUrl = property.host?.photoURL;
   const hostAvatarFallback = hostName.charAt(0);
+  
+  const propertyTypeLabel = propertyTypes.find(p => p.id === property.propertyType)?.label || 'Property';
+  const guestSpaceLabel = guestSpaces.find(g => g.id === property.guestSpace)?.label.toLowerCase() || 'space';
 
   return (
     <div className="flex justify-between items-center">
       <div>
         <h2 className="text-2xl font-semibold">
-          Entire place hosted by {hostName}
+          {propertyTypeLabel} hosted by {hostName}
         </h2>
         <div className="flex items-center gap-4 text-muted-foreground mt-1">
           <span>{property.maxGuests} guests</span>
           <span>&middot;</span>
-          <span>{property.bedrooms} bedrooms</span>
+          <span>{property.bedrooms} bedroom{property.bedrooms !== 1 ? 's' : ''}</span>
           <span>&middot;</span>
-          <span>{property.bathrooms} bathrooms</span>
+           <span>{property.beds} bed{property.beds !== 1 ? 's' : ''}</span>
+          <span>&middot;</span>
+          <span>{property.bathrooms} bathroom{property.bathrooms !== 1 ? 's' : ''}</span>
         </div>
       </div>
       <Avatar className="h-16 w-16">
         {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
-        <AvatarFallback>{hostAvatarFallback}</AvatarFallback>
+        <AvatarFallback className="text-2xl">{hostAvatarFallback}</AvatarFallback>
       </Avatar>
     </div>
   );
 }
 
 const amenityIcons: { [key: string]: React.ElementType } = {
-  Wifi,
-  Kitchen: Soup,
-  "Free parking": ParkingCircle,
-  Heating: Wind,
-  TV: Tv,
-  "Air conditioning": Wind,
-  Pool: Plus,
-  Elevator: Plus, 
-  Gym: Plus,
+    Wifi, Kitchen: Soup, "Free parking": ParkingCircle, Heating: Wind, TV, "Air conditioning": Wind, Pool: Sparkles, Elevator: Users, Gym: Users, Washer: Plus, Dryer: Plus, Iron: Plus, "Hair dryer": Plus, Crib: Plus, "High chair": Plus, Workspace: Plus, "Self check-in": Plus, "Pets allowed": Plus,
 };
 
-function ReviewsSection({ propertyId }: { propertyId: string }) {
+function ReviewsSection({ propertyId, property }: { propertyId: string; property: Property }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
@@ -161,9 +162,13 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
     }
     
     setIsSubmitting(true);
+    
+    const listingRef = doc(firestore, 'listings', propertyId);
     const reviewColRef = collection(firestore, 'listings', propertyId, 'reviews');
+    const newReviewRef = doc(reviewColRef); // Create a new doc ref to get ID
 
     const reviewData = {
+        id: newReviewRef.id,
         listingId: propertyId,
         userId: user.uid,
         rating,
@@ -174,14 +179,13 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
             photoURL: user.photoURL,
         }
     };
-
-    addDoc(reviewColRef, reviewData)
-      .then(() => {
+    
+    try {
+        await setDoc(newReviewRef, reviewData);
         toast({ title: "Review submitted!" });
         setRating(0);
         setComment('');
-      })
-      .catch((error) => {
+    } catch (error) {
         const permissionError = new FirestorePermissionError({
             path: reviewColRef.path,
             operation: 'create',
@@ -190,10 +194,9 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
         errorEmitter.emit('permission-error', permissionError);
         toast({ variant: "destructive", title: "Error submitting review." });
         console.error(error);
-      })
-      .finally(() => {
+    } finally {
         setIsSubmitting(false);
-      });
+    }
   };
 
   return (
@@ -203,7 +206,6 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
         <span>Reviews ({reviews?.length || 0})</span>
       </h3>
       
-      {/* Review Form */}
       {user && (
         <Card className="mb-8">
             <CardHeader>
@@ -236,7 +238,6 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
         </Card>
       )}
 
-      {/* Existing Reviews */}
       {isLoading && <Loader2 className="animate-spin" />}
       {!isLoading && reviews && reviews.length > 0 ? (
         <div className="space-y-6">
@@ -411,6 +412,14 @@ function PropertyDetails({ property }: { property: Property }) {
   const rating = property.rating || 0;
   const ratingDisplay = reviewCount > 0 ? `${rating.toFixed(1)} (${reviewCount} reviews)` : 'New listing';
 
+  const guestSpaceLabel = guestSpaces.find(g => g.id === property.guestSpace)?.label || 'Space';
+  const WhoElseDisplay = () => {
+    if (!property.whoElse || property.whoElse.length === 0) {
+      return null;
+    }
+    const who = property.whoElse.map(id => whoElseOptions.find(o => o.id === id)?.label).join(', ');
+    return <p className="flex items-center gap-2"><Users2 /> You may be sharing the space with: {who}</p>;
+  };
 
   return (
     <div className="container mx-auto py-8 lg:py-12">
@@ -437,12 +446,13 @@ function PropertyDetails({ property }: { property: Property }) {
         </div>
       </div>
 
-       <Dialog onOpenChange={(open) => !open && setSelectedImageIndex(null)}>
+       <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => !open && setSelectedImageIndex(null)}>
          <Carousel className="w-full mb-8">
           <CarouselContent>
             {images.map((url, index) => (
               <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
-                 <div className="relative aspect-video group">
+                 <DialogTrigger asChild onClick={() => setSelectedImageIndex(index)}>
+                 <div className="relative aspect-video group cursor-pointer">
                     <Image
                       src={url}
                       alt={`${property.title} image ${index + 1}`}
@@ -450,14 +460,13 @@ function PropertyDetails({ property }: { property: Property }) {
                       className="object-cover rounded-lg"
                       priority={index === 0}
                     />
-                    <DialogTrigger asChild onClick={() => setSelectedImageIndex(index)}>
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                        <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full">
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="bg-black/50 text-white p-2 rounded-full">
                            <Expand className="w-5 h-5" />
                         </div>
-                      </div>
-                    </DialogTrigger>
+                    </div>
                  </div>
+                 </DialogTrigger>
               </CarouselItem>
             ))}
           </CarouselContent>
@@ -467,18 +476,28 @@ function PropertyDetails({ property }: { property: Property }) {
         <DialogContent className="max-w-4xl p-0 border-0">
           <DialogHeader>
             <DialogTitle className="sr-only">
-              Full-size view of {property.title} image
+              Full-size view of {property.title}
             </DialogTitle>
           </DialogHeader>
           {selectedImageIndex !== null && (
-            <div className="relative w-full h-[80vh]">
-              <Image
-                src={images[selectedImageIndex]}
-                alt={`${property.title} image ${selectedImageIndex + 1}`}
-                fill
-                className="object-contain"
-              />
-            </div>
+            <Carousel opts={{startIndex: selectedImageIndex}} className="w-full">
+                <CarouselContent>
+                    {images.map((url, index) => (
+                        <CarouselItem key={index}>
+                            <div className="relative w-full h-[80vh]">
+                                <Image
+                                    src={url}
+                                    alt={`${property.title} image ${index + 1}`}
+                                    fill
+                                    className="object-contain"
+                                />
+                            </div>
+                        </CarouselItem>
+                    ))}
+                </CarouselContent>
+                <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
+                <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+            </Carousel>
           )}
         </DialogContent>
       </Dialog>
@@ -488,6 +507,11 @@ function PropertyDetails({ property }: { property: Property }) {
         <div className="lg:col-span-2 space-y-8">
           <div className="border-b pb-6">
             <HostDetails property={property} />
+          </div>
+          
+          <div className="border-b pb-6 space-y-4">
+              <p className="flex items-center gap-2"><Home /> {guestSpaceLabel}</p>
+              <WhoElseDisplay />
           </div>
 
           <div className="border-b pb-6">
@@ -510,7 +534,7 @@ function PropertyDetails({ property }: { property: Property }) {
           </div>
 
           <div className="border-b pb-6">
-            <ReviewsSection propertyId={property.id} />
+            <ReviewsSection propertyId={property.id} property={property} />
           </div>
         </div>
 
@@ -529,20 +553,20 @@ function PropertyDetails({ property }: { property: Property }) {
                   selected={date}
                   onSelect={setDate}
                   numberOfMonths={1}
-                  className="p-0"
+                  className="p-0 [&_td]:w-auto [&_td]:p-1 [&_th]:w-auto"
                   disabled={{ before: new Date() }}
                   footer={
-                    <div className="text-sm text-muted-foreground pt-2">
+                    <div className="text-sm text-muted-foreground pt-2 flex justify-between">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span>Selected {duration} nights</span>
+                          <span className="font-semibold">Selected: {duration} night{duration !== 1 ? 's' : ''}</span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>
-                            {date?.from ? format(date.from, 'PPP') : 'Check-in'} – {date?.to ? format(date.to, 'PPP') : 'Check-out'}
-                          </p>
+                          <p>Check-in: {date?.from ? format(date.from, 'PPP') : 'N/A'}</p>
+                          <p>Check-out: {date?.to ? format(date.to, 'PPP') : 'N/A'}</p>
                         </TooltipContent>
                       </Tooltip>
+                      <Button variant="link" className="p-0 h-auto" onClick={() => setDate(undefined)}>Clear</Button>
                     </div>
                   }
                 />

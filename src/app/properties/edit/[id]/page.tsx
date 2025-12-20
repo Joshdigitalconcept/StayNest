@@ -31,12 +31,9 @@ import { updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { amenitiesList } from '@/lib/types';
 
-const amenitiesList = [
-  "Wifi", "Kitchen", "Free parking", "Heating", "TV", "Air conditioning", "Pool", "Elevator", "Gym"
-];
 
-// No image upload on the edit page for simplicity, can be added later.
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
@@ -47,6 +44,7 @@ const formSchema = z.object({
   maxGuests: z.coerce.number().min(1, 'Max guests must be at least 1'),
   bedrooms: z.coerce.number().min(0, 'Bedrooms cannot be negative'),
   bathrooms: z.coerce.number().min(0, 'Bathrooms cannot be negative'),
+  beds: z.coerce.number().min(0, 'Beds cannot be negative'),
   amenities: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one item.",
   }),
@@ -79,13 +77,13 @@ export default function EditPropertyPage() {
       maxGuests: 1,
       bedrooms: 0,
       bathrooms: 0,
+      beds: 0,
       amenities: [],
     },
   });
   
   React.useEffect(() => {
     if (listing) {
-      // Check if user is the owner
       if (user && user.uid !== listing.ownerId) {
         toast({
           variant: 'destructive',
@@ -93,8 +91,21 @@ export default function EditPropertyPage() {
           description: "You don't have permission to edit this listing.",
         });
         router.push('/');
+        return;
       }
-      form.reset(listing);
+      form.reset({
+          title: listing.title || '',
+          description: listing.description || '',
+          location: listing.location || '',
+          pricePerNight: listing.pricePerNight || 0,
+          cleaningFee: listing.cleaningFee || 0,
+          serviceFee: listing.serviceFee || 0,
+          maxGuests: listing.maxGuests || 1,
+          bedrooms: listing.bedrooms || 0,
+          bathrooms: listing.bathrooms || 0,
+          beds: listing.beds || 0,
+          amenities: listing.amenities || [],
+      });
     }
   }, [listing, form, user, router, toast]);
 
@@ -262,7 +273,7 @@ export default function EditPropertyPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <FormField
                   control={form.control}
                   name="maxGuests"
@@ -282,6 +293,19 @@ export default function EditPropertyPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Bedrooms</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="beds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Beds</FormLabel>
                       <FormControl>
                         <Input type="number" {...field} disabled={isSubmitting} />
                       </FormControl>

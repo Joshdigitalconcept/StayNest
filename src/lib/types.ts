@@ -13,29 +13,29 @@ export interface Property {
   amenities: string[];
   ownerId: string;
   imageUrl: string;
-  imageUrls?: string[]; // For carousel
+  imageUrls: string[];
   cleaningFee: number;
   serviceFee: number;
   createdAt: any;
   updatedAt: any;
-  reviewCount?: number;
-  host?: {
+  reviewCount: number;
+  host: {
     name: string | null;
     photoURL: string | null;
   };
-  // New fields for host flow
-  propertyType?: string;
-  guestSpace?: string;
-  beds?: number;
-  bathroomType?: string;
-  whoElse?: string[];
-  bookingSettings?: 'instant' | 'approval';
-  firstGuestWelcome?: 'any' | 'experienced';
-  weekendPrice?: number;
-  newListingPromotion?: boolean;
-  weeklyDiscount?: boolean;
-  monthlyDiscount?: boolean;
-  lastMinuteDiscount?: boolean;
+  // New fields from host flow
+  propertyType: string;
+  guestSpace: string;
+  beds: number;
+  bathroomType: string;
+  whoElse: string[];
+  bookingSettings: 'instant' | 'approval';
+  firstGuestWelcome: 'any' | 'experienced';
+  weekendPrice: number;
+  newListingPromotion: boolean;
+  weeklyDiscount: boolean;
+  monthlyDiscount: boolean;
+  lastMinuteDiscount: boolean;
 }
 
 export interface Booking {
