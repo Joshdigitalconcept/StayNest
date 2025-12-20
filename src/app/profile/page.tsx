@@ -136,8 +136,8 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div className="md:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1">
           <Card>
             <CardHeader className="items-center text-center">
               <Avatar className="h-24 w-24 mb-4">
@@ -156,9 +156,9 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         </div>
-        <div className="md:col-span-3">
+        <div className="lg:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="properties">My Properties</TabsTrigger>
@@ -201,14 +201,14 @@ export default function ProfilePage() {
                       <div className="space-y-4">
                         {myBookings.map(booking => (
                            <Link key={booking.id} href={`/properties/${booking.listing?.id || booking.listingId}`}>
-                            <div className="flex items-center gap-4 border p-4 rounded-lg hover:bg-muted/50">
-                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-32"/>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg hover:bg-muted/50">
+                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
                                 <div className="flex-1">
                                   <h3 className="font-semibold">{booking.listing?.title}</h3>
                                   <p className="text-sm text-muted-foreground">{booking.listing?.location}</p>
                                   <p className="text-sm mt-1">{booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}</p>
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
+                                <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                   <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
                                   <span className="font-semibold">${booking.totalPrice}</span>
                                 </div>
@@ -230,7 +230,7 @@ export default function ProfilePage() {
             {/* My Properties (Host) */}
             <TabsContent value="properties">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>My Properties</CardTitle>
                     <CardDescription>Manage your listings and view guest requests.</CardDescription>
@@ -266,9 +266,9 @@ export default function ProfilePage() {
                     hostReservations && hostReservations.length > 0 ? (
                        <div className="space-y-4">
                         {hostReservations.map(booking => (
-                          <div key={booking.id} className="flex items-center gap-4 border p-4 rounded-lg">
+                          <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg">
                             <Link href={`/properties/${booking.listing?.id || booking.listingId}`}>
-                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-32"/>
+                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
                             </Link>
                             <div className="flex-1">
                               <h3 className="font-semibold">{booking.listing?.title}</h3>
@@ -278,12 +278,12 @@ export default function ProfilePage() {
                               <p className="text-sm mt-1">{booking.guests} guest(s) - ${booking.totalPrice}</p>
                             </div>
                             {booking.status === 'pending' ? (
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => handleBookingStatusUpdate(booking.id, 'confirmed')}>Approve</Button>
-                                <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking.id, 'declined')}>Decline</Button>
+                              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                <Button size="sm" onClick={() => handleBookingStatusUpdate(booking.id, 'confirmed')} className="w-full sm:w-auto">Approve</Button>
+                                <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking.id, 'declined')} className="w-full sm:w-auto">Decline</Button>
                               </div>
                             ) : (
-                              <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
+                              <Badge variant={badgeVariants[booking.status]} className="mt-2 sm:mt-0">{booking.status}</Badge>
                             )}
                           </div>
                         ))}
