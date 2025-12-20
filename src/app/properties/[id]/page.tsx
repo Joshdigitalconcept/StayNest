@@ -23,15 +23,15 @@ import {
   User,
   Users2,
   Sparkles,
-  Edit
+  Edit,
+  ChevronDown
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
@@ -224,7 +224,7 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
             <CardContent>
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                     <div>
-                        <Label>Rating</Label>
+                        <span className="text-sm font-medium">Rating</span>
                         <div className="flex items-center gap-1 mt-2">
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
@@ -236,7 +236,7 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
                         </div>
                     </div>
                      <div>
-                        <Label htmlFor="comment">Comment</Label>
+                        <label htmlFor="comment" className="text-sm font-medium">Comment</label>
                         <Textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share your experience..." />
                     </div>
                     <Button type="submit" disabled={isSubmitting}>
@@ -329,24 +329,15 @@ function PropertyDetails({ property }: { property: Property }) {
   }, [user, bookings, date]);
 
 
-  const { subtotal, duration, priceForFirstNight } = React.useMemo(() => {
+  const { subtotal, duration } = React.useMemo(() => {
     if (!date?.from || !date?.to) {
-      return { subtotal: 0, duration: 0, priceForFirstNight: property.pricePerNight };
+      return { subtotal: 0, duration: 0 };
     }
     
     const days = eachDayOfInterval({ start: date.from, end: date.to });
     if (days.length <= 1) { // A booking must be at least 1 night
-      return { subtotal: 0, duration: 0, priceForFirstNight: property.pricePerNight };
+      return { subtotal: 0, duration: 0 };
     }
-    
-    let currentPrice = property.pricePerNight;
-    if (property.weekendPrice > 0) {
-        const dayOfWeek = getDay(date.from);
-        if (dayOfWeek === 5 || dayOfWeek === 6) { // Fri or Sat
-            currentPrice = property.weekendPrice;
-        }
-    }
-
 
     // Calculate total, excluding the last day (checkout day)
     const sub = days.slice(0, -1).reduce((acc, day) => {
@@ -358,7 +349,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
     const bookingDuration = differenceInCalendarDays(date.to, date.from);
 
-    return { subtotal: sub, duration: bookingDuration, priceForFirstNight: currentPrice };
+    return { subtotal: sub, duration: bookingDuration };
   }, [date, property.pricePerNight, property.weekendPrice]);
 
   const cleaningFee = property?.cleaningFee || 0;
@@ -495,19 +486,6 @@ function PropertyDetails({ property }: { property: Property }) {
     const who = property.whoElse.map(id => whoElseOptions.find(o => o.id === id)?.label).join(', ');
     return <p className="flex items-center gap-2"><Users2 /> You may be sharing the space with: {who}</p>;
   };
-  
-  const modifiers = {
-    checkin: date?.from,
-    checkout: date?.to,
-  }
-  
-  const modifiersClassNames = {
-    checkin: "font-bold bg-primary text-primary-foreground rounded-l-full",
-    checkout: "font-bold bg-primary text-primary-foreground rounded-r-full",
-    range_middle: "bg-primary/20",
-    range_start: "bg-primary/50 rounded-l-full",
-    range_end: "bg-primary/50 rounded-r-full",
-  }
 
   return (
     <div className="container mx-auto py-8 lg:py-12">
@@ -641,74 +619,95 @@ function PropertyDetails({ property }: { property: Property }) {
             <div className="lg:col-span-1">
             <Card className="sticky top-24 shadow-lg">
                 <CardHeader>
-                <CardTitle className="flex items-baseline">
-                    <span className="text-2xl font-bold">${priceForFirstNight}</span>
-                    <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
-                </CardTitle>
+                  <CardTitle className="text-2xl">
+                     {duration > 0 ? (
+                        <>
+                          <span className="font-bold">${totalPrice.toFixed(0)}</span>
+                          <span className="ml-1 text-base font-normal text-muted-foreground"> for {duration} night{duration !== 1 ? 's' : ''}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-bold">${property.pricePerNight}</span>
+                          <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
+                        </>
+                      )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                <TooltipProvider>
-                    <Calendar
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="grid grid-cols-2 rounded-lg border cursor-pointer">
+                        <div className="p-3">
+                          <p className="text-xs font-bold uppercase tracking-wider">Check-in</p>
+                          <p className="text-sm">{date?.from ? format(date.from, 'M/d/yyyy') : 'Add date'}</p>
+                        </div>
+                        <div className="p-3 border-l">
+                          <p className="text-xs font-bold uppercase tracking-wider">Checkout</p>
+                           <p className="text-sm">{date?.to ? format(date.to, 'M/d/yyyy') : 'Add date'}</p>
+                        </div>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
                         mode="range"
+                        defaultMonth={date?.from}
                         selected={date}
                         onSelect={setDate}
-                        numberOfMonths={1}
-                        className="p-0 [&_td]:w-auto [&_td]:p-1 [&_th]:w-auto"
+                        numberOfMonths={2}
                         disabled={disabledDates}
-                        modifiers={modifiers}
-                        modifiersClassNames={modifiersClassNames}
-                        footer={
-                            <div className="text-sm text-muted-foreground pt-2 flex justify-between">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <span className="font-semibold">Selected: {duration > 0 ? `${duration} night${duration !== 1 ? 's' : ''}` : '0 nights'}</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                <p>Check-in: {date?.from ? format(date.from, 'PPP') : 'N/A'}</p>
-                                <p>Check-out: {date?.to ? format(date.to, 'PPP') : 'N/A'}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                            <Button variant="link" className="p-0 h-auto" onClick={() => setDate(undefined)}>Clear</Button>
-                            </div>
-                        }
-                    />
-                </TooltipProvider>
-                <div className="grid gap-2">
-                    <Label htmlFor="guests">Guests</Label>
-                    <Input 
-                    id="guests" 
-                    type="number" 
-                    value={guests} 
-                    onChange={(e) => setGuests(Number(e.target.value))} 
-                    min={1} 
-                    max={property.maxGuests} 
-                    />
-                </div>
-                <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0 || isReservationMade}>
-                    {isReserving ? <Loader2 className="animate-spin" /> : isReservationMade ? 'Already Booked' : 'Reserve'}
-                </Button>
-                <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
-                {duration > 0 && (
-                    <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                        <span>{duration} night{duration !== 1 ? 's' : ''}</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Cleaning fee</span>
-                        <span>${cleaningFee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Service fee</span>
-                        <span>${serviceFee.toFixed(2)}</span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-bold">
-                        <span>Total</span>
-                        <span>${totalPrice.toFixed(2)}</span>
-                    </div>
-                    </div>
-                )}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="flex items-center justify-between rounded-lg border p-3 cursor-pointer">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider">Guests</p>
+                          <p className="text-sm">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                        </div>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground"/>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2">
+                       <div className="flex items-center justify-between">
+                          <span className="font-medium">Guests</span>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
+                            <span>{guests}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
+                          </div>
+                       </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0 || isReservationMade}>
+                      {isReserving ? <Loader2 className="animate-spin" /> : isReservationMade ? 'Already Booked' : 'Reserve'}
+                  </Button>
+                   <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
+
+                  {duration > 0 && (
+                      <div className="space-y-2 text-sm pt-4">
+                      <div className="flex justify-between">
+                          <span className="underline">${property.pricePerNight} x {duration} nights</span>
+                          <span>${subtotal.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                          <span className="underline">Cleaning fee</span>
+                          <span>${cleaningFee.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                          <span className="underline">Service fee</span>
+                          <span>${serviceFee.toFixed(2)}</span>
+                      </div>
+                      <Separator className="my-2" />
+                      <div className="flex justify-between font-bold text-base">
+                          <span>Total</span>
+                          <span>${totalPrice.toFixed(2)}</span>
+                      </div>
+                      </div>
+                  )}
                 </CardContent>
             </Card>
             </div>
@@ -717,3 +716,4 @@ function PropertyDetails({ property }: { property: Property }) {
     </div>
   );
 }
+
