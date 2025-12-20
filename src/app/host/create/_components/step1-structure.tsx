@@ -2,11 +2,11 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { propertyTypes } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { LucideIcon, Home, Building, Hotel, Building2, LogCabin, Trees } from "lucide-react";
+import { LucideIcon, Home, Building, Hotel, Building2, Mountain, Trees } from "lucide-react";
 import * as React from 'react';
 
 const icons: { [key: string]: LucideIcon } = {
-  Home, Building, Hotel, Building2, LogCabin, Trees
+  Home, Building, Hotel, Building2, Mountain, Trees
 };
 
 

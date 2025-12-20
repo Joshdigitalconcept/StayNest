@@ -92,7 +92,7 @@ export const propertyTypes = [
   { id: 'apartment', label: 'Apartment', icon: 'Building' },
   { id: 'guesthouse', label: 'Guesthouse', icon: 'Hotel' },
   { id: 'hotel', label: 'Hotel', icon: 'Building2' },
-  { id: 'cabin', label: 'Cabin', icon: 'LogCabin' },
+  { id: 'cabin', label: 'Cabin', icon: 'Mountain' },
   { id: 'treehouse', label: 'Treehouse', icon: 'Trees' },
 ];
 
