@@ -31,7 +31,7 @@ function Counter({ label, value, onValueChange }: { label: string, value: number
           variant="outline"
           size="icon"
           className="rounded-full"
-          onClick={() => onValue-Change(value + 1)}
+          onClick={() => onValueChange(value + 1)}
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -86,6 +86,7 @@ export default function Step4_FloorPlan({ setFormData, formData }: Step4Props) {
             {bathroomTypes.map(item => (
                 <Button 
                     key={item.id} 
+                    type="button"
                     variant={formData.bathroomType === item.id ? "default" : "outline"}
                     onClick={() => setFormData({ bathroomType: item.id })}
                     className="h-auto py-4 text-left whitespace-normal"
