@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -69,6 +70,24 @@ export default function CreateListingPage() {
   }
 
   const CurrentStepComponent = steps[currentStep - 1].component;
+  
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1: return !!formData.propertyType;
+      case 2: return !!formData.guestSpace;
+      case 3: return !!formData.location?.trim();
+      case 4: return formData.maxGuests > 0 && formData.beds > 0 && formData.bathrooms > 0 && !!formData.bathroomType;
+      case 5: return formData.amenities?.length > 0;
+      case 6: return formData.images?.length > 0;
+      case 7: return !!formData.title?.trim();
+      case 8: return !!formData.description?.trim();
+      case 9: return !!formData.bookingSettings;
+      case 10: return formData.pricePerNight > 0;
+      case 12: return !!formData.residentialAddress?.country && !!formData.residentialAddress?.street && !!formData.residentialAddress?.city && !!formData.hostingAsBusiness;
+      default: return true; // For optional steps like discounts or the final review
+    }
+  };
+
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-screen">
@@ -117,7 +136,7 @@ export default function CreateListingPage() {
                 <div className="bg-primary h-2 rounded-full" style={{ width: `${(currentStep / totalSteps) * 100}%` }}/>
               </div>
             </div>
-            <Button onClick={isLastStep ? () => {} : goToNextStep} disabled={isLastStep}>
+            <Button onClick={isLastStep ? () => {} : goToNextStep} disabled={isLastStep || !isStepValid()}>
               {currentStep === totalSteps - 1 ? 'Review' : 'Next'}
             </Button>
           </div>

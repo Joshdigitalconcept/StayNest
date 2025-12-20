@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from "next/image";
@@ -21,7 +22,8 @@ import {
   Home,
   User,
   Users2,
-  Sparkles
+  Sparkles,
+  Edit
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,6 +43,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { propertyTypes, guestSpaces, whoElseOptions, amenitiesList } from "@/lib/types";
+import Link from "next/link";
+
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 1200;
@@ -143,6 +147,7 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
   const [rating, setRating] = React.useState(0);
   const [comment, setComment] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isOwner = user?.uid === property.ownerId;
 
   const reviewsQuery = useMemoFirebase(
     () => firestore ? query(collection(firestore, 'listings', propertyId, 'reviews'), orderBy('createdAt', 'desc')) : null,
@@ -195,6 +200,10 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
         setIsSubmitting(false);
     }
   };
+  
+  if (isOwner) {
+    return null;
+  }
 
   return (
     <div>
@@ -289,6 +298,7 @@ function PropertyDetails({ property }: { property: Property }) {
   );
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
+  const isOwner = user?.uid === property.ownerId;
 
   const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
   
@@ -425,10 +435,21 @@ function PropertyDetails({ property }: { property: Property }) {
             <h1 className="text-3xl lg:text-4xl font-bold font-headline">
             {property.title}
             </h1>
-            <Button variant="outline" onClick={handleFavoriteToggle}>
-              <Heart className={`mr-2 h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
-              {isFavorited ? 'Favorited' : 'Favorite'}
-            </Button>
+            <div className="flex gap-2">
+                {isOwner ? (
+                  <Button variant="outline" asChild>
+                    <Link href={`/properties/edit/${property.id}`}>
+                      <Edit className="mr-2 h-5 w-5" />
+                      Edit Listing
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={handleFavoriteToggle}>
+                    <Heart className={`mr-2 h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+                    {isFavorited ? 'Favorited' : 'Favorite'}
+                  </Button>
+                )}
+            </div>
         </div>
         <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
           <div className="flex items-center gap-1">
@@ -535,78 +556,80 @@ function PropertyDetails({ property }: { property: Property }) {
           </div>
         </div>
 
-        <div className="lg:col-span-1">
-          <Card className="sticky top-24 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-baseline">
-                <span className="text-2xl font-bold">${property.pricePerNight}</span>
-                <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <TooltipProvider>
-                <Calendar
-                  mode="range"
-                  selected={date}
-                  onSelect={setDate}
-                  numberOfMonths={1}
-                  className="p-0 [&_td]:w-auto [&_td]:p-1 [&_th]:w-auto"
-                  disabled={{ before: new Date() }}
-                  footer={
-                    <div className="text-sm text-muted-foreground pt-2 flex justify-between">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="font-semibold">Selected: {duration} night{duration !== 1 ? 's' : ''}</span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Check-in: {date?.from ? format(date.from, 'PPP') : 'N/A'}</p>
-                          <p>Check-out: {date?.to ? format(date.to, 'PPP') : 'N/A'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      <Button variant="link" className="p-0 h-auto" onClick={() => setDate(undefined)}>Clear</Button>
-                    </div>
-                  }
-                />
-              </TooltipProvider>
-               <div className="grid gap-2">
-                 <Label htmlFor="guests">Guests</Label>
-                 <Input 
-                   id="guests" 
-                   type="number" 
-                   value={guests} 
-                   onChange={(e) => setGuests(Number(e.target.value))} 
-                   min={1} 
-                   max={property.maxGuests} 
-                  />
-               </div>
-              <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving}>
-                {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
-              </Button>
-              <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
-              {duration > 0 && (
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>${property.pricePerNight} x {duration} nights</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Cleaning fee</span>
-                    <span>${cleaningFee.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Service fee</span>
-                    <span>${serviceFee.toFixed(2)}</span>
-                  </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-bold">
-                    <span>Total</span>
-                    <span>${totalPrice.toFixed(2)}</span>
-                  </div>
+        {!isOwner && (
+            <div className="lg:col-span-1">
+            <Card className="sticky top-24 shadow-lg">
+                <CardHeader>
+                <CardTitle className="flex items-baseline">
+                    <span className="text-2xl font-bold">${property.pricePerNight}</span>
+                    <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
+                </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                <TooltipProvider>
+                    <Calendar
+                    mode="range"
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={1}
+                    className="p-0 [&_td]:w-auto [&_td]:p-1 [&_th]:w-auto"
+                    disabled={{ before: new Date() }}
+                    footer={
+                        <div className="text-sm text-muted-foreground pt-2 flex justify-between">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <span className="font-semibold">Selected: {duration} night{duration !== 1 ? 's' : ''}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                            <p>Check-in: {date?.from ? format(date.from, 'PPP') : 'N/A'}</p>
+                            <p>Check-out: {date?.to ? format(date.to, 'PPP') : 'N/A'}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Button variant="link" className="p-0 h-auto" onClick={() => setDate(undefined)}>Clear</Button>
+                        </div>
+                    }
+                    />
+                </TooltipProvider>
+                <div className="grid gap-2">
+                    <Label htmlFor="guests">Guests</Label>
+                    <Input 
+                    id="guests" 
+                    type="number" 
+                    value={guests} 
+                    onChange={(e) => setGuests(Number(e.target.value))} 
+                    min={1} 
+                    max={property.maxGuests} 
+                    />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving}>
+                    {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
+                {duration > 0 && (
+                    <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                        <span>${property.pricePerNight} x {duration} nights</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Cleaning fee</span>
+                        <span>${cleaningFee.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Service fee</span>
+                        <span>${serviceFee.toFixed(2)}</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between font-bold">
+                        <span>Total</span>
+                        <span>${totalPrice.toFixed(2)}</span>
+                    </div>
+                    </div>
+                )}
+                </CardContent>
+            </Card>
+            </div>
+        )}
       </div>
     </div>
   );
