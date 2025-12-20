@@ -58,3 +58,16 @@ export interface Favorite {
     id: string;
     listing: Property;
 }
+
+export interface Review {
+  id: string;
+  listingId: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: Timestamp;
+  user: {
+    name: string | null;
+    photoURL: string | null;
+  };
+}

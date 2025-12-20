@@ -11,6 +11,7 @@
  * - /roles_admin/{userId}: An existence-based collection to grant users admin
  *   privileges across the application.
  * - /listings/{listingId}: Publicly accessible property listings.
+ * - /listings/{listingId}/reviews/{reviewId}: Publicly readable reviews for a listing.
  * - /bookings/{bookingId}: Private booking details accessible only to the
  *   guest who made the booking and the host of the property.
  *
@@ -109,6 +110,19 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      /**
+       * @description Manages reviews for a listing.
+       *   - Anyone can read reviews.
+       *   - Authenticated users can create reviews for a listing.
+       *   - Only the user who wrote the review can update or delete it.
+       * @path /listings/{listingId}/reviews/{reviewId}
+       */
+      match /reviews/{reviewId} {
+        allow get, list: if true;
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      }
     }
 
     /**
@@ -127,4 +141,3 @@ service cloud.firestore {
     }
   }
 }
-    

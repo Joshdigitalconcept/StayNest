@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound, useParams, useRouter } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import * as React from 'react';
 import {
   Star,
@@ -27,13 +27,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc } from "firebase/firestore";
-import type { Property, User as UserType } from "@/lib/types";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, writeBatch } from "firebase/firestore";
+import type { Property, Review } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { addDays, differenceInCalendarDays } from "date-fns";
+import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useRouter } from "next/navigation";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 1200;
@@ -131,6 +135,148 @@ const amenityIcons: { [key: string]: React.ElementType } = {
   Elevator: Plus, 
   Gym: Plus,
 };
+
+function ReviewsSection({ propertyId }: { propertyId: string }) {
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [rating, setRating] = React.useState(0);
+  const [comment, setComment] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const reviewsQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'listings', propertyId, 'reviews'), orderBy('createdAt', 'desc')) : null,
+    [firestore, propertyId]
+  );
+  const { data: reviews, isLoading } = useCollection<Review>(reviewsQuery);
+  
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !firestore) {
+      toast({ variant: "destructive", title: "Please log in to leave a review."});
+      return;
+    }
+    if (rating === 0 || comment.trim() === '') {
+      toast({ variant: "destructive", title: "Please provide a rating and a comment."});
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const reviewRef = collection(firestore, 'listings', propertyId, 'reviews');
+    const propertyRef = doc(firestore, 'listings', propertyId);
+
+    try {
+        const batch = writeBatch(firestore);
+
+        const newReviewRef = doc(reviewRef);
+        batch.set(newReviewRef, {
+            listingId: propertyId,
+            userId: user.uid,
+            rating,
+            comment,
+            createdAt: serverTimestamp(),
+            user: {
+                name: user.displayName,
+                photoURL: user.photoURL,
+            }
+        });
+
+        const propertySnap = await getDoc(propertyRef);
+        const propertyData = propertySnap.data() as Property;
+        const oldRatingTotal = (propertyData.rating || 0) * (propertyData.reviewCount || 0);
+        const newReviewCount = (propertyData.reviewCount || 0) + 1;
+        const newAverageRating = (oldRatingTotal + rating) / newReviewCount;
+
+        batch.update(propertyRef, {
+            rating: newAverageRating,
+            reviewCount: newReviewCount
+        });
+
+        await batch.commit();
+
+        toast({ title: "Review submitted!" });
+        setRating(0);
+        setComment('');
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error submitting review." });
+        console.error(error);
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
+        <Star className="w-5 h-5" />
+        <span>Reviews ({reviews?.length || 0})</span>
+      </h3>
+      
+      {/* Review Form */}
+      {user && (
+        <Card className="mb-8">
+            <CardHeader>
+                <CardTitle>Leave a Review</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                    <div>
+                        <Label>Rating</Label>
+                        <div className="flex items-center gap-1 mt-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                    key={star}
+                                    className={`w-6 h-6 cursor-pointer ${rating >= star ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`}
+                                    onClick={() => setRating(star)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                     <div>
+                        <Label htmlFor="comment">Comment</Label>
+                        <Textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share your experience..." />
+                    </div>
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Submit Review
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+      )}
+
+      {/* Existing Reviews */}
+      {isLoading && <Loader2 className="animate-spin" />}
+      {!isLoading && reviews && reviews.length > 0 ? (
+        <div className="space-y-6">
+          {reviews.map(review => (
+            <div key={review.id} className="flex gap-4">
+                <Avatar>
+                    <AvatarImage src={review.user?.photoURL || ''} alt={review.user?.name || ''} />
+                    <AvatarFallback>{review.user?.name?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold">{review.user?.name}</span>
+                        <span className="text-xs text-muted-foreground">{format(review.createdAt.toDate(), 'PPP')}</span>
+                    </div>
+                     <div className="flex items-center gap-0.5 mt-1">
+                        {[1, 2, 3, 4, 5].map(star => (
+                           <Star key={star} className={`w-4 h-4 ${review.rating >= star ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
+                        ))}
+                    </div>
+                    <p className="mt-2 text-sm text-foreground/80">{review.comment}</p>
+                </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+         !isLoading && <p className="text-muted-foreground">Be the first to review this listing!</p>
+      )}
+    </div>
+  );
+}
+
 
 function PropertyDetails({ property }: { property: Property }) {
   const { user } = useUser();
@@ -302,21 +448,23 @@ function PropertyDetails({ property }: { property: Property }) {
          <Carousel className="w-full mb-8">
           <CarouselContent>
             {images.map((url, index) => (
-              <CarouselItem key={index} className="relative aspect-video group">
-                 <Image
-                  src={url}
-                  alt={`${property.title} image ${index + 1}`}
-                  fill
-                  className="object-cover rounded-lg"
-                  priority={index === 0}
-                />
-                 <DialogTrigger asChild onClick={() => setSelectedImageIndex(index)}>
-                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                    <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full">
-                       <Expand className="w-5 h-5" />
-                    </div>
-                  </div>
-                </DialogTrigger>
+              <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+                 <div className="relative aspect-video group">
+                    <Image
+                      src={url}
+                      alt={`${property.title} image ${index + 1}`}
+                      fill
+                      className="object-cover rounded-lg"
+                      priority={index === 0}
+                    />
+                    <DialogTrigger asChild onClick={() => setSelectedImageIndex(index)}>
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                        <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full">
+                           <Expand className="w-5 h-5" />
+                        </div>
+                      </div>
+                    </DialogTrigger>
+                 </div>
               </CarouselItem>
             ))}
           </CarouselContent>
@@ -343,7 +491,7 @@ function PropertyDetails({ property }: { property: Property }) {
       </Dialog>
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
         <div className="lg:col-span-2 space-y-8">
           <div className="border-b pb-6">
             <HostDetails property={property} />
@@ -355,7 +503,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
           <div className="border-b pb-6">
             <h3 className="text-xl font-semibold mb-4">What this place offers</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {property.amenities && property.amenities.map((amenity) => {
                 const Icon = amenityIcons[amenity] || Plus;
                 return (
@@ -368,16 +516,8 @@ function PropertyDetails({ property }: { property: Property }) {
             </div>
           </div>
 
-          <div>
-            <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
-              <Star className="w-5 h-5" />
-               <span>{ratingDisplay}</span>
-            </h3>
-            {reviewCount > 0 ? (
-              <p className="text-muted-foreground">Reviews coming soon!</p>
-            ) : (
-              <p className="text-muted-foreground">Be the first to review this listing!</p>
-            )}
+          <div className="border-b pb-6">
+            <ReviewsSection propertyId={property.id} />
           </div>
         </div>
 
@@ -390,14 +530,30 @@ function PropertyDetails({ property }: { property: Property }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Calendar
-                mode="range"
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={1}
-                className="p-0 [&_td]:w-full"
-                disabled={{ before: new Date() }}
-              />
+              <TooltipProvider>
+                <Calendar
+                  mode="range"
+                  selected={date}
+                  onSelect={setDate}
+                  numberOfMonths={1}
+                  className="p-0"
+                  disabled={{ before: new Date() }}
+                  footer={
+                    <div className="text-sm text-muted-foreground pt-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>Selected {duration} nights</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {date?.from ? format(date.from, 'PPP') : 'Check-in'} – {date?.to ? format(date.to, 'PPP') : 'Check-out'}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  }
+                />
+              </TooltipProvider>
                <div className="grid gap-2">
                  <Label htmlFor="guests">Guests</Label>
                  <Input 
