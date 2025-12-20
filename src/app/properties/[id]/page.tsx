@@ -33,7 +33,7 @@ import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 1200;
@@ -59,8 +59,6 @@ export default function PropertyPage() {
         // Manually re-fetch, though useDoc doesn't have a built-in refetch.
         // A change in a dependency would trigger it, but here we just want to wait.
         // A simple re-render might not be enough. Let's try forcing a re-check.
-        // The best way is often to manage this outside the hook, or have a hook that supports refetching.
-        // For now, we will rebuild the logic inside the page component.
         const recheck = async () => {
           if (propertyRef) {
             const docSnap = await getDoc(propertyRef);
@@ -343,6 +341,11 @@ function PropertyDetails({ property }: { property: Property }) {
                   </div>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl p-0 border-0">
+                  <DialogHeader>
+                    <DialogTitle className="sr-only">
+                      Full-size view of {property.title} image {index + 1}
+                    </DialogTitle>
+                  </DialogHeader>
                   <div className="relative w-full h-[80vh]">
                      <Image
                       src={url}
