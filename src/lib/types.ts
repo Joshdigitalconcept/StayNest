@@ -19,6 +19,10 @@ export interface Property {
   createdAt: any;
   updatedAt: any;
   reviewCount?: number;
+  host?: {
+    name: string | null;
+    photoURL: string | null;
+  };
 }
 
 export interface Booking {
@@ -54,5 +58,3 @@ export interface Favorite {
     id: string;
     listing: Property;
 }
-
-    

@@ -234,6 +234,10 @@ export default function NewPropertyPage() {
       imageUrl: successfulUrls[0],
       imageUrls: successfulUrls,
       ownerId: user.uid,
+      host: {
+        name: user.displayName,
+        photoURL: user.photoURL,
+      },
       rating: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -388,29 +392,38 @@ export default function NewPropertyPage() {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {amenitiesList.map((item) => (
-                          <FormItem
-                            key={item}
-                            className="flex flex-row items-start space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(item)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([...field.value, item])
-                                    : field.onChange(
-                                        field.value?.filter(
-                                          (value) => value !== item
-                                        )
-                                      )
-                                }}
-                                disabled={isSubmitting}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {item}
-                            </FormLabel>
-                          </FormItem>
+                        <FormField
+                          key={item}
+                          control={form.control}
+                          name="amenities"
+                          render={({ field: checkboxField }) => {
+                            return (
+                              <FormItem
+                                key={item}
+                                className="flex flex-row items-start space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={checkboxField.value?.includes(item)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? checkboxField.onChange([...checkboxField.value, item])
+                                        : checkboxField.onChange(
+                                            checkboxField.value?.filter(
+                                              (value) => value !== item
+                                            )
+                                          )
+                                    }}
+                                    disabled={isSubmitting}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  {item}
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
                       ))}
                     </div>
                     <FormMessage />
@@ -460,5 +473,3 @@ export default function NewPropertyPage() {
     </div>
   );
 }
-
-    

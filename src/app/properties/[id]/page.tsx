@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound, useRouter, useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import * as React from 'react';
 import {
   Star,
@@ -52,22 +52,12 @@ export default function PropertyPage() {
   const { data: property, isLoading, error } = useDoc<Property>(propertyRef);
 
   React.useEffect(() => {
-    // If loading is finished, there's no data, no error, and we haven't exhausted retries
     if (!isLoading && !property && !error && retryCount < MAX_RETRIES) {
       const timer = setTimeout(() => {
         setRetryCount(prev => prev + 1);
-        // Manually re-fetch, though useDoc doesn't have a built-in refetch.
-        // A change in a dependency would trigger it, but here we just want to wait.
-        // A simple re-render might not be enough. Let's try forcing a re-check.
         const recheck = async () => {
           if (propertyRef) {
-            const docSnap = await getDoc(propertyRef);
-            if (docSnap.exists()) {
-              // If we found it, the `useDoc` listener will pick it up and update `property`.
-              // No need to do anything here.
-            } else {
-               // If not found, and we are still within retry limit, the loop continues.
-            }
+            await getDoc(propertyRef);
           }
         };
         recheck();
@@ -87,12 +77,10 @@ export default function PropertyPage() {
     );
   }
   
-  // After all retries, if the property is still not found, show 404.
   if (!isLoading && !property && retryCount >= MAX_RETRIES) {
     notFound();
   }
 
-  // Still loading during retries, show a spinner
   if (!property) {
      return (
       <div className="flex justify-center items-center h-screen">
@@ -105,18 +93,16 @@ export default function PropertyPage() {
   return <PropertyDetails property={property} />;
 }
 
-
-// Helper component for Host Details to keep main component cleaner
-function HostDetails({ ownerId, property }: { ownerId: string, property: Property }) {
-  // The direct fetch of the user document is removed to prevent permission errors.
-  // In a production app, you would denormalize the host's public info (name, picture)
-  // onto the listing document itself. For now, we will just display a generic "Host".
+function HostDetails({ property }: { property: Property }) {
+  const hostName = property.host?.name || "Host";
+  const hostAvatarUrl = property.host?.photoURL;
+  const hostAvatarFallback = hostName.charAt(0);
 
   return (
     <div className="flex justify-between items-center">
       <div>
         <h2 className="text-2xl font-semibold">
-          Entire place hosted by Host
+          Entire place hosted by {hostName}
         </h2>
         <div className="flex items-center gap-4 text-muted-foreground mt-1">
           <span>{property.maxGuests} guests</span>
@@ -127,14 +113,12 @@ function HostDetails({ ownerId, property }: { ownerId: string, property: Propert
         </div>
       </div>
       <Avatar className="h-16 w-16">
-        <AvatarFallback>{'H'}</AvatarFallback>
+        {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
+        <AvatarFallback>{hostAvatarFallback}</AvatarFallback>
       </Avatar>
     </div>
   );
 }
-
-
-// --- All Display Logic Moved to a Separate Component ---
 
 const amenityIcons: { [key: string]: React.ElementType } = {
   Wifi,
@@ -160,6 +144,7 @@ function PropertyDetails({ property }: { property: Property }) {
   });
   const [guests, setGuests] = React.useState(2);
   const [isReserving, setIsReserving] = React.useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
 
   const userFavoritesQuery = useMemoFirebase(
     () => (user && property) ? collection(firestore, `users/${user.uid}/favorites`) : null,
@@ -283,7 +268,7 @@ function PropertyDetails({ property }: { property: Property }) {
   };
   
   const images = property.imageUrls || [property.imageUrl];
-  const reviewCount = property.reviewCount || 0; // Assuming you might add this field later
+  const reviewCount = property.reviewCount || 0;
   const rating = property.rating || 0;
   const ratingDisplay = reviewCount > 0 ? `${rating.toFixed(1)} (${reviewCount} reviews)` : 'New listing';
 
@@ -313,7 +298,7 @@ function PropertyDetails({ property }: { property: Property }) {
         </div>
       </div>
 
-       <Dialog>
+       <Dialog onOpenChange={(open) => !open && setSelectedImageIndex(null)}>
          <Carousel className="w-full mb-8">
           <CarouselContent>
             {images.map((url, index) => (
@@ -325,41 +310,43 @@ function PropertyDetails({ property }: { property: Property }) {
                   className="object-cover rounded-lg"
                   priority={index === 0}
                 />
-                 <DialogTrigger asChild>
+                 <DialogTrigger asChild onClick={() => setSelectedImageIndex(index)}>
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                     <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full">
                        <Expand className="w-5 h-5" />
                     </div>
                   </div>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl p-0 border-0">
-                  <DialogHeader>
-                    <DialogTitle className="sr-only">
-                      Full-size view of {property.title} image {index + 1}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="relative w-full h-[80vh]">
-                     <Image
-                      src={url}
-                      alt={`${property.title} image ${index + 1}`}
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
-                </DialogContent>
               </CarouselItem>
             ))}
           </CarouselContent>
           <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
           <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
         </Carousel>
+        <DialogContent className="max-w-4xl p-0 border-0">
+          <DialogHeader>
+            <DialogTitle className="sr-only">
+              Full-size view of {property.title} image
+            </DialogTitle>
+          </DialogHeader>
+          {selectedImageIndex !== null && (
+            <div className="relative w-full h-[80vh]">
+              <Image
+                src={images[selectedImageIndex]}
+                alt={`${property.title} image ${selectedImageIndex + 1}`}
+                fill
+                className="object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
       </Dialog>
 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
           <div className="border-b pb-6">
-            <HostDetails ownerId={property.ownerId} property={property} />
+            <HostDetails property={property} />
           </div>
 
           <div className="border-b pb-6">
@@ -408,7 +395,7 @@ function PropertyDetails({ property }: { property: Property }) {
                 selected={date}
                 onSelect={setDate}
                 numberOfMonths={1}
-                className="rounded-md border"
+                className="p-0 [&_td]:w-full"
                 disabled={{ before: new Date() }}
               />
                <div className="grid gap-2">
