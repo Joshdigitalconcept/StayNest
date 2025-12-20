@@ -48,7 +48,6 @@ export default function AccountPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
 
   const initialSection = (searchParams.get('section') as SectionId) || 'personal-info';
   const [activeSection, setActiveSection] = React.useState<SectionId>(
@@ -74,17 +73,6 @@ export default function AccountPage() {
     router.push(`/account?section=${id}`, { scroll: false });
   };
 
-  const handleShareProfile = () => {
-    if (!user) return;
-    const profileUrl = `${window.location.origin}/users/${user.uid}`;
-    navigator.clipboard.writeText(profileUrl).then(() => {
-      toast({
-        title: 'Link Copied!',
-        description: 'Your public profile link has been copied to your clipboard.',
-      });
-    });
-  };
-  
   if (isUserLoading || !user) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
@@ -95,10 +83,6 @@ export default function AccountPage() {
     <div className="container mx-auto py-8">
        <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold font-headline">Account Settings</h1>
-        <Button variant="outline" onClick={handleShareProfile}>
-          <Share2 className="mr-2 h-4 w-4" />
-          Share Profile
-        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
         <aside className="md:col-span-1">

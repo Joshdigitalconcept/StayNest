@@ -4,12 +4,15 @@
 import { useParams, notFound } from 'next/navigation';
 import * as React from 'react';
 import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection, query, where } from 'firebase/firestore';
+import { doc, collection, query, where, getDoc } from 'firebase/firestore';
 import type { User, Property } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Briefcase, Languages, Home } from 'lucide-react';
 import PropertyCard from '@/components/property-card';
+
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 1200;
 
 function LoadingSpinner() {
     return (
@@ -19,37 +22,12 @@ function LoadingSpinner() {
     );
 }
 
-export default function UserProfilePage() {
-    const params = useParams();
-    const id = params.id as string;
-    const firestore = useFirestore();
-
-    const userDocRef = useMemoFirebase(
-        () => (firestore && id) ? doc(firestore, 'users', id) : null,
-        [firestore, id]
-    );
-    const { data: user, isLoading: isUserLoading } = useDoc<User>(userDocRef);
-    
-    const userListingsQuery = useMemoFirebase(
-      () => (firestore && id) ? query(collection(firestore, 'listings'), where('ownerId', '==', id)) : null,
-      [firestore, id]
-    );
-    const { data: listings, isLoading: areListingsLoading } = useCollection<Property>(userListingsQuery);
-
-    if (isUserLoading || areListingsLoading) {
-        return <LoadingSpinner />;
-    }
-
-    if (!user) {
-        notFound();
-    }
-    
+function ProfileContent({ user, listings }: { user: User; listings: Property[] | null }) {
     const profileDetails = [
       { title: "About", value: user.about, icon: <Briefcase /> },
       { title: "Languages", value: user.languages, icon: <Languages /> },
       { title: "Location", value: user.live, icon: <Home /> },
     ];
-
 
     return (
         <div className="container mx-auto py-12">
@@ -100,4 +78,56 @@ export default function UserProfilePage() {
             </div>
         </div>
     );
+}
+
+export default function UserProfilePage() {
+    const params = useParams();
+    const id = params.id as string;
+    const firestore = useFirestore();
+    const [retryCount, setRetryCount] = React.useState(0);
+
+    const userDocRef = useMemoFirebase(
+        () => (firestore && id) ? doc(firestore, 'users', id) : null,
+        [firestore, id]
+    );
+    const { data: user, isLoading: isUserLoading, error: userError } = useDoc<User>(userDocRef);
+    
+    const userListingsQuery = useMemoFirebase(
+      () => (firestore && id) ? query(collection(firestore, 'listings'), where('ownerId', '==', id)) : null,
+      [firestore, id]
+    );
+    const { data: listings, isLoading: areListingsLoading } = useCollection<Property>(userListingsQuery);
+
+    React.useEffect(() => {
+        if (!isUserLoading && !user && !userError && retryCount < MAX_RETRIES) {
+          const timer = setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            // This is a bit of a hack to force the hook to re-check
+            const recheck = async () => {
+              if (userDocRef) {
+                await getDoc(userDocRef);
+              }
+            };
+            recheck();
+          }, RETRY_DELAY_MS);
+          
+          return () => clearTimeout(timer);
+        }
+    }, [isUserLoading, user, userError, retryCount, userDocRef]);
+    
+    const isLoading = isUserLoading || areListingsLoading;
+
+    if (isLoading && retryCount === 0) {
+        return <LoadingSpinner />;
+    }
+
+    if (!isLoading && !user && retryCount >= MAX_RETRIES) {
+        notFound();
+    }
+
+    if (!user) {
+        return <LoadingSpinner />;
+    }
+
+    return <ProfileContent user={user} listings={listings} />;
 }
