@@ -158,10 +158,11 @@ export default function ProfilePage() {
         </div>
         <div className="lg:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3">
+            <TabsList className="grid w-full h-auto grid-cols-2 sm:grid-cols-4">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="properties">My Properties</TabsTrigger>
+              <TabsTrigger value="reservations">Reservations</TabsTrigger>
             </TabsList>
             
             <TabsContent value="profile">
@@ -187,7 +188,6 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
             
-            {/* My Bookings (Guest) */}
             <TabsContent value="bookings">
               <Card>
                 <CardHeader>
@@ -226,7 +226,6 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
             
-            {/* My Properties (Host) */}
             <TabsContent value="properties">
               <Card>
                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -252,7 +251,50 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             </TabsContent>
-
+            
+            <TabsContent value="reservations">
+                <Card>
+                <CardHeader>
+                    <CardTitle>Guest Reservations</CardTitle>
+                    <CardDescription>Approve or decline requests from guests for your properties.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {areReservationsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
+                    hostReservations && hostReservations.length > 0 ? (
+                        <div className="space-y-4">
+                        {hostReservations.map(booking => (
+                            <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg">
+                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
+                                <div className="flex-1 space-y-1">
+                                    <h3 className="font-semibold">{booking.listing?.title}</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                    {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
+                                    </p>
+                                    <p className="text-sm">Total: <span className="font-bold">${booking.totalPrice}</span></p>
+                                </div>
+                                <div className="flex flex-col items-stretch gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                                {booking.status === 'pending' ? (
+                                    <>
+                                    <Button size="sm" onClick={() => handleBookingStatusUpdate(booking.id, 'confirmed')}>Approve</Button>
+                                    <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking.id, 'declined')}>Decline</Button>
+                                    </>
+                                ) : (
+                                    <Badge variant={badgeVariants[booking.status]} className="self-center sm:self-end">{booking.status}</Badge>
+                                )}
+                                </div>
+                            </div>
+                        ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12">
+                        <h3 className="text-lg font-semibold text-muted-foreground">No pending reservations.</h3>
+                        <p className="text-sm text-muted-foreground">You will be notified when a guest requests to book one of your properties.</p>
+                        </div>
+                    )
+                    }
+                </CardContent>
+                </Card>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -261,3 +303,4 @@ export default function ProfilePage() {
 }
 
     
+
