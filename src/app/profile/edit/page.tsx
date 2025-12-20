@@ -189,7 +189,9 @@ export default function EditProfilePage() {
     };
     
     try {
-      await updateProfile(user, authUpdateData);
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, authUpdateData);
+      }
       await updateDoc(userDocRef, firestoreUpdateData);
 
       toast({
@@ -365,3 +367,5 @@ export default function EditProfilePage() {
     </div>
   );
 }
+
+    

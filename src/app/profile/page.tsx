@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users } from "lucide-react";
+import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { useEffect, useState, ReactNode } from 'react';
 import Link from 'next/link';
@@ -126,11 +126,11 @@ export default function ProfilePage() {
     { title: "Decade I was born", value: userProfile.born, icon: <Users /> },
     { title: "My biography title would be", value: userProfile.biographyTitle, icon: <BookOpen /> },
     { title: "I'm obsessed with", value: userProfile.obsessedWith, icon: <Star /> },
-    { title: "My most useless skill", value: userProfile.uselessSkill, icon: <Smile /> },
-    { title: "My favorite song in high school", value: userProfile.favoriteSong, icon: <Plane /> },
-    { title: "I spend too much time", value: userProfile.spendTooMuchTime, icon: <Plane /> },
     { title: "My fun fact", value: userProfile.funFact, icon: <Smile /> },
-    { title: "Pets", value: userProfile.pets, icon: <Home /> },
+    { title: "My most useless skill", value: userProfile.uselessSkill, icon: <Plane /> },
+    { title: "My favorite song in high school", value: userProfile.favoriteSong, icon: <Music /> },
+    { title: "I spend too much time", value: userProfile.spendTooMuchTime, icon: <Clock /> },
+    { title: "My pets", value: userProfile.pets, icon: <PawPrint /> },
     { title: "Where I've always wanted to go", value: userProfile.travelGoal, icon: <Map /> },
   ];
 
@@ -158,11 +158,10 @@ export default function ProfilePage() {
         </div>
         <div className="lg:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-3">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="properties">My Properties</TabsTrigger>
-              <TabsTrigger value="reservations">Reservations</TabsTrigger>
             </TabsList>
             
             <TabsContent value="profile">
@@ -175,8 +174,8 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {profileDetails.map(detail => (
                       <div key={detail.title} className="flex items-start gap-4">
-                        <div className="text-muted-foreground mt-1">{detail.icon}</div>
-                        <div>
+                        <div className="text-muted-foreground mt-1 w-6 h-6 flex-shrink-0">{detail.icon}</div>
+                        <div className="flex-grow">
                           <h4 className="font-semibold">{detail.title}</h4>
                           <p className="text-sm text-muted-foreground">{detail.value || `You haven't added this yet.`}</p>
                         </div>
@@ -254,53 +253,11 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
 
-            {/* Reservations for my Properties (Host) */}
-            <TabsContent value="reservations">
-               <Card>
-                <CardHeader>
-                  <CardTitle>Guest Reservations</CardTitle>
-                  <CardDescription>Manage booking requests for your properties.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   {areReservationsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
-                    hostReservations && hostReservations.length > 0 ? (
-                       <div className="space-y-4">
-                        {hostReservations.map(booking => (
-                          <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg">
-                            <Link href={`/properties/${booking.listing?.id || booking.listingId}`}>
-                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
-                            </Link>
-                            <div className="flex-1">
-                              <h3 className="font-semibold">{booking.listing?.title}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
-                              </p>
-                              <p className="text-sm mt-1">{booking.guests} guest(s) - ${booking.totalPrice}</p>
-                            </div>
-                            {booking.status === 'pending' ? (
-                              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                                <Button size="sm" onClick={() => handleBookingStatusUpdate(booking.id, 'confirmed')} className="w-full sm:w-auto">Approve</Button>
-                                <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking.id, 'declined')} className="w-full sm:w-auto">Decline</Button>
-                              </div>
-                            ) : (
-                              <Badge variant={badgeVariants[booking.status]} className="mt-2 sm:mt-0">{booking.status}</Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <h3 className="text-lg font-semibold text-muted-foreground">You have no pending reservations.</h3>
-                      </div>
-                    )
-                  }
-                </CardContent>
-               </Card>
-            </TabsContent>
-
           </Tabs>
         </div>
       </div>
     </div>
   );
 }
+
+    
