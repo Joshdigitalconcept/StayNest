@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import * as React from 'react';
 import {
   Star,
@@ -27,14 +27,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, writeBatch } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy } from "firebase/firestore";
 import type { Property, Review } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -162,47 +161,39 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
     }
     
     setIsSubmitting(true);
-    const reviewRef = collection(firestore, 'listings', propertyId, 'reviews');
-    const propertyRef = doc(firestore, 'listings', propertyId);
+    const reviewColRef = collection(firestore, 'listings', propertyId, 'reviews');
 
-    try {
-        const batch = writeBatch(firestore);
+    const reviewData = {
+        listingId: propertyId,
+        userId: user.uid,
+        rating,
+        comment,
+        createdAt: serverTimestamp(),
+        user: {
+            name: user.displayName,
+            photoURL: user.photoURL,
+        }
+    };
 
-        const newReviewRef = doc(reviewRef);
-        batch.set(newReviewRef, {
-            listingId: propertyId,
-            userId: user.uid,
-            rating,
-            comment,
-            createdAt: serverTimestamp(),
-            user: {
-                name: user.displayName,
-                photoURL: user.photoURL,
-            }
-        });
-
-        const propertySnap = await getDoc(propertyRef);
-        const propertyData = propertySnap.data() as Property;
-        const oldRatingTotal = (propertyData.rating || 0) * (propertyData.reviewCount || 0);
-        const newReviewCount = (propertyData.reviewCount || 0) + 1;
-        const newAverageRating = (oldRatingTotal + rating) / newReviewCount;
-
-        batch.update(propertyRef, {
-            rating: newAverageRating,
-            reviewCount: newReviewCount
-        });
-
-        await batch.commit();
-
+    addDoc(reviewColRef, reviewData)
+      .then(() => {
         toast({ title: "Review submitted!" });
         setRating(0);
         setComment('');
-    } catch (error) {
+      })
+      .catch((error) => {
+        const permissionError = new FirestorePermissionError({
+            path: reviewColRef.path,
+            operation: 'create',
+            requestResourceData: reviewData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
         toast({ variant: "destructive", title: "Error submitting review." });
         console.error(error);
-    } finally {
+      })
+      .finally(() => {
         setIsSubmitting(false);
-    }
+      });
   };
 
   return (
