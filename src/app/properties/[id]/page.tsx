@@ -116,7 +116,10 @@ function HostDetails({ property }: { property: Property }) {
     <div className="flex justify-between items-center">
       <div>
         <h2 className="text-2xl font-semibold">
-          {propertyTypeLabel} hosted by {hostName}
+          {propertyTypeLabel} hosted by{' '}
+           <Link href={`/users/${property.ownerId}`} className="underline hover:text-primary">
+            {hostName}
+           </Link>
         </h2>
         <div className="flex items-center gap-4 text-muted-foreground mt-1">
           <span>{property.maxGuests} guests</span>
@@ -128,10 +131,12 @@ function HostDetails({ property }: { property: Property }) {
           <span>{property.bathrooms} bathroom{property.bathrooms !== 1 ? 's' : ''}</span>
         </div>
       </div>
-      <Avatar className="h-16 w-16">
-        {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
-        <AvatarFallback className="text-2xl">{hostAvatarFallback}</AvatarFallback>
-      </Avatar>
+       <Link href={`/users/${property.ownerId}`} className="cursor-pointer">
+        <Avatar className="h-16 w-16">
+          {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
+          <AvatarFallback className="text-2xl">{hostAvatarFallback}</AvatarFallback>
+        </Avatar>
+      </Link>
     </div>
   );
 }
