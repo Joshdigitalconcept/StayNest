@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import * as React from 'react';
 import {
   Star,
