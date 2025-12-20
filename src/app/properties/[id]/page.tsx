@@ -717,5 +717,3 @@ function PropertyDetails({ property }: { property: Property }) {
     </div>
   );
 }
-
-    

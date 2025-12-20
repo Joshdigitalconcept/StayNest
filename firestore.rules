@@ -1,3 +1,4 @@
+
 /**
  * Core Philosophy: This ruleset implements a robust security model based on user
  * ownership and global administrative roles. User-specific data is strictly
@@ -127,13 +128,14 @@ service cloud.firestore {
     /**
      * @description Stores booking details.
      *   - Guests can create their own bookings.
-     *   - The guest who made the booking and the host of the property can read it.
+     *   - Anyone can view bookings for a specific listing to determine availability.
      *   - The host can update the booking status (e.g., to confirm or decline).
      *   - The guest can cancel (delete) their own booking.
      * @path /bookings/{bookingId}
      */
     match /bookings/{bookingId} {
-      allow get, list: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid);
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.hostId == request.auth.uid; // Host can change status
       allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid; // Guest can cancel
