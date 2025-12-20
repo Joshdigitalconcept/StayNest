@@ -66,6 +66,21 @@ export interface User {
   profilePictureUrl?: string;
   favorites?: string[];
   isHost?: boolean;
+  // New detailed profile fields
+  work?: string;
+  school?: string;
+  live?: string;
+  about?: string;
+  languages?: string;
+  born?: string;
+  obsessedWith?: string;
+  uselessSkill?: string;
+  biographyTitle?: string;
+  favoriteSong?: string;
+  spendTooMuchTime?: string;
+  funFact?: string;
+  pets?: string;
+  travelGoal?: string;
 }
 
 export interface Favorite {

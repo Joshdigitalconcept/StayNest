@@ -11,13 +11,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Loader2 } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { useEffect, useState } from 'react';
+import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users } from "lucide-react";
+import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
+import { useEffect, useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import PropertyCard from '@/components/property-card';
-import type { Property, Booking } from '@/lib/types';
+import type { Property, Booking, User as UserType } from '@/lib/types';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -28,13 +28,36 @@ const badgeVariants: { [key: string]: 'default' | 'secondary' | 'destructive' } 
   declined: 'destructive',
 };
 
+const ProfileSection = ({ title, value, onEdit, icon }: { title: string, value?: string, onEdit: () => void, icon: ReactNode }) => (
+  <div>
+    <h3 className="text-lg font-semibold">{title}</h3>
+    {value ? (
+      <p className="text-muted-foreground">{value}</p>
+    ) : (
+      <div className="flex items-center justify-between mt-1">
+        <p className="text-sm text-muted-foreground">Tell us about yourself.</p>
+        <Button variant="ghost" size="sm" onClick={onEdit}>
+          <Edit className="h-4 w-4 mr-2" /> Add
+        </Button>
+      </div>
+    )}
+  </div>
+);
+
+
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const searchParams = useSearchParams();
   const firestore = useFirestore();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'bookings');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
   
-  // Queries
+  const userDocRef = useMemoFirebase(
+    () => (user && firestore) ? doc(firestore, 'users', user.uid) : null,
+    [user, firestore]
+  );
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userDocRef);
+  
   const userListingsQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'listings'), where('ownerId', '==', user.uid)) : null,
     [user, firestore]
@@ -50,7 +73,6 @@ export default function ProfilePage() {
     [user, firestore]
   );
 
-  // Data fetching
   const { data: userProperties, isLoading: arePropertiesLoading } = useCollection<Property>(userListingsQuery);
   const { data: myBookings, isLoading: areBookingsLoading } = useCollection<Booking>(guestBookingsQuery);
   const { data: hostReservations, isLoading: areReservationsLoading } = useCollection<Booking>(hostReservationsQuery);
@@ -75,12 +97,18 @@ export default function ProfilePage() {
         errorEmitter.emit('permission-error', permissionError);
       });
   };
+  
+  const handleEditRedirect = () => {
+    router.push('/profile/edit');
+  };
 
-  if (isUserLoading) {
+  const isLoading = isUserLoading || isProfileLoading;
+
+  if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
 
-  if (!user) {
+  if (!user || !userProfile) {
     return (
       <div className="container mx-auto py-8 text-center">
         <p>Please log in to view your profile.</p>
@@ -88,6 +116,22 @@ export default function ProfilePage() {
       </div>
     );
   }
+  
+  const profileDetails = [
+    { title: "My work", value: userProfile.work, icon: <Briefcase /> },
+    { title: "Where I live", value: userProfile.live, icon: <Home /> },
+    { title: "Languages I speak", value: userProfile.languages, icon: <Languages /> },
+    { title: "Where I went to school", value: userProfile.school, icon: <GraduationCap /> },
+    { title: "Decade I was born", value: userProfile.born, icon: <Users /> },
+    { title: "My biography title would be", value: userProfile.biographyTitle, icon: <BookOpen /> },
+    { title: "I'm obsessed with", value: userProfile.obsessedWith, icon: <Star /> },
+    { title: "My most useless skill", value: userProfile.uselessSkill, icon: <Smile /> },
+    { title: "My favorite song in high school", value: userProfile.favoriteSong, icon: <Plane /> },
+    { title: "I spend too much time", value: userProfile.spendTooMuchTime, icon: <Plane /> },
+    { title: "My fun fact", value: userProfile.funFact, icon: <Smile /> },
+    { title: "Pets", value: userProfile.pets, icon: <Home /> },
+    { title: "Where I've always wanted to go", value: userProfile.travelGoal, icon: <Map /> },
+  ];
 
   return (
     <div className="container mx-auto py-8">
@@ -96,10 +140,10 @@ export default function ProfilePage() {
           <Card>
             <CardHeader className="items-center text-center">
               <Avatar className="h-24 w-24 mb-4">
-                {user.photoURL && <AvatarImage src={user.photoURL} alt="User Avatar" />}
-                <AvatarFallback className="text-3xl">{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                {userProfile.profilePictureUrl && <AvatarImage src={userProfile.profilePictureUrl} alt="User Avatar" />}
+                <AvatarFallback className="text-3xl">{userProfile.firstName?.charAt(0)}</AvatarFallback>
               </Avatar>
-              <CardTitle className="text-2xl">{user.displayName}</CardTitle>
+              <CardTitle className="text-2xl">{userProfile.firstName} {userProfile.lastName}</CardTitle>
               <CardDescription>Joined in {user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : ''}</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
@@ -113,11 +157,35 @@ export default function ProfilePage() {
         </div>
         <div className="md:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="properties">My Properties</TabsTrigger>
               <TabsTrigger value="reservations">Reservations</TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="profile">
+              <Card>
+                <CardHeader>
+                  <CardTitle>About {userProfile.firstName}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {userProfile.about && <p className="text-muted-foreground italic">"{userProfile.about}"</p>}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {profileDetails.map(detail => (
+                      <div key={detail.title} className="flex items-start gap-4">
+                        <div className="text-muted-foreground mt-1">{detail.icon}</div>
+                        <div>
+                          <h4 className="font-semibold">{detail.title}</h4>
+                          <p className="text-sm text-muted-foreground">{detail.value || `You haven't added this yet.`}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Button onClick={handleEditRedirect}>Edit details</Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
             
             {/* My Bookings (Guest) */}
             <TabsContent value="bookings">

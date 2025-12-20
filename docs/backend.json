@@ -56,6 +56,62 @@
           "items": {
             "type": "string"
           }
+        },
+        "work": {
+          "type": "string",
+          "description": "The user's occupation."
+        },
+        "school": {
+          "type": "string",
+          "description": "The school or university the user attended."
+        },
+        "live": {
+          "type": "string",
+          "description": "The city or area where the user lives."
+        },
+        "about": {
+          "type": "string",
+          "description": "A short biography or introduction from the user."
+        },
+        "languages": {
+          "type": "string",
+          "description": "Languages the user speaks."
+        },
+        "born": {
+          "type": "string",
+          "description": "The decade the user was born in."
+        },
+        "obsessedWith": {
+          "type": "string",
+          "description": "Something the user is obsessed with."
+        },
+        "uselessSkill": {
+          "type": "string",
+          "description": "A fun, useless skill the user has."
+        },
+        "biographyTitle": {
+          "type": "string",
+          "description": "A creative title for the user's life story."
+        },
+        "favoriteSong": {
+          "type": "string",
+          "description": "The user's favorite song from high school."
+        },
+        "spendTooMuchTime": {
+          "type": "string",
+          "description": "Something the user spends a lot of time doing."
+        },
+        "funFact": {
+          "type": "string",
+          "description": "A fun fact about the user."
+        },
+        "pets": {
+          "type": "string",
+          "description": "Information about the user's pets."
+        },
+        "travelGoal": {
+          "type": "string",
+          "description": "A place the user has always wanted to travel to."
         }
       },
       "required": [
