@@ -4,10 +4,19 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { Logo } from "./logo";
-import { useUser } from "@/firebase";
+import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import type { User } from '@/lib/types';
+import { doc } from "firebase/firestore";
 
 export default function Header() {
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'users', user.uid) : null),
+    [user, firestore]
+  );
+  const { data: userProfile } = useDoc<User>(userProfileRef);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,9 +32,15 @@ export default function Header() {
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
             {user && (
-            <Button variant="ghost" asChild>
-              <Link href="/profile?tab=properties">Become a Host</Link>
-            </Button>
+                userProfile?.isHost ? (
+                    <Button variant="ghost" asChild>
+                        <Link href="/profile?tab=properties">My Listings</Link>
+                    </Button>
+                ) : (
+                    <Button variant="ghost" asChild>
+                        <Link href="/host/create">Become a Host</Link>
+                    </Button>
+                )
             )}
             <UserNav />
           </nav>

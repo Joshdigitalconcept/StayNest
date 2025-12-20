@@ -23,6 +23,19 @@ export interface Property {
     name: string | null;
     photoURL: string | null;
   };
+  // New fields for host flow
+  propertyType?: string;
+  guestSpace?: string;
+  beds?: number;
+  bathroomType?: string;
+  whoElse?: string[];
+  bookingSettings?: 'instant' | 'approval';
+  firstGuestWelcome?: 'any' | 'experienced';
+  weekendPrice?: number;
+  newListingPromotion?: boolean;
+  weeklyDiscount?: boolean;
+  monthlyDiscount?: boolean;
+  lastMinuteDiscount?: boolean;
 }
 
 export interface Booking {
@@ -52,6 +65,7 @@ export interface User {
   email: string;
   profilePictureUrl?: string;
   favorites?: string[];
+  isHost?: boolean;
 }
 
 export interface Favorite {
@@ -60,7 +74,7 @@ export interface Favorite {
 }
 
 export interface Review {
-  id: string;
+  id:string;
   listingId: string;
   userId: string;
   rating: number;
@@ -71,3 +85,37 @@ export interface Review {
     photoURL: string | null;
   };
 }
+
+// Data for the host creation form
+export const propertyTypes = [
+  { id: 'house', label: 'House', icon: 'Home' },
+  { id: 'apartment', label: 'Apartment', icon: 'Building' },
+  { id: 'guesthouse', label: 'Guesthouse', icon: 'Hotel' },
+  { id: 'hotel', label: 'Hotel', icon: 'Building2' },
+  { id: 'cabin', label: 'Cabin', icon: 'LogCabin' },
+  { id: 'treehouse', label: 'Treehouse', icon: 'Trees' },
+];
+
+export const guestSpaces = [
+    { id: 'entire', label: 'An entire place' },
+    { id: 'private', label: 'A private room' },
+    { id: 'shared', label: 'A shared room' },
+];
+
+export const bathroomTypes = [
+    { id: 'private', label: 'Private and attached' },
+    { id: 'dedicated', label: 'Dedicated' },
+    { id: 'shared', label: 'Shared' },
+];
+
+export const amenitiesList = [
+  "Wifi", "Kitchen", "Free parking", "Heating", "TV", "Air conditioning", "Pool", "Elevator", "Gym",
+  "Washer", "Dryer", "Iron", "Hair dryer", "Crib", "High chair", "Workspace", "Self check-in", "Pets allowed"
+];
+
+export const whoElseOptions = [
+    { id: 'me', label: 'Me (the host)' },
+    { id: 'family', label: 'My family' },
+    { id: 'roommates', label: 'Roommates' },
+    { id: 'other_guests', label: 'Other guests' },
+];
