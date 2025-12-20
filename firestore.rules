@@ -6,7 +6,7 @@
  * access.
  *
  * Data Structure:
- * - /users/{userId}: Contains private user profile data.
+ * - /users/{userId}: Contains public user profile data.
  * - /users/{userId}/favorites/{listingId}: Private list of a user's favorite listings.
  * - /roles_admin/{userId}: An existence-based collection to grant users admin
  *   privileges across the application.
@@ -16,8 +16,7 @@
  *   guest who made the booking and the host of the property.
  *
  * Key Security Decisions:
- * - User privacy is paramount; listing documents in the /users collection is
- *   disallowed to prevent user enumeration.
+ * - User profiles are publicly readable to build trust between guests and hosts.
  * - Admin roles are managed via the /roles_admin collection. Client-side
  *   writes to this collection are blocked; it must be managed via a trusted
  *   server environment or the Firebase console.
@@ -68,7 +67,7 @@ service cloud.firestore {
      * @path /users/{userId}
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if true;
       allow list: if false;
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
