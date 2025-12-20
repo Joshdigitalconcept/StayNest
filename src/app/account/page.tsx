@@ -51,6 +51,13 @@ export default function AccountPage() {
   const [activeSection, setActiveSection] = React.useState<SectionId>(
     Object.keys(sections).includes(initialSection) ? initialSection : 'personal-info'
   );
+  
+  React.useEffect(() => {
+    // Redirect to login if not authenticated after loading
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isUserLoading, router]);
 
   React.useEffect(() => {
     const section = (searchParams.get('section') as SectionId) || 'personal-info';
@@ -64,12 +71,7 @@ export default function AccountPage() {
     router.push(`/account?section=${id}`, { scroll: false });
   };
   
-  if (isUserLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
-  }
-
-  if (!user) {
-    router.push('/login');
+  if (isUserLoading || !user) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
   
