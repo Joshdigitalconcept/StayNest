@@ -36,7 +36,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, Firestore
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, writeBatch } from "firebase/firestore";
 import type { Property, Review } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { addDays, differenceInCalendarDays, format } from "date-fns";
+import { addDays, differenceInCalendarDays, format, eachDayOfInterval, getDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -300,9 +300,36 @@ function PropertyDetails({ property }: { property: Property }) {
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
   const isOwner = user?.uid === property.ownerId;
 
-  const duration = date?.from && date?.to ? differenceInCalendarDays(date.to, date.from) : 0;
-  
-  const subtotal = property.pricePerNight * duration;
+  const { subtotal, duration, priceForFirstNight } = React.useMemo(() => {
+    if (!date?.from || !date?.to) {
+      return { subtotal: 0, duration: 0, priceForFirstNight: property.pricePerNight };
+    }
+    
+    const days = eachDayOfInterval({ start: date.from, end: date.to });
+    if (days.length <= 1) { // A booking must be at least 1 night
+      return { subtotal: 0, duration: 0, priceForFirstNight: property.pricePerNight };
+    }
+    
+    const firstDay = getDay(days[0]);
+    let priceForFirstNight = property.pricePerNight;
+    if (property.weekendPrice > 0 && (firstDay === 5 || firstDay === 6)) {
+      priceForFirstNight = property.weekendPrice;
+    }
+
+
+    // Calculate total, excluding the last day (checkout day)
+    const sub = days.slice(0, -1).reduce((acc, day) => {
+      const dayOfWeek = getDay(day); // Sunday = 0, Saturday = 6
+      const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Friday or Saturday
+      const price = isWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
+      return acc + price;
+    }, 0);
+
+    const bookingDuration = differenceInCalendarDays(date.to, date.from);
+
+    return { subtotal: sub, duration: bookingDuration, priceForFirstNight };
+  }, [date, property.pricePerNight, property.weekendPrice]);
+
   const cleaningFee = property?.cleaningFee || 0;
   const serviceFee = property?.serviceFee || 0;
   const totalPrice = subtotal + cleaningFee + serviceFee;
@@ -561,7 +588,7 @@ function PropertyDetails({ property }: { property: Property }) {
             <Card className="sticky top-24 shadow-lg">
                 <CardHeader>
                 <CardTitle className="flex items-baseline">
-                    <span className="text-2xl font-bold">${property.pricePerNight}</span>
+                    <span className="text-2xl font-bold">${priceForFirstNight}</span>
                     <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
                 </CardTitle>
                 </CardHeader>
@@ -601,14 +628,14 @@ function PropertyDetails({ property }: { property: Property }) {
                     max={property.maxGuests} 
                     />
                 </div>
-                <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving}>
+                <Button className="w-full" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0}>
                     {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
                 {duration > 0 && (
                     <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                        <span>${property.pricePerNight} x {duration} nights</span>
+                        <span>{duration} night{duration !== 1 ? 's' : ''}</span>
                         <span>${subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
@@ -634,3 +661,4 @@ function PropertyDetails({ property }: { property: Property }) {
     </div>
   );
 }
+
