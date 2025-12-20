@@ -258,7 +258,9 @@ function ReviewsSection({ propertyId }: { propertyId: string }) {
                 <div>
                     <div className="flex items-center gap-2">
                         <span className="font-semibold">{review.user?.name}</span>
-                        <span className="text-xs text-muted-foreground">{format(review.createdAt.toDate(), 'PPP')}</span>
+                        {review.createdAt && (
+                          <span className="text-xs text-muted-foreground">{format(review.createdAt.toDate(), 'PPP')}</span>
+                        )}
                     </div>
                      <div className="flex items-center gap-0.5 mt-1">
                         {[1, 2, 3, 4, 5].map(star => (
