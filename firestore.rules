@@ -138,7 +138,7 @@ service cloud.firestore {
       allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId);
       allow list: if true;
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.hostId == request.auth.uid; // Host can change status
+      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid); // Host can change status, guest can update too
       allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid; // Guest can cancel
 
       /**
@@ -156,3 +156,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

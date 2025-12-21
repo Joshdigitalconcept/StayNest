@@ -116,6 +116,7 @@ export interface Message {
   bookingId: string;
   senderId: string;
   receiverId: string;
+  listingId: string;
   text: string;
   createdAt: Timestamp;
   isRead: boolean;
@@ -155,3 +156,5 @@ export const whoElseOptions = [
     { id: 'roommates', label: 'Roommates' },
     { id: 'other_guests', label: 'Other guests' },
 ];
+
+    

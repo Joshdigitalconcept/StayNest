@@ -741,3 +741,4 @@ function PropertyDetails({ property }: { property: Property }) {
   );
 }
 
+    
