@@ -25,7 +25,8 @@ import {
   Sparkles,
   Edit,
   ChevronDown,
-  MessageSquare
+  MessageSquare,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -291,7 +292,6 @@ function PropertyDetails({ property }: { property: Property }) {
 
   const [date, setDate] = React.useState<DateRange | undefined>(undefined);
   const [guests, setGuests] = React.useState(1);
-  const [isReserving, setIsReserving] = React.useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
 
   const bookingsQuery = useMemoFirebase(
@@ -329,27 +329,41 @@ function PropertyDetails({ property }: { property: Property }) {
   }, [user, bookings]);
 
 
-  const { subtotal, duration } = React.useMemo(() => {
-    if (!date?.from || !date?.to) {
-      return { subtotal: 0, duration: 0 };
+  const { subtotal, duration, dayPrice } = React.useMemo(() => {
+    if (!date?.from) {
+      const today = new Date();
+      const todayOfWeek = getDay(today);
+      const isWeekend = todayOfWeek === 5 || todayOfWeek === 6;
+      const price = isWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
+      return { subtotal: 0, duration: 0, dayPrice: price };
+    }
+
+    if (!date.to) {
+       const fromDayOfWeek = getDay(date.from);
+       const isWeekend = fromDayOfWeek === 5 || fromDayOfWeek === 6;
+       const price = isWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
+       return { subtotal: 0, duration: 0, dayPrice: price };
     }
     
     const days = eachDayOfInterval({ start: date.from, end: date.to });
-    if (days.length <= 1) { // A booking must be at least 1 night
-      return { subtotal: 0, duration: 0 };
+    if (days.length <= 1) {
+      return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight };
     }
 
-    // Calculate total, excluding the last day (checkout day)
     const sub = days.slice(0, -1).reduce((acc, day) => {
-      const dayOfWeek = getDay(day); // Sunday = 0, Saturday = 6
-      const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Friday or Saturday
+      const dayOfWeek = getDay(day);
+      const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
       const price = isWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
       return acc + price;
     }, 0);
 
     const bookingDuration = differenceInCalendarDays(date.to, date.from);
+    
+    const fromDayOfWeek = getDay(date.from);
+    const isFromWeekend = fromDayOfWeek === 5 || fromDayOfWeek === 6;
+    const price = isFromWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
 
-    return { subtotal: sub, duration: bookingDuration };
+    return { subtotal: sub, duration: bookingDuration, dayPrice: price };
   }, [date, property.pricePerNight, property.weekendPrice]);
 
   const cleaningFee = property?.cleaningFee || 0;
@@ -394,7 +408,7 @@ function PropertyDetails({ property }: { property: Property }) {
     }
   };
 
-  const handleReservation = async () => {
+  const handleReservation = () => {
     if (!user) {
       toast({
         variant: "destructive",
@@ -423,62 +437,9 @@ function PropertyDetails({ property }: { property: Property }) {
         return;
     }
 
-
-    setIsReserving(true);
-
-    const bookingData = {
-      guestId: user.uid,
-      hostId: property.ownerId,
-      listingId: property.id,
-      checkInDate: Timestamp.fromDate(date.from),
-      checkOutDate: Timestamp.fromDate(date.to),
-      guests,
-      totalPrice,
-      status: 'pending' as const,
-      createdAt: serverTimestamp(),
-      listing: {
-        id: property.id,
-        title: property.title,
-        location: property.location,
-        imageUrl: property.imageUrl,
-      },
-      guest: {
-        name: user.displayName || user.email,
-        photoURL: user.photoURL,
-      },
-      host: {
-        name: property.host.name,
-        photoURL: property.host.photoURL,
-      },
-    };
-
-    const bookingsColRef = collection(firestore, 'bookings');
-    
-    addDoc(bookingsColRef, bookingData)
-      .then(() => {
-        toast({
-          title: "Reservation Submitted!",
-          description: "Your request has been sent to the host for approval.",
-        });
-        router.push('/profile?tab=bookings');
-      })
-      .catch((error: any) => {
-        const permissionError = new FirestorePermissionError({
-          path: bookingsColRef.path,
-          operation: 'create',
-          requestResourceData: bookingData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-
-        toast({
-          variant: "destructive",
-          title: "Uh oh! Something went wrong.",
-          description: "Could not submit your reservation. Please try again.",
-        });
-      })
-      .finally(() => {
-        setIsReserving(false);
-      });
+    const checkin = format(date.from, 'yyyy-MM-dd');
+    const checkout = format(date.to, 'yyyy-MM-dd');
+    router.push(`/book/${property.id}?checkin=${checkin}&checkout=${checkout}&guests=${guests}`);
   };
   
   const images = property.imageUrls || [property.imageUrl];
@@ -635,27 +596,27 @@ function PropertyDetails({ property }: { property: Property }) {
                         </>
                       ) : (
                         <>
-                          <span className="font-bold">${property.pricePerNight}</span>
+                          <span className="font-bold">${dayPrice}</span>
                           <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
                         </>
                       )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Popover>
+                 <Popover>
                     <PopoverTrigger asChild>
                        <Button
                         variant={'outline'}
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-auto"
                         >
-                        <div className="grid grid-cols-2 w-full items-center">
-                            <div className="p-1">
-                                <p className="text-xs font-bold uppercase tracking-wider">Check-in</p>
-                                <p className="text-sm">{date?.from ? format(date.from, 'M/d/yyyy') : 'Add date'}</p>
+                        <div className="grid grid-cols-2 w-full divide-x">
+                            <div className="p-2">
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
+                                <p className="text-sm font-medium">{date?.from ? format(date.from, 'M/d/yyyy') : 'Add date'}</p>
                             </div>
-                            <div className="p-1 border-l">
-                                <p className="text-xs font-bold uppercase tracking-wider">Checkout</p>
-                                <p className="text-sm">{date?.to ? format(date.to, 'M/d/yyyy') : 'Add date'}</p>
+                            <div className="p-2">
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
+                                <p className="text-sm font-medium">{date?.to ? format(date.to, 'M/d/yyyy') : 'Add date'}</p>
                             </div>
                         </div>
                        </Button>
@@ -680,8 +641,8 @@ function PropertyDetails({ property }: { property: Property }) {
                         className="w-full justify-between text-left font-normal"
                         >
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-wider">Guests</p>
-                          <p className="text-sm">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
+                          <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
                         </div>
                         <ChevronDown className="h-4 w-4 text-muted-foreground"/>
                       </Button>
@@ -705,8 +666,8 @@ function PropertyDetails({ property }: { property: Property }) {
                         </Link>
                      </Button>
                   ) : (
-                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0}>
-                      {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
+                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={duration <= 0}>
+                      Reserve
                   </Button>
                   )}
                    <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
@@ -740,5 +701,3 @@ function PropertyDetails({ property }: { property: Property }) {
     </div>
   );
 }
-
-    
