@@ -136,7 +136,7 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
             <p className="font-bold text-xl">${formData.pricePerNight || 0} / night</p>
           </div>
         </div>
-        <Button onClick={handlePublish} className="w-full" size="lg" disabled={isPublishing}>
+        <Button onClick={handlePublish} className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" disabled={isPublishing}>
           {isPublishing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Publishing...</> : 'Publish Listing'}
         </Button>
       </div>

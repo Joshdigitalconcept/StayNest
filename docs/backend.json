@@ -304,6 +304,29 @@
         "comment",
         "createdAt"
       ]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Represents a message within a booking conversation.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "listingId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": [
+        "senderId",
+        "receiverId",
+        "bookingId",
+        "listingId",
+        "text",
+        "createdAt",
+        "isRead"
+      ]
     }
   },
   "auth": {
@@ -418,8 +441,28 @@
             }
           ]
         }
+      },
+      {
+        "path": "/bookings/{bookingId}/messages/{messageId}",
+        "definition": {
+          "entityName": "Message",
+          "schema": {
+            "$ref": "#/backend/entities/Message"
+          },
+          "description": "Stores messages within a booking's conversation.",
+          "params": [
+            {
+              "name": "bookingId",
+              "description": "The unique identifier of the booking."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier of the message."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\n*   **Bookings:** Bookings are stored in a top-level `/bookings` collection. `guestId` and `hostId` are denormalized for authorization independence. This allows guests to see their bookings and hosts to see bookings for their properties without complex queries or rules.\n\n*   **Favorites:** Favorites are stored in a subcollection `users/{userId}/favorites/{listingId}`. This provides a scalable way to store a user's favorite listings. This structure allows for simple, secure queries and avoids the 'array-contains' limitations and the 1MB document size limit.\n\n* **Reviews:** Reviews are stored in a subcollection under each listing (`/listings/{listingId}/reviews/{reviewId}`). This scopes reviews to their respective listings, making them easy to query. Denormalized user information (name, photoURL) is stored on the review to avoid extra document reads when displaying reviews.\n\nThe data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
+    "reasoning": "This Firestore data structure is designed to support the StayNest application, focusing on secure user authentication, property listings, search, booking, payments, messaging, and reviews. The structure emphasizes Authorization Independence by denormalizing authorization data where necessary, primarily using path-based ownership for user-related data and existence-based global roles.\n\n**Authorization Independence & QAPs:**\n\n*   **Users:** User profiles are stored under `/users/{userId}`, ensuring that only the authenticated user (or an admin) can access and modify their data. This eliminates the need for complex `get()` calls in security rules and supports secure `list` operations.\n\n*   **Global Roles:** Admin privileges are managed through the `/roles_admin/{uid}` collection. The existence of a document with the user's UID in this collection grants admin access, thus ensuring Authorization Independence.\n\n*   **Invariants:** Timestamps (`createdAt`, `updatedAt`) are automatically managed using server timestamps to guarantee integrity.\n\n*   **Listings:** Listings are stored in a top-level `/listings` collection. The `ownerId` is denormalized to the `listings` documents. The `ownerId` field is also used to query listings owned by a specific user. This enables secure `list` operations, allowing users to view their own listings.\n\n*   **Bookings:** Bookings are stored in a top-level `/bookings` collection. `guestId` and `hostId` are denormalized for authorization independence. This allows guests to see their bookings and hosts to see bookings for their properties without complex queries or rules.\n\n*   **Favorites:** Favorites are stored in a subcollection `users/{userId}/favorites/{listingId}`. This provides a scalable way to store a user's favorite listings. This structure allows for simple, secure queries and avoids the 'array-contains' limitations and the 1MB document size limit.\n\n* **Reviews:** Reviews are stored in a subcollection under each listing (`/listings/{listingId}/reviews/{reviewId}`). This scopes reviews to their respective listings, making them easy to query. Denormalized user information (name, photoURL) is stored on the review to avoid extra document reads when displaying reviews.\n\n The data structure is designed with structural segregation in mind, ensuring that each collection has a homogeneous security posture. This greatly simplifies the security rules, making them easier to understand, debug, and maintain."
   }
 }

@@ -56,6 +56,15 @@ export interface Booking {
     location: string;
     imageUrl: string;
   };
+   // Denormalized user data
+  guest?: {
+    name: string;
+    photoURL: string;
+  };
+  host?: {
+    name: string;
+    photoURL: string;
+  }
 }
 
 export interface User {
@@ -100,6 +109,18 @@ export interface Review {
     photoURL: string | null;
   };
 }
+
+
+export interface Message {
+  id: string;
+  bookingId: string;
+  senderId: string;
+  receiverId: string;
+  text: string;
+  createdAt: Timestamp;
+  isRead: boolean;
+}
+
 
 // Data for the host creation form
 export const propertyTypes = [

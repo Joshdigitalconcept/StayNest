@@ -24,7 +24,8 @@ import {
   Users2,
   Sparkles,
   Edit,
-  ChevronDown
+  ChevronDown,
+  MessageSquare
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -322,11 +323,10 @@ function PropertyDetails({ property }: { property: Property }) {
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
   const isOwner = user?.uid === property.ownerId;
-  const isReservationMade = React.useMemo(() => {
-      if (!user || !bookings || !date?.from || !date?.to) return false;
-      return bookings.some(b => b.guestId === user.uid && 
-        !(b.checkOutDate.toDate() <= date.from! || b.checkInDate.toDate() >= date.to!));
-  }, [user, bookings, date]);
+  const userBooking = React.useMemo(() => {
+    if (!user || !bookings) return null;
+    return bookings.find(b => b.guestId === user.uid && b.status === 'confirmed');
+  }, [user, bookings]);
 
 
   const { subtotal, duration } = React.useMemo(() => {
@@ -414,7 +414,7 @@ function PropertyDetails({ property }: { property: Property }) {
       return;
     }
     
-     if (isReservationMade) {
+     if (userBooking) {
         toast({
             variant: "destructive",
             title: "Overlapping Reservation",
@@ -441,6 +441,14 @@ function PropertyDetails({ property }: { property: Property }) {
         title: property.title,
         location: property.location,
         imageUrl: property.imageUrl,
+      },
+      guest: {
+        name: user.displayName || user.email,
+        photoURL: user.photoURL,
+      },
+      host: {
+        name: property.host.name,
+        photoURL: property.host.photoURL,
       },
     };
 
@@ -636,16 +644,21 @@ function PropertyDetails({ property }: { property: Property }) {
                 <CardContent className="space-y-4">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <div className="grid grid-cols-2 rounded-lg border cursor-pointer">
-                        <div className="p-3">
-                          <p className="text-xs font-bold uppercase tracking-wider">Check-in</p>
-                          <p className="text-sm">{date?.from ? format(date.from, 'M/d/yyyy') : 'Add date'}</p>
+                       <Button
+                        variant={'outline'}
+                        className="w-full justify-start text-left font-normal"
+                        >
+                        <div className="grid grid-cols-2 w-full items-center">
+                            <div className="p-1">
+                                <p className="text-xs font-bold uppercase tracking-wider">Check-in</p>
+                                <p className="text-sm">{date?.from ? format(date.from, 'M/d/yyyy') : 'Add date'}</p>
+                            </div>
+                            <div className="p-1 border-l">
+                                <p className="text-xs font-bold uppercase tracking-wider">Checkout</p>
+                                <p className="text-sm">{date?.to ? format(date.to, 'M/d/yyyy') : 'Add date'}</p>
+                            </div>
                         </div>
-                        <div className="p-3 border-l">
-                          <p className="text-xs font-bold uppercase tracking-wider">Checkout</p>
-                           <p className="text-sm">{date?.to ? format(date.to, 'M/d/yyyy') : 'Add date'}</p>
-                        </div>
-                      </div>
+                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
@@ -662,13 +675,16 @@ function PropertyDetails({ property }: { property: Property }) {
 
                   <Popover>
                     <PopoverTrigger asChild>
-                      <div className="flex items-center justify-between rounded-lg border p-3 cursor-pointer">
+                      <Button
+                        variant={'outline'}
+                        className="w-full justify-between text-left font-normal"
+                        >
                         <div>
                           <p className="text-xs font-bold uppercase tracking-wider">Guests</p>
                           <p className="text-sm">{guests} guest{guests !== 1 ? 's' : ''}</p>
                         </div>
                         <ChevronDown className="h-4 w-4 text-muted-foreground"/>
-                      </div>
+                      </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-48 p-2">
                        <div className="flex items-center justify-between">
@@ -682,9 +698,17 @@ function PropertyDetails({ property }: { property: Property }) {
                     </PopoverContent>
                   </Popover>
 
-                  <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0 || isReservationMade}>
-                      {isReserving ? <Loader2 className="animate-spin" /> : isReservationMade ? 'Already Booked' : 'Reserve'}
+                  {userBooking ? (
+                     <Button className="w-full" asChild>
+                        <Link href={`/messages?bookingId=${userBooking.id}`}>
+                           <MessageSquare className="mr-2 h-4 w-4" /> Contact Host
+                        </Link>
+                     </Button>
+                  ) : (
+                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={isReserving || duration <= 0}>
+                      {isReserving ? <Loader2 className="animate-spin" /> : 'Reserve'}
                   </Button>
+                  )}
                    <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
 
                   {duration > 0 && (

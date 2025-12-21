@@ -15,6 +15,7 @@
  * - /listings/{listingId}/reviews/{reviewId}: Publicly readable reviews for a listing.
  * - /bookings/{bookingId}: Private booking details accessible only to the
  *   guest who made the booking and the host of the property.
+ * - /bookings/{bookingId}/messages/{messageId}: Private messages between a guest and host.
  *
  * Key Security Decisions:
  * - User profiles are publicly readable to build trust between guests and hosts.
@@ -134,11 +135,24 @@ service cloud.firestore {
      * @path /bookings/{bookingId}
      */
     match /bookings/{bookingId} {
-      allow get: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId);
       allow list: if true;
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && resource.data.hostId == request.auth.uid; // Host can change status
       allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid; // Guest can cancel
+
+      /**
+       * @description Stores messages for a specific booking.
+       *   - Only the guest or host of the booking can read or write messages.
+       *   - Allows updating a message only to mark it as read.
+       * @path /bookings/{bookingId}/messages/{messageId}
+       */
+       match /messages/{messageId} {
+         allow get, list: if isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
+         allow create: if isSignedIn() && (request.auth.uid == request.resource.data.senderId) && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
+         allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
+         allow delete: if false;
+       }
     }
   }
 }
