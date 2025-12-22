@@ -15,13 +15,17 @@ export default function FavoritesPage() {
     const [favoriteProperties, setFavoriteProperties] = React.useState<Property[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
+    const favoritesColRef = useMemoFirebase(
+        () => (user ? collection(firestore, `users/${user.uid}/favorites`) : null),
+        [user, firestore]
+    );
+
     React.useEffect(() => {
         const fetchFavorites = async () => {
-            if (!user || !firestore) return;
+            if (!favoritesColRef) return;
 
             setIsLoading(true);
             try {
-                const favoritesColRef = collection(firestore, `users/${user.uid}/favorites`);
                 const favoriteSnapshots = await getDocs(favoritesColRef);
                 
                 const propertyPromises = favoriteSnapshots.docs.map(favDoc => {
@@ -53,7 +57,7 @@ export default function FavoritesPage() {
             setIsLoading(false);
         }
 
-    }, [user, isUserLoading, firestore]);
+    }, [user, isUserLoading, firestore, favoritesColRef]);
 
     if (isLoading || isUserLoading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
@@ -96,5 +100,3 @@ export default function FavoritesPage() {
         </div>
     );
 }
-
-    

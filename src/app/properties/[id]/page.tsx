@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from "next/image";
@@ -317,8 +316,8 @@ function PropertyDetails({ property }: { property: Property }) {
 
 
   const userFavoritesQuery = useMemoFirebase(
-    () => (user && property) ? collection(firestore, `users/${user.uid}/favorites`) : null,
-    [user, firestore, property]
+    () => (user && firestore) ? collection(firestore, `users/${user.uid}/favorites`) : null,
+    [user, firestore]
   );
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
@@ -371,7 +370,7 @@ function PropertyDetails({ property }: { property: Property }) {
   const totalPrice = subtotal + cleaningFee + serviceFee;
 
   const handleFavoriteToggle = async () => {
-    if (!user || !property) {
+    if (!user || !property || !firestore) {
       toast({
         variant: "destructive",
         title: "Please log in",

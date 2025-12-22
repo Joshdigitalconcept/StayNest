@@ -37,7 +37,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
   const [isDeleting, setIsDeleting] = React.useState(false);
   
   const userFavoritesQuery = useMemoFirebase(
-    () => user ? collection(firestore, `users/${user.uid}/favorites`) : null,
+    () => (user && firestore) ? collection(firestore, `users/${user.uid}/favorites`) : null,
     [user, firestore]
   );
   const { data: favorites } = useCollection(userFavoritesQuery);
@@ -77,7 +77,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
     e.preventDefault();
     e.stopPropagation();
 
-    if (!user) {
+    if (!user || !firestore) {
       toast({
         variant: "destructive",
         title: "Please log in",
