@@ -6,25 +6,31 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useUser } from '@/firebase';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { Loader2, Share2 } from 'lucide-react';
 import { PersonalInformationSection } from './_components/personal-information';
 import { LoginSecuritySection } from './_components/login-security';
 import { PaymentsPayoutsSection } from './_components/payments-payouts';
 import { PrivacySharingSection } from './_components/privacy-sharing';
-import { useToast } from '@/hooks/use-toast';
+import { AdminSection } from './_components/admin-section';
+import { doc } from 'firebase/firestore';
 
-const sections = {
+const baseSections = {
   'personal-info': { title: 'Personal Information', component: PersonalInformationSection },
   'login-security': { title: 'Login & Security', component: LoginSecuritySection },
   'payments-payouts': { title: 'Payments & Payouts', component: PaymentsPayoutsSection },
   'privacy-sharing': { title: 'Privacy & Sharing', component: PrivacySharingSection },
-  // Add other sections here as they are built
 };
 
-type SectionId = keyof typeof sections;
+const adminSection = {
+  'admin': { title: 'Admin Dashboard', component: AdminSection },
+};
 
-function AccountSidebar({ activeSection, onSelect }: { activeSection: SectionId, onSelect: (id: SectionId) => void }) {
+type SectionId = keyof typeof baseSections | keyof typeof adminSection;
+
+function AccountSidebar({ activeSection, onSelect, isAdmin }: { activeSection: SectionId, onSelect: (id: SectionId) => void, isAdmin: boolean }) {
+  const sections = isAdmin ? { ...baseSections, ...adminSection } : baseSections;
+  
   return (
     <nav className="flex flex-col gap-1">
       {Object.entries(sections).map(([id, { title }]) => (
@@ -48,32 +54,47 @@ export default function AccountPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const firestore = useFirestore();
+
+  // Check for admin role
+  const adminRoleRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'roles_admin', user.uid) : null),
+    [user, firestore]
+  );
+  const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
+  const isAdmin = !!adminRole;
+
+  const sections = isAdmin ? { ...baseSections, ...adminSection } : baseSections;
+  const validSectionIds = Object.keys(sections);
 
   const initialSection = (searchParams.get('section') as SectionId) || 'personal-info';
   const [activeSection, setActiveSection] = React.useState<SectionId>(
-    Object.keys(sections).includes(initialSection) ? initialSection : 'personal-info'
+    validSectionIds.includes(initialSection) ? initialSection : 'personal-info'
   );
   
   React.useEffect(() => {
-    // Redirect to login if not authenticated after loading
     if (!isUserLoading && !user) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);
 
   React.useEffect(() => {
-    const section = (searchParams.get('section') as SectionId) || 'personal-info';
-    if(Object.keys(sections).includes(section)) {
-        setActiveSection(section);
+    const sectionFromParams = (searchParams.get('section') as SectionId) || 'personal-info';
+    if (validSectionIds.includes(sectionFromParams)) {
+        setActiveSection(sectionFromParams);
+    } else {
+        setActiveSection('personal-info');
     }
-  }, [searchParams]);
+  }, [searchParams, validSectionIds]);
 
   const handleSectionSelect = (id: SectionId) => {
     setActiveSection(id);
     router.push(`/account?section=${id}`, { scroll: false });
   };
 
-  if (isUserLoading || !user) {
+  const isLoading = isUserLoading || isAdminRoleLoading;
+
+  if (isLoading || !user) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
   
@@ -86,7 +107,7 @@ export default function AccountPage() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
         <aside className="md:col-span-1">
-          <AccountSidebar activeSection={activeSection} onSelect={handleSectionSelect} />
+          <AccountSidebar activeSection={activeSection} onSelect={handleSectionSelect} isAdmin={isAdmin} />
         </aside>
         <main className="md:col-span-3">
           <ActiveComponent />
