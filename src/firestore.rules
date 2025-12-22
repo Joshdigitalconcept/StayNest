@@ -1,32 +1,4 @@
 
-/**
- * Core Philosophy: This ruleset implements a robust security model based on user
- * ownership and global administrative roles. User-specific data is strictly
- * private to the owning user or an admin, while application-wide data like
- * property listings are publicly readable but have controlled, owner-only write
- * access.
- *
- * Data Structure:
- * - /users/{userId}: Contains public user profile data.
- * - /users/{userId}/favorites/{listingId}: Private list of a user's favorite listings.
- * - /roles_admin/{userId}: An existence-based collection to grant users admin
- *   privileges across the application.
- * - /listings/{listingId}: Publicly accessible property listings.
- * - /listings/{listingId}/reviews/{reviewId}: Publicly readable reviews for a listing.
- * - /bookings/{bookingId}: Private booking details accessible only to the
- *   guest who made the booking and the host of the property.
- * - /bookings/{bookingId}/messages/{messageId}: Private messages between a guest and host.
- *
- * Key Security Decisions:
- * - User profiles are publicly readable to build trust between guests and hosts.
- * - Admin roles are managed via the /roles_admin collection. Client-side
- *   writes to this collection are blocked; it must be managed via a trusted
- *   server environment or the Firebase console.
- * - Authorization data (like 'ownerId', 'guestId', 'hostId') is denormalized directly onto documents
- *   to create simple, fast, and scalable security rules that do not require
- *   expensive cross-document `get()` or `exists()` calls.
- * - By default, all operations are denied unless explicitly granted.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -35,26 +7,14 @@ service cloud.firestore {
     // Helper Functions
     // -------------------------------------------------------------------------
 
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the authenticated user's UID matches the provided userId.
-     * This is the foundation of the user-ownership model.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Checks if the authenticated user has administrative privileges.
-     * This is determined by the existence of a document in the /roles_admin
-     * collection with the user's UID as the document ID.
-     */
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
@@ -64,95 +24,59 @@ service cloud.firestore {
     // Collection Rules
     // -------------------------------------------------------------------------
 
-    /**
-     * @description Manages user profiles and their subcollections.
-     * @path /users/{userId}
-     */
     match /users/{userId} {
       allow get: if true;
-      allow list: if isAdmin(); // Only admins can list all users
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if (isOwner(userId) || isAdmin());
 
-      /**
-       * @description Manages a user's favorite listings. Only the user can
-       *   manage their own favorites.
-       * @path /users/{userId}/favorites/{listingId}
-       */
       match /favorites/{listingId} {
-        allow get, list, create, delete: if isOwner(userId);
-        allow update: if false;
+        allow read, write: if isOwner(userId);
       }
     }
-
-    /**
-     * @description Defines admin roles. The existence of a document here grants
-     *   a user admin privileges. This collection is read-only for admins and
-     *   completely inaccessible to non-admins to prevent role enumeration.
-     * @path /roles_admin/{userId}
-     */
-    match /roles_admin/{userId} {
-      allow get: if isAdmin();
+    
+    match /users/{document=**} {
       allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+    }
+    
+    match /roles_admin/{userId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
-    /**
-     * @description Stores all property listings. Listings are public for anyone
-     *   to read. Only the user who created the listing (the owner) or an admin can create,
-     *   update, or delete it.
-     * @path /listings/{listingId}
-     */
     match /listings/{listingId} {
       allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
       
-      /**
-       * @description Manages reviews for a listing.
-       *   - Anyone can read reviews.
-       *   - Authenticated users can create reviews for a listing.
-       *   - Only the user who wrote the review can update or delete it.
-       * @path /listings/{listingId}/reviews/{reviewId}
-       */
       match /reviews/{reviewId} {
         allow get, list: if true;
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       }
     }
+    
+    match /listings/{document=**} {
+        allow list: if true;
+    }
 
-    /**
-     * @description Stores booking details.
-     *   - Guests can create their own bookings.
-     *   - Anyone can view bookings for a specific listing to determine availability.
-     *   - The host can update the booking status (e.g., to confirm or decline).
-     *   - The guest can cancel (delete) their own booking.
-     * @path /bookings/{bookingId}
-     */
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId || isAdmin());
-      allow list: if true; // Allow listing bookings (e.g., for a property's calendar)
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
 
-      /**
-       * @description Stores messages for a specific booking.
-       *   - Only the guest or host of the booking can read or write messages.
-       *   - Allows updating a message only to mark it as read.
-       * @path /bookings/{bookingId}/messages/{messageId}
-       */
        match /messages/{messageId} {
          allow get, list: if isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
          allow create: if isSignedIn() && (request.auth.uid == request.resource.data.senderId) && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
          allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
          allow delete: if false;
        }
+    }
+    
+     match /bookings/{document=**} {
+        allow list: if true;
     }
   }
 }
