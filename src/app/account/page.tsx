@@ -110,7 +110,8 @@ export default function AccountPage() {
           <AccountSidebar activeSection={activeSection} onSelect={handleSectionSelect} isAdmin={isAdmin} />
         </aside>
         <main className="md:col-span-3">
-          <ActiveComponent />
+          {/* Pass isAdmin prop to the active component, specifically for AdminSection */}
+          {activeSection === 'admin' ? <AdminSection isAdmin={isAdmin} /> : <ActiveComponent />}
         </main>
       </div>
     </div>

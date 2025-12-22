@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
-import type { User, Property } from '@/lib/types';
+import type { User } from '@/lib/types';
 import {
   Table,
   TableBody,
@@ -36,6 +36,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// We need a more complete Property type for the listings table
+interface AdminProperty {
+    id: string;
+    title: string;
+    location: string;
+    host: {
+        name: string;
+    };
+}
+
 
 function UsersTable({ users, isLoading }: { users: User[] | null, isLoading: boolean }) {
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>;
@@ -77,7 +88,7 @@ function UsersTable({ users, isLoading }: { users: User[] | null, isLoading: boo
   );
 }
 
-function ListingsTable({ listings, isLoading }: { listings: Property[] | null, isLoading: boolean }) {
+function ListingsTable({ listings, isLoading }: { listings: AdminProperty[] | null, isLoading: boolean }) {
   const { toast } = useToast();
   const firestore = useFirestore();
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -161,20 +172,28 @@ function ListingsTable({ listings, isLoading }: { listings: Property[] | null, i
 }
 
 
-export function AdminSection() {
+export function AdminSection({ isAdmin }: { isAdmin: boolean }) {
   const firestore = useFirestore();
 
-  // IMPORTANT: These queries will ONLY work if the user has admin privileges
-  // as defined in firestore.rules. For non-admins, they will fail.
-  const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
-  const listingsQuery = useMemoFirebase(() => collection(firestore, 'listings'), [firestore]);
+  // IMPORTANT: Conditionally execute queries only if the user is an admin.
+  // Passing `null` to useCollection will prevent it from running.
+  const usersQuery = useMemoFirebase(
+    () => (isAdmin ? collection(firestore, 'users') : null),
+    [firestore, isAdmin]
+  );
+  const listingsQuery = useMemoFirebase(
+    () => (isAdmin ? collection(firestore, 'listings') : null),
+    [firestore, isAdmin]
+  );
 
   const { data: users, isLoading: usersLoading, error: usersError } = useCollection<User>(usersQuery);
-  const { data: listings, isLoading: listingsLoading, error: listingsError } = useCollection<Property>(listingsQuery);
+  const { data: listings, isLoading: listingsLoading, error: listingsError } = useCollection<AdminProperty>(listingsQuery);
 
   const hasPermissionError = usersError || listingsError;
 
-  if (hasPermissionError) {
+  // This check is important. If the component renders before the isAdmin prop is confirmed,
+  // we show nothing to prevent attempting a query that would fail.
+  if (!isAdmin) {
     return (
       <Card className="border-destructive">
           <CardHeader>
