@@ -30,12 +30,14 @@ service cloud.firestore {
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if (isOwner(userId) || isAdmin());
 
-      // Admins can list all users
-      allow list: if isAdmin();
-
       match /favorites/{listingId} {
         allow read, write: if isOwner(userId);
       }
+    }
+
+    // This rule allows admins to perform list queries on the users collection
+    match /users/{document=**} {
+      allow list: if isAdmin();
     }
     
     match /roles_admin/{userId} {
