@@ -118,7 +118,7 @@ function ListingsTable({ listings, isLoading }: { listings: Property[] | null, i
         {listings.map(listing => (
           <TableRow key={listing.id}>
             <TableCell className="font-medium">{listing.title}</TableCell>
-            <TableCell>{listing.host.name}</TableCell>
+            <TableCell>{listing.host?.name || 'N/A'}</TableCell>
             <TableCell>{listing.location}</TableCell>
             <TableCell className="flex gap-1">
                <Button variant="ghost" size="icon" asChild>
