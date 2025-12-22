@@ -36,8 +36,6 @@ const formSchema = z.object({
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
-const ADMIN_EMAIL = 'fasinujoshua0@gmail.com';
-
 export default function SignupPage() {
   const router = useRouter();
   const auth = useAuth();
@@ -77,11 +75,6 @@ export default function SignupPage() {
         updatedAt: serverTimestamp(),
       });
       
-      // Grant admin role if the email matches
-      if (user.email === ADMIN_EMAIL) {
-        await setDoc(doc(firestore, 'roles_admin', user.uid), { isAdmin: true });
-      }
-
       router.push('/');
 
     } catch (error: any) {
@@ -113,11 +106,6 @@ export default function SignupPage() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
       
-      // Grant admin role if the email matches
-      if (user.email === ADMIN_EMAIL) {
-        await setDoc(doc(firestore, 'roles_admin', user.uid), { isAdmin: true });
-      }
-
       router.push('/');
     } catch (error: any) {
       toast({
