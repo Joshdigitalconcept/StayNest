@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import * as React from 'react';
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { Logo } from "./logo";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import type { User } from '@/lib/types';
-import { doc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function Header() {
   const { user } = useUser();
@@ -16,7 +17,32 @@ export default function Header() {
     () => (user ? doc(firestore, 'users', user.uid) : null),
     [user, firestore]
   );
-  const { data: userProfile } = useDoc<User>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userProfileRef);
+
+  React.useEffect(() => {
+    if (user && !isProfileLoading && !userProfile) {
+      // User is logged in but has no Firestore profile. Create one.
+      const [firstName, ...lastName] = (user.displayName || user.email?.split('@')[0] || 'New').split(' ');
+      
+      const newUserProfile = {
+        id: user.uid,
+        firstName: firstName || 'New',
+        lastName: lastName.join(' ') || 'User',
+        email: user.email,
+        profilePictureUrl: user.photoURL || '',
+        isHost: false,
+        isGuest: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      // Use setDoc with merge:true to avoid race conditions or overwriting existing data.
+      if (userProfileRef) {
+        setDoc(userProfileRef, newUserProfile, { merge: true }).catch(console.error);
+      }
+    }
+  }, [user, userProfile, isProfileLoading, userProfileRef]);
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
