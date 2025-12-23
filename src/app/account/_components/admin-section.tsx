@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -189,10 +188,8 @@ export function AdminSection({ isAdmin }: { isAdmin: boolean }) {
   const { data: users, isLoading: usersLoading, error: usersError } = useCollection<User>(usersQuery);
   const { data: listings, isLoading: listingsLoading, error: listingsError } = useCollection<AdminProperty>(listingsQuery);
 
-  const hasPermissionError = usersError || listingsError;
-
   // This check is important. If the component renders before the isAdmin prop is confirmed,
-  // we show nothing to prevent attempting a query that would fail.
+  // or if a non-admin somehow sees this, we show a permission error.
   if (!isAdmin) {
     return (
       <Card className="border-destructive">
@@ -204,6 +201,20 @@ export function AdminSection({ isAdmin }: { isAdmin: boolean }) {
           </CardHeader>
       </Card>
     )
+  }
+  
+  // Show a more specific error if Firestore rules deny access even when isAdmin is true
+  if (usersError || listingsError) {
+      return (
+         <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">Permission Error</CardTitle>
+            <CardDescription>
+              There was an error fetching administrative data. Please check your Firestore Security Rules to ensure admins have list access to 'users' and 'listings' collections.
+            </CardDescription>
+          </CardHeader>
+      </Card>
+      )
   }
 
   return (

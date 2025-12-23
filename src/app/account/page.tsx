@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -110,7 +109,6 @@ export default function AccountPage() {
           <AccountSidebar activeSection={activeSection} onSelect={handleSectionSelect} isAdmin={isAdmin} />
         </aside>
         <main className="md:col-span-3">
-          {/* Pass isAdmin prop to the active component, specifically for AdminSection */}
           {activeSection === 'admin' ? <AdminSection isAdmin={isAdmin} /> : <ActiveComponent />}
         </main>
       </div>
