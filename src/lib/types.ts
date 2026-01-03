@@ -90,6 +90,14 @@ export interface User {
   funFact?: string;
   pets?: string;
   travelGoal?: string;
+  residentialAddress?: {
+    country: string;
+    street: string;
+    apt: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  }
 }
 
 export interface Favorite {
@@ -140,9 +148,9 @@ export const guestSpaces = [
 ];
 
 export const bathroomTypes = [
-    { id: 'private', label: 'Private and attached' },
-    { id: 'dedicated', label: 'Dedicated' },
-    { id: 'shared', label: 'Shared' },
+    { id: 'private', label: 'Private and attached', description: "This bathroom is exclusively for the guest and is connected directly to their room." },
+    { id: 'dedicated', label: 'Dedicated', description: "This bathroom is exclusively for the guest, but it's accessed from a shared space like a hallway." },
+    { id: 'shared', label: 'Shared', description: "This bathroom is used by the guest as well as the host or other people." },
 ];
 
 export const amenitiesList = [

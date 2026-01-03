@@ -5,6 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Minus, Plus } from "lucide-react";
 import { bathroomTypes, whoElseOptions } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 interface Step4Props {
   setFormData: (data: any) => void;
@@ -82,19 +89,27 @@ export default function Step4_FloorPlan({ setFormData, formData }: Step4Props) {
       
       <div className="mt-12">
         <h3 className="text-xl font-semibold mb-4">What type of bathroom?</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {bathroomTypes.map(item => (
-                <Button 
-                    key={item.id} 
-                    type="button"
-                    variant={formData.bathroomType === item.id ? "default" : "outline"}
-                    onClick={() => setFormData({ bathroomType: item.id })}
-                    className="h-auto py-4 text-left whitespace-normal"
-                >
-                    {item.label}
-                </Button>
-            ))}
-        </div>
+         <TooltipProvider>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {bathroomTypes.map(item => (
+                    <Tooltip key={item.id}>
+                        <TooltipTrigger asChild>
+                             <Button 
+                                type="button"
+                                variant={formData.bathroomType === item.id ? "default" : "outline"}
+                                onClick={() => setFormData({ bathroomType: item.id })}
+                                className="h-auto py-4 text-left whitespace-normal"
+                            >
+                                {item.label}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{item.description}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                ))}
+            </div>
+        </TooltipProvider>
       </div>
       
       <div className="mt-12">

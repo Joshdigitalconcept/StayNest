@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { Loader2, Check } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,9 @@ import Step10_Price from './_components3/step10-price';
 import Step11_Discounts from './_components3/step11-discounts';
 import Step12_Legal from './_components3/step12-legal';
 import Step13_Review from './_components3/step13-review';
+import { doc } from 'firebase/firestore';
+import type { User as UserType } from '@/lib/types';
+
 
 const steps = [
   { component: Step1_Structure, group: 1, title: 'Property Type' },
@@ -47,6 +50,20 @@ const stepGroups = [
 export default function CreateListingPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
+  
+  const userDocRef = useMemoFirebase(
+    () => (user && firestore) ? doc(firestore, 'users', user.uid) : null,
+    [user, firestore]
+  );
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userDocRef);
+
+  const initialDraft = React.useMemo(() => {
+    if (userProfile?.residentialAddress) {
+      return { residentialAddress: userProfile.residentialAddress };
+    }
+    return {};
+  }, [userProfile]);
 
   const {
     currentStep,
@@ -58,9 +75,11 @@ export default function CreateListingPage() {
     setFormData,
     formData,
     clearDraft
-  } = useHostOnboarding(steps.length);
+  } = useHostOnboarding(steps.length, initialDraft);
   
-  if (isUserLoading) {
+  const isLoading = isUserLoading || isProfileLoading;
+
+  if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
 

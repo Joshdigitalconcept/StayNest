@@ -4,17 +4,27 @@ import { useState, useEffect, useCallback } from 'react';
 
 const LOCAL_STORAGE_KEY = 'hostOnboardingDraft';
 
-export function useHostOnboarding(totalSteps: number) {
+export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState(() => {
     try {
       const savedDraft = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-      return savedDraft ? JSON.parse(savedDraft) : {};
+      if (savedDraft) {
+        return JSON.parse(savedDraft);
+      }
+      return initialDraft;
     } catch (error) {
       console.error("Failed to parse draft from localStorage", error);
-      return {};
+      return initialDraft;
     }
   });
+
+  useEffect(() => {
+    // Only set initial draft if the form data is empty
+    if (Object.keys(formData).length === 0 && Object.keys(initialDraft).length > 0) {
+        setFormData(initialDraft);
+    }
+  }, [initialDraft, formData]);
 
   useEffect(() => {
     try {

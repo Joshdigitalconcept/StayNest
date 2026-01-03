@@ -69,7 +69,7 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
     }
 
     // 2. Prepare listing data
-    const { images, residentialAddress, hostingAsBusiness, ...listingData } = formData;
+    const { images, ...listingData } = formData;
     const finalData = {
         ...listingData,
         imageUrls: successfulUrls,
@@ -88,7 +88,11 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
         const docRef = await addDoc(listingsColRef, finalData);
 
         const userRef = doc(firestore, 'users', user.uid);
-        await updateDoc(userRef, { isHost: true });
+        // Save the address and set isHost to true
+        await updateDoc(userRef, { 
+            isHost: true,
+            residentialAddress: formData.residentialAddress 
+        });
 
         toast({ title: 'Congratulations!', description: 'Your listing is now live.' });
         clearDraft();
