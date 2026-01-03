@@ -159,7 +159,7 @@ export default function BookPage() {
               <Image src={property.imageUrl} alt={property.title} fill className="object-cover" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Entire place hosted by {property.host.name}</p>
+              <p className="text-sm text-muted-foreground">Entire place hosted by {property.host?.name || 'the host'}</p>
               <h2 className="text-xl font-semibold mt-1">{property.title}</h2>
               <div className="flex items-center gap-1 text-sm mt-1">
                 <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
