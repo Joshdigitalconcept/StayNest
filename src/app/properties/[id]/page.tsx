@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Image from "next/image";
@@ -321,7 +322,7 @@ function PropertyDetails({ property }: { property: Property }) {
     [user, firestore]
   );
   const { data: favorites } = useCollection(userFavoritesQuery);
-  const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property]);
+  const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property.id]);
   const isOwner = user?.uid === property.ownerId;
   const userBooking = React.useMemo(() => {
     if (!user || !bookings) return null;
@@ -346,7 +347,9 @@ function PropertyDetails({ property }: { property: Property }) {
     }
     
     const days = eachDayOfInterval({ start: date.from, end: date.to });
-    if (days.length <= 1) {
+    const bookingDuration = differenceInCalendarDays(date.to, date.from);
+    
+    if (bookingDuration <= 0) {
       return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight };
     }
 
@@ -357,8 +360,6 @@ function PropertyDetails({ property }: { property: Property }) {
       return acc + price;
     }, 0);
 
-    const bookingDuration = differenceInCalendarDays(date.to, date.from);
-    
     const fromDayOfWeek = getDay(date.from);
     const isFromWeekend = fromDayOfWeek === 5 || fromDayOfWeek === 6;
     const price = isFromWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
@@ -419,11 +420,11 @@ function PropertyDetails({ property }: { property: Property }) {
       return;
     }
 
-    if (!property || !date?.from || !date?.to || !duration) {
+    if (!property || !date?.from || !date?.to || !duration || duration <= 0) {
       toast({
         variant: "destructive",
         title: "Reservation Error",
-        description: "Please select valid dates for your stay.",
+        description: "Please select a valid date range for your stay.",
       });
       return;
     }
@@ -596,7 +597,7 @@ function PropertyDetails({ property }: { property: Property }) {
                         </>
                       ) : (
                         <>
-                          <span className="font-bold">${dayPrice}</span>
+                          <span className="font-bold">${dayPrice.toFixed(0)}</span>
                           <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
                         </>
                       )}
@@ -666,7 +667,7 @@ function PropertyDetails({ property }: { property: Property }) {
                         </Link>
                      </Button>
                   ) : (
-                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={duration <= 0}>
+                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
                       Reserve
                   </Button>
                   )}
@@ -675,7 +676,7 @@ function PropertyDetails({ property }: { property: Property }) {
                   {duration > 0 && (
                       <div className="space-y-2 text-sm pt-4">
                       <div className="flex justify-between">
-                          <span className="underline">${property.pricePerNight} x {duration} nights</span>
+                          <span className="underline">${dayPrice.toFixed(0)} x {duration} nights</span>
                           <span>${subtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">

@@ -7,13 +7,35 @@ import Link from 'next/link';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Star } from 'lucide-react';
 import type { Property } from '@/lib/types';
+
+function InvalidBookingState() {
+  const params = useParams();
+  const id = params.id as string;
+  return (
+    <div className="container mx-auto py-12 max-w-lg text-center">
+       <Card>
+          <CardHeader>
+             <CardTitle>Incomplete Booking Details</CardTitle>
+             <CardDescription>
+                We couldn't get all the details for this reservation. Please go back and select your dates and guest count again.
+             </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href={`/properties/${id}`}>Return to Listing</Link>
+            </Button>
+          </CardContent>
+       </Card>
+    </div>
+  )
+}
 
 export default function BookPage() {
   const params = useParams();
@@ -34,18 +56,27 @@ export default function BookPage() {
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
   
   // --- URL Params ---
-  const checkin = searchParams.get('checkin');
-  const checkout = searchParams.get('checkout');
-  const guests = searchParams.get('guests');
+  const checkinStr = searchParams.get('checkin');
+  const checkoutStr = searchParams.get('checkout');
+  const guestsStr = searchParams.get('guests');
 
   // --- Derived State ---
-  const { checkinDate, checkoutDate, duration, subtotal, totalPrice } = React.useMemo(() => {
-    if (!checkin || !checkout || !property) {
-      return { duration: 0, subtotal: 0, totalPrice: 0, checkinDate: null, checkoutDate: null };
+  const { checkinDate, checkoutDate, duration, subtotal, totalPrice, isValidBooking } = React.useMemo(() => {
+    if (!checkinStr || !checkoutStr || !guestsStr || !property) {
+      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: null, checkoutDate: null };
     }
-    const cIn = parseISO(checkin);
-    const cOut = parseISO(checkout);
+    
+    const cIn = parseISO(checkinStr);
+    const cOut = parseISO(checkoutStr);
+
+    if (!isValid(cIn) || !isValid(cOut) || !guestsStr) {
+      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: null, checkoutDate: null };
+    }
+
     const dur = differenceInCalendarDays(cOut, cIn);
+    if (dur <= 0) {
+      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: cIn, checkoutDate: cOut };
+    }
 
     const price = property.pricePerNight || 0;
     const cleaning = property.cleaningFee || 0;
@@ -54,12 +85,12 @@ export default function BookPage() {
     const sub = price * dur;
     const total = sub + cleaning + service;
     
-    return { checkinDate: cIn, checkoutDate: cOut, duration: dur, subtotal: sub, totalPrice: total };
-  }, [checkin, checkout, property]);
+    return { isValidBooking: true, checkinDate: cIn, checkoutDate: cOut, duration: dur, subtotal: sub, totalPrice: total };
+  }, [checkinStr, checkoutStr, guestsStr, property]);
 
   // --- Event Handlers ---
   const handleConfirmAndBook = async () => {
-    if (!user || !property || !checkinDate || !checkoutDate || !guests) {
+    if (!user || !property || !checkinDate || !checkoutDate || !guestsStr) {
       toast({ variant: 'destructive', title: 'Missing Information', description: 'Cannot complete booking.' });
       return;
     }
@@ -73,7 +104,7 @@ export default function BookPage() {
       listingId: property.id,
       checkInDate: Timestamp.fromDate(checkinDate),
       checkOutDate: Timestamp.fromDate(checkoutDate),
-      guests: parseInt(guests, 10),
+      guests: parseInt(guestsStr, 10),
       totalPrice,
       status: bookingStatus,
       createdAt: serverTimestamp(),
@@ -110,8 +141,8 @@ export default function BookPage() {
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin" /></div>;
   }
-  if (!property || !checkinDate || !checkoutDate || !guests) {
-    return notFound();
+  if (!property || !isValidBooking) {
+    return <InvalidBookingState />;
   }
 
   return (
@@ -146,7 +177,7 @@ export default function BookPage() {
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Guests</span>
-              <span>{guests} guest{parseInt(guests, 10) > 1 ? 's' : ''}</span>
+              <span>{guestsStr} guest{parseInt(guestsStr, 10) > 1 ? 's' : ''}</span>
             </div>
              <Button variant="link" className="p-0 h-auto" asChild>
                 <Link href={`/properties/${id}`}>Edit details</Link>
