@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from "next/image";
@@ -627,7 +628,7 @@ function PropertyDetails({ property }: { property: Property }) {
                         defaultMonth={date?.from}
                         selected={date}
                         onSelect={setDate}
-                        numberOfMonths={2}
+                        numberOfMonths={1}
                         disabled={disabledDates}
                       />
                     </PopoverContent>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -67,7 +68,7 @@ export default function Home() {
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar />
+                            <Calendar numberOfMonths={1} />
                         </PopoverContent>
                         </Popover>
                     </div>
@@ -80,7 +81,7 @@ export default function Home() {
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar />
+                            <Calendar numberOfMonths={1} />
                         </PopoverContent>
                         </Popover>
                     </div>
