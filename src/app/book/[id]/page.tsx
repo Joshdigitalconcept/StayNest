@@ -110,7 +110,7 @@ export default function BookPage() {
       createdAt: serverTimestamp(),
       listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
       guest: { name: user.displayName || user.email, photoURL: user.photoURL },
-      host: { name: property.host.name, photoURL: property.host.photoURL },
+      host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
     };
 
     const bookingsColRef = collection(firestore, 'bookings');
