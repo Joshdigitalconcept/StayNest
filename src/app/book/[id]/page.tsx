@@ -173,11 +173,11 @@ export default function BookPage() {
             <h3 className="text-lg font-semibold">Your trip</h3>
             <div className="flex justify-between">
               <span className="font-medium">Dates</span>
-              <span>{format(checkinDate, 'MMM d')} - {format(checkoutDate, 'd, yyyy')}</span>
+              <span>{checkinDate ? format(checkinDate, 'MMM d') : ''} - {checkoutDate ? format(checkoutDate, 'd, yyyy') : ''}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Guests</span>
-              <span>{guestsStr} guest{parseInt(guestsStr, 10) > 1 ? 's' : ''}</span>
+              <span>{guestsStr} guest{parseInt(guestsStr || '1', 10) > 1 ? 's' : ''}</span>
             </div>
              <Button variant="link" className="p-0 h-auto" asChild>
                 <Link href={`/properties/${id}`}>Edit details</Link>
@@ -189,16 +189,16 @@ export default function BookPage() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Price details</h3>
             <div className="flex justify-between text-muted-foreground">
-              <span>${property.pricePerNight} x {duration} nights</span>
+              <span>${(property.pricePerNight || 0).toFixed(2)} x {duration} nights</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Cleaning fee</span>
-              <span>${property.cleaningFee.toFixed(2)}</span>
+              <span>${(property.cleaningFee || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>StayNest service fee</span>
-              <span>${property.serviceFee.toFixed(2)}</span>
+              <span>${(property.serviceFee || 0).toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-bold text-lg">
