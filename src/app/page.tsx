@@ -17,6 +17,7 @@ import type { Property } from '@/lib/types';
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { propertyTypes } from '@/lib/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSelect: (query: string) => void }) {
@@ -28,41 +29,43 @@ function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSel
     const types = [...new Set(listings.map(l => propertyTypes.find(pt => pt.id === l.propertyType)?.label).filter(Boolean))];
 
     return (
-        <div className="space-y-4">
-            {locations.length > 0 && (
-                <div>
-                    <h4 className="font-semibold text-sm px-4 py-2">Locations</h4>
-                    {locations.map(location => (
-                        <div key={location} onClick={() => onSelect(location)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
-                            <div className="bg-muted rounded-md p-2"><MapPin className="h-5 w-5" /></div>
-                            <span>{location}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-             {types.length > 0 && (
-                <div>
-                    <h4 className="font-semibold text-sm px-4 py-2">Property Types</h4>
-                    {types.map(type => (
-                        <div key={type} onClick={() => onSelect(type!)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
-                            <div className="bg-muted rounded-md p-2"><HomeIcon className="h-5 w-5" /></div>
-                            <span>{type}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-            {listings.length > 0 && (
-                 <div>
-                    <h4 className="font-semibold text-sm px-4 py-2">Listings</h4>
-                    {listings.slice(0, 5).map(listing => (
-                        <div key={listing.id} onClick={() => onSelect(listing.title)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
-                           <div className="bg-muted rounded-md p-2"><Building className="h-5 w-5" /></div>
-                           <span>{listing.title}</span>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
+        <ScrollArea className="h-auto max-h-72">
+            <div className="space-y-4 p-2">
+                {locations.length > 0 && (
+                    <div>
+                        <h4 className="font-semibold text-sm px-4 py-2">Locations</h4>
+                        {locations.map(location => (
+                            <div key={location} onClick={() => onSelect(location)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
+                                <div className="bg-muted rounded-md p-2"><MapPin className="h-5 w-5" /></div>
+                                <span>{location}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 {types.length > 0 && (
+                    <div>
+                        <h4 className="font-semibold text-sm px-4 py-2">Property Types</h4>
+                        {types.map(type => (
+                            <div key={type} onClick={() => onSelect(type!)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
+                                <div className="bg-muted rounded-md p-2"><HomeIcon className="h-5 w-5" /></div>
+                                <span>{type}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {listings.length > 0 && (
+                     <div>
+                        <h4 className="font-semibold text-sm px-4 py-2">Listings</h4>
+                        {listings.slice(0, 5).map(listing => (
+                            <div key={listing.id} onClick={() => onSelect(listing.title)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
+                               <div className="bg-muted rounded-md p-2"><Building className="h-5 w-5" /></div>
+                               <span>{listing.title}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </ScrollArea>
     );
 }
 
@@ -141,7 +144,7 @@ export default function Home() {
                 <Card className="w-full max-w-4xl p-2 md:p-4 bg-background/90 backdrop-blur-sm">
                     <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-10 gap-2 md:gap-4 items-center">
                     <div className="md:col-span-7 lg:col-span-8 relative">
-                       <Popover open={isSearchFocused && searchQuery.length > 0} onOpenChange={setIsSearchFocused}>
+                       <Popover open={isSearchFocused && searchQuery.length > 0 && filteredSuggestions.length > 0} onOpenChange={setIsSearchFocused}>
                             <PopoverTrigger asChild>
                                  <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -151,10 +154,11 @@ export default function Home() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setIsSearchFocused(true)}
+                                        onBlur={() => setIsSearchFocused(false)}
                                     />
                                 </div>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[var(--radix-popover-trigger-width)]" align="start">
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
                                <SearchSuggestions listings={filteredSuggestions} onSelect={(query) => {
                                    setSearchQuery(query);
                                    submitSearch(query);
