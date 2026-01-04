@@ -77,7 +77,6 @@ export default function Home() {
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [guests, setGuests] = React.useState(2);
-  const [isSearchFocused, setIsSearchFocused] = React.useState(false);
 
   const featuredListingsQuery = useMemoFirebase(
     () => firestore ? query(collection(firestore, 'listings'), orderBy('createdAt', 'desc'), limit(8)) : null,
@@ -144,7 +143,7 @@ export default function Home() {
                 <Card className="w-full max-w-4xl p-2 md:p-4 bg-background/90 backdrop-blur-sm">
                     <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-10 gap-2 md:gap-4 items-center">
                     <div className="md:col-span-7 lg:col-span-8 relative">
-                       <Popover open={isSearchFocused && searchQuery.length > 0 && filteredSuggestions.length > 0} onOpenChange={setIsSearchFocused}>
+                       <Popover open={searchQuery.length > 0 && filteredSuggestions.length > 0}>
                             <PopoverTrigger asChild>
                                  <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -153,11 +152,7 @@ export default function Home() {
                                         className="pl-10 h-12 text-base"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        onFocus={() => setIsSearchFocused(true)}
-                                        onBlur={() => {
-                                            // Delay hiding the popover to allow click events on suggestions
-                                            setTimeout(() => setIsSearchFocused(false), 150);
-                                        }}
+                                        autoComplete="off"
                                     />
                                 </div>
                             </PopoverTrigger>
