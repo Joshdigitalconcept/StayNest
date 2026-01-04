@@ -154,7 +154,10 @@ export default function Home() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setIsSearchFocused(true)}
-                                        onBlur={() => setIsSearchFocused(false)}
+                                        onBlur={() => {
+                                            // Delay hiding the popover to allow click events on suggestions
+                                            setTimeout(() => setIsSearchFocused(false), 150);
+                                        }}
                                     />
                                 </div>
                             </PopoverTrigger>
