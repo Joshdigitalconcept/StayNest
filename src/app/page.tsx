@@ -30,7 +30,7 @@ function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSel
     const types = [...new Set(listings.map(l => propertyTypes.find(pt => pt.id === l.propertyType)?.label).filter(Boolean))];
 
     return (
-        <ScrollArea className="h-auto max-h-72">
+        <ScrollArea className="h-full">
             <div className="space-y-4 p-2">
                 {locations.length > 0 && (
                     <div>
@@ -157,7 +157,7 @@ export default function Home() {
                                     />
                                 </div>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 h-[400px]" align="start">
                                <SearchSuggestions listings={filteredSuggestions} onSelect={(query) => {
                                    setSearchQuery(query);
                                    submitSearch(query);
