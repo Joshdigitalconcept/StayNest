@@ -5,10 +5,12 @@ import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import PropertyCard from '@/components/property-card';
 import type { Property } from '@/lib/types';
 import { propertyTypes } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 function SearchResults() {
     const searchParams = useSearchParams();
@@ -67,9 +69,17 @@ function SearchResults() {
 
     return (
         <div className="container mx-auto py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold font-headline">Search Results</h1>
-                <p className="text-muted-foreground">{resultText}{searchText}{guestText}</p>
+            <div className="mb-8 space-y-4">
+                 <Button variant="outline" asChild>
+                    <Link href="/" className="inline-flex items-center gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to search
+                    </Link>
+                </Button>
+                <div>
+                    <h1 className="text-3xl font-bold font-headline">Search Results</h1>
+                    <p className="text-muted-foreground">{resultText}{searchText}{guestText}</p>
+                </div>
             </div>
             
             {filteredListings.length > 0 ? (
@@ -99,3 +109,4 @@ export default function SearchPage() {
     );
 }
 
+    

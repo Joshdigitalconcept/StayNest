@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card } from '@/components/ui/card';
-import { Search, Users, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, Users, ArrowRight, Loader2, MapPin, Home as HomeIcon, Building } from 'lucide-react';
 import PropertyCard from '@/components/property-card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Link from 'next/link';
@@ -16,6 +16,55 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import type { Property } from '@/lib/types';
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { propertyTypes } from '@/lib/types';
+
+
+function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSelect: (query: string) => void }) {
+    if (listings.length === 0) {
+        return <div className="p-4 text-sm text-muted-foreground">No suggestions found.</div>;
+    }
+
+    const locations = [...new Set(listings.map(l => l.location))];
+    const types = [...new Set(listings.map(l => propertyTypes.find(pt => pt.id === l.propertyType)?.label).filter(Boolean))];
+
+    return (
+        <div className="space-y-4">
+            {locations.length > 0 && (
+                <div>
+                    <h4 className="font-semibold text-sm px-4 py-2">Locations</h4>
+                    {locations.map(location => (
+                        <div key={location} onClick={() => onSelect(location)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
+                            <div className="bg-muted rounded-md p-2"><MapPin className="h-5 w-5" /></div>
+                            <span>{location}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+             {types.length > 0 && (
+                <div>
+                    <h4 className="font-semibold text-sm px-4 py-2">Property Types</h4>
+                    {types.map(type => (
+                        <div key={type} onClick={() => onSelect(type!)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
+                            <div className="bg-muted rounded-md p-2"><HomeIcon className="h-5 w-5" /></div>
+                            <span>{type}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {listings.length > 0 && (
+                 <div>
+                    <h4 className="font-semibold text-sm px-4 py-2">Listings</h4>
+                    {listings.slice(0, 5).map(listing => (
+                        <div key={listing.id} onClick={() => onSelect(listing.title)} className="flex items-center gap-3 p-3 hover:bg-accent rounded-md cursor-pointer">
+                           <div className="bg-muted rounded-md p-2"><Building className="h-5 w-5" /></div>
+                           <span>{listing.title}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 
 export default function Home() {
@@ -25,21 +74,43 @@ export default function Home() {
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [guests, setGuests] = React.useState(2);
+  const [isSearchFocused, setIsSearchFocused] = React.useState(false);
 
-  const listingsQuery = useMemoFirebase(
+  const featuredListingsQuery = useMemoFirebase(
     () => firestore ? query(collection(firestore, 'listings'), orderBy('createdAt', 'desc'), limit(8)) : null,
     [firestore]
   );
   
-  const { data: properties, isLoading } = useCollection<Property>(listingsQuery);
-  
+  const allListingsQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'listings')) : null,
+    [firestore]
+  );
+
+  const { data: properties, isLoading: isLoadingFeatured } = useCollection<Property>(featuredListingsQuery);
+  const { data: allListings } = useCollection<Property>(allListingsQuery);
+
+  const filteredSuggestions = React.useMemo(() => {
+    if (!searchQuery || !allListings) return [];
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    return allListings.filter(listing => 
+        listing.title.toLowerCase().includes(lowerCaseQuery) ||
+        listing.location.toLowerCase().includes(lowerCaseQuery) ||
+        propertyTypes.find(pt => pt.id === listing.propertyType)?.label.toLowerCase().includes(lowerCaseQuery) ||
+        listing.host?.name?.toLowerCase().includes(lowerCaseQuery)
+    );
+  }, [searchQuery, allListings]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    submitSearch(searchQuery);
+  };
+  
+  const submitSearch = (query: string) => {
     const params = new URLSearchParams();
-    if (searchQuery) params.append('q', searchQuery);
+    if (query) params.append('q', query);
     if (guests > 0) params.append('guests', guests.toString());
     router.push(`/search?${params.toString()}`);
-  };
+  }
 
 
   return (
@@ -70,13 +141,26 @@ export default function Home() {
                 <Card className="w-full max-w-4xl p-2 md:p-4 bg-background/90 backdrop-blur-sm">
                     <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-10 gap-2 md:gap-4 items-center">
                     <div className="md:col-span-7 lg:col-span-8 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                          placeholder="Search location, property type, host name..."
-                          className="pl-10 h-12 text-base"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                       <Popover open={isSearchFocused && searchQuery.length > 0} onOpenChange={setIsSearchFocused}>
+                            <PopoverTrigger asChild>
+                                 <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search location, property type, host name..."
+                                        className="pl-10 h-12 text-base"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onFocus={() => setIsSearchFocused(true)}
+                                    />
+                                </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)]" align="start">
+                               <SearchSuggestions listings={filteredSuggestions} onSelect={(query) => {
+                                   setSearchQuery(query);
+                                   submitSearch(query);
+                               }} />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="md:col-span-3 lg:col-span-2">
                         <Popover>
@@ -117,19 +201,19 @@ export default function Home() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          {isLoading && (
+          {isLoadingFeatured && (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="animate-spin h-12 w-12" />
             </div>
           )}
-          {!isLoading && properties && properties.length > 0 && (
+          {!isLoadingFeatured && properties && properties.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {properties.map((property) => (
                 <PropertyCard key={property.id} property={property} />
               ))}
             </div>
           )}
-           {!isLoading && (!properties || properties.length === 0) && (
+           {!isLoadingFeatured && (!properties || properties.length === 0) && (
             <div className="text-center py-12">
               <h3 className="text-lg font-semibold text-muted-foreground">
                 No listings available yet.
