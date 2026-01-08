@@ -148,8 +148,8 @@ service cloud.firestore {
        * @path /bookings/{bookingId}/messages/{messageId}
        */
        match /messages/{messageId} {
-         allow get, list: if isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
-         allow create: if isSignedIn() && (request.auth.uid == request.resource.data.senderId) && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
+         allow get, list: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId);
+         allow create: if isSignedIn() && (request.auth.uid == request.resource.data.senderId) && (request.auth.uid == request.resource.data.guestId || request.auth.uid == request.resource.data.hostId);
          allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
          allow delete: if false;
        }

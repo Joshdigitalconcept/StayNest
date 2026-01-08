@@ -124,6 +124,8 @@ export interface Message {
   bookingId: string;
   senderId: string;
   receiverId: string;
+  guestId: string;
+  hostId: string;
   listingId: string;
   text: string;
   createdAt: Timestamp;

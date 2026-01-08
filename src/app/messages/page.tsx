@@ -95,6 +95,8 @@ function ChatWindow({ activeBooking }: { activeBooking: Booking | null }) {
             bookingId: activeBooking.id,
             senderId: user.uid,
             receiverId: user.uid === activeBooking.guestId ? activeBooking.hostId : activeBooking.guestId,
+            guestId: activeBooking.guestId,
+            hostId: activeBooking.hostId,
             listingId: activeBooking.listingId,
             text: newMessage,
             createdAt: serverTimestamp(),
@@ -206,8 +208,6 @@ export default function MessagesPage() {
     const conversations = React.useMemo(() => {
         const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
         const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
-        // Show conversations for confirmed or pending bookings, or declined bookings that have messages.
-        // For simplicity, we can show all non-past bookings. A more advanced filter could be added.
         return uniqueBookings.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     }, [guestBookings, hostBookings]);
     
