@@ -1,13 +1,13 @@
-
 "use client"
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, type DayProps } from "react-day-picker"
-import { addMonths, subMonths } from "date-fns"
+import { DayPicker, useDayRender, type DayProps } from "react-day-picker"
+import { format } from "date-fns"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants, Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
@@ -15,90 +15,134 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  disabled,
   ...props
 }: CalendarProps) {
-  const [month, setMonth] = React.useState(props.month || props.defaultMonth || new Date());
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  const handleMonthChange = (newMonth: Date) => {
-    setMonth(newMonth);
-    props.onMonthChange?.(newMonth);
+  const CustomDay = (dayProps: DayProps) => {
+    const { date, displayMonth } = dayProps
+    if (!date) return <></>
+
+    const ref = React.useRef<HTMLButtonElement>(null)
+    const dayRender = useDayRender(date, displayMonth, ref)
+
+    if (dayRender.isHidden) {
+      return <></>
+    }
+
+    const isPast = date < today
+    const isDisabled = dayRender.isDisabled || isPast
+
+    let tooltipContent: React.ReactNode = null
+    if (props.mode === "range" && props.selected) {
+      const selected = props.selected as { from?: Date; to?: Date }
+      if (selected.from && date.toDateString() === selected.from.toDateString()) {
+        tooltipContent = <TooltipContent>Start date</TooltipContent>
+      } else if (selected.to && date.toDateString() === selected.to.toDateString()) {
+        tooltipContent = <TooltipContent>End date</TooltipContent>
+      }
+    }
+
+    const dayElement = (
+      <div
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-full text-sm transition-colors",
+          isDisabled ? "font-light text-muted-foreground/60" : "font-bold",
+          !isDisabled && "hover:bg-accent hover:text-accent-foreground cursor-pointer",
+          dayRender.modifiers.selected && !dayRender.modifiers.range_middle && "bg-primary text-primary-foreground",
+          dayRender.modifiers.range_middle && "bg-accent text-accent-foreground rounded-none",
+          dayRender.modifiers.today && "ring-2 ring-primary ring-offset-2"
+        )}
+      >
+        {date.getDate()}
+      </div>
+    )
+
+    if (!dayRender.isButton) {
+      return <div {...dayRender.divProps}>{dayElement}</div>
+    }
+
+    const buttonElement = <button {...dayRender.buttonProps} ref={ref}>{dayElement}</button>
+
+    if (tooltipContent) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
+          {tooltipContent}
+        </Tooltip>
+      )
+    }
+
+    return buttonElement
+  }
+
+  const CustomCaption = () => {
+    return (
+      <div className="flex items-center justify-between px-1 py-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-7 w-7"
+          onClick={(e) => {
+            e.preventDefault()
+            props.onMonthChange?.(new Date(props.month!.getFullYear(), props.month!.getMonth() - 1))
+          }}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
+        <div className="text-sm font-semibold">
+          {format(props.month || new Date(), "MMMM yyyy")}
+        </div>
+
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-7 w-7"
+          onClick={(e) => {
+            e.preventDefault()
+            props.onMonthChange?.(new Date(props.month!.getFullYear(), props.month!.getMonth() + 1))
+          }}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    )
   }
 
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-0", className)}
-      month={month}
-      onMonthChange={handleMonthChange}
+      className={cn("p-4", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+        months: "flex flex-col space-y-6",
         month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+        caption: "hidden",
+        table: "w-full border-collapse",
+        head_row: "flex mt-2",
+        head_cell: "text-muted-foreground w-9 font-medium text-[0.8rem]",
         row: "flex w-full mt-2",
-        cell: cn(
-          "h-9 w-9 text-center text-sm p-0 relative",
-          "[&:has([aria-selected].day-range-end)]:rounded-r-md",
-          "[&:has([aria-selected].day-outside)]:bg-accent/50",
-          "[&:has([aria-selected])]:bg-accent",
-          "first:[&:has([aria-selected])]:rounded-l-md",
-          "last:[&:has([aria-selected])]:rounded-r-md",
-          "focus-within:relative focus-within:z-20"
-        ),
-        day: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
-        ),
-        day_range_end: "day-range-end",
-        day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside:
-          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        cell: "relative p-0 text-center",
+        day_outside: "text-muted-foreground opacity-40",
+        day_disabled: "text-muted-foreground/60 font-light",
         day_hidden: "invisible",
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        Day: CustomDay,
+        CaptionLabel: CustomCaption,
       }}
-      footer={
-          <div className="flex justify-between pt-4">
-               <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleMonthChange(subMonths(month, 1))}
-                disabled={props.disabled ? (props.disabled as any).before && subMonths(month, 1) < (props.disabled as any).before : false}
-              >
-                Prev
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleMonthChange(addMonths(month, 1))}
-              >
-                Next
-              </Button>
-          </div>
-      }
+      disabled={[
+        { before: today },
+        ...(Array.isArray(disabled) ? disabled : disabled ? [disabled] : []),
+      ]}
       {...props}
     />
   )
 }
+
 Calendar.displayName = "Calendar"
 
 export { Calendar }
