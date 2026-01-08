@@ -17,43 +17,29 @@ function Calendar({
   ...props
 }: CalendarProps) {
   
-  const CustomDay = (dayProps: DayProps) => {
-    const { date, displayMonth } = dayProps;
+  const DayWithTooltip = (dayProps: DayProps) => {
+    const { date } = dayProps;
     if (props.mode === 'range') {
       const { from, to } = (props.selected as { from?: Date; to?: Date }) || {};
-      if (from && to && date.getTime() === from.getTime()) {
-        return (
-          <TooltipTrigger asChild>
-            <DayPicker.Day {...dayProps} />
-          </TooltipTrigger>
-        );
+      let tooltipContent: React.ReactNode = null;
+      if (from && date.getTime() === from.getTime()) {
+        tooltipContent = <TooltipContent>Start date</TooltipContent>;
+      } else if (to && date.getTime() === to.getTime()) {
+        tooltipContent = <TooltipContent>End date</TooltipContent>;
       }
-      if (from && to && date.getTime() === to.getTime()) {
+
+      if (tooltipContent) {
         return (
-          <TooltipTrigger asChild>
-            <DayPicker.Day {...dayProps} />
-          </TooltipTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DayPicker.Day {...dayProps} />
+            </TooltipTrigger>
+            {tooltipContent}
+          </Tooltip>
         );
       }
     }
     return <DayPicker.Day {...dayProps} />;
-  }
-
-  const CustomDayContent = (dayProps: DayProps) => {
-     if (props.mode === 'range') {
-        const { from, to } = (props.selected as { from?: Date; to?: Date }) || {};
-        if (from && to && dayProps.date.getTime() === from.getTime()) {
-          return (
-            <TooltipContent>Start date</TooltipContent>
-          );
-        }
-        if (from && to && dayProps.date.getTime() === to.getTime()) {
-          return (
-            <TooltipContent>End date</TooltipContent>
-          );
-        }
-    }
-    return <></>;
   }
 
   return (
@@ -95,12 +81,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Day: (dayProps) => (
-          <Tooltip>
-            <CustomDay {...dayProps} />
-            <CustomDayContent {...dayProps} />
-          </Tooltip>
-        ),
+        Day: DayWithTooltip,
         IconLeft: ({ className, ...props }) => (
           <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
         ),
