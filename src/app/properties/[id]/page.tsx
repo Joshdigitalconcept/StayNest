@@ -623,15 +623,17 @@ function PropertyDetails({ property }: { property: Property }) {
                        </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={date?.from}
-                        selected={date}
-                        onSelect={setDate}
-                        numberOfMonths={1}
-                        disabled={disabledDates}
-                      />
+                      <TooltipProvider>
+                        <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={date?.from}
+                          selected={date}
+                          onSelect={setDate}
+                          numberOfMonths={1}
+                          disabled={disabledDates}
+                        />
+                      </TooltipProvider>
                     </PopoverContent>
                   </Popover>
 
