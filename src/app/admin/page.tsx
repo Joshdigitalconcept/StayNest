@@ -87,7 +87,7 @@ export default function AdminDashboard() {
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);
   const { data: hosts, isLoading: hostsLoading } = useCollection<User>(hostsQuery);
   const { data: listings, isLoading: listingsLoading } = useCollection<Property>(listingsQuery);
-  const { data: confirmedBookings, isLoading: bookingsLoading } = useCollection<Booking>(confirmedBookingsQuery);
+  const { data: confirmedBookings, isLoading: confirmedLoading } = useCollection<Booking>(confirmedBookingsQuery);
   const { data: confirmedToday, isLoading: bookingsTodayLoading } = useCollection<Booking>(confirmedTodayQuery);
   const { data: confirmedThisMonth, isLoading: bookingsThisMonthLoading } = useCollection<Booking>(confirmedThisMonthQuery);
   const { data: pendingBookings, isLoading: pendingLoading } = useCollection<Booking>(pendingBookingsQuery);
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
     revenue: revenueThisMonth,
   };
   
-  const isLoading = usersLoading || hostsLoading || listingsLoading || bookingsLoading || pendingLoading || confirmedLoading || declinedLoading || bookingsTodayLoading || bookingsThisMonthLoading;
+  const isLoading = usersLoading || hostsLoading || listingsLoading || pendingLoading || confirmedLoading || declinedLoading || bookingsTodayLoading || bookingsThisMonthLoading;
   
   const bookingActivity = [
       { label: 'Pending', value: pendingBookings?.length ?? 0, icon: CalendarClock, className: 'text-amber-500' },
@@ -245,3 +245,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+    
