@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
       try {
         const confirmedSnaps = await getDocs(confirmedBookingsQuery);
-        const hasConflict = confirmedSnaps.docs.some(docSnap => {
+        const conflictingBookingDoc = confirmedSnaps.docs.find(docSnap => {
           const existingBooking = docSnap.data() as Booking;
           return areIntervalsOverlapping(
             { start: bookingToUpdate.checkInDate.toDate(), end: bookingToUpdate.checkOutDate.toDate() },
@@ -110,16 +110,23 @@ export default function ProfilePage() {
           );
         });
         
-        if (hasConflict) {
-          // Auto-decline and send a message
+        if (conflictingBookingDoc) {
+          const conflictingBooking = conflictingBookingDoc.data() as Booking;
           await updateDoc(bookingRef, { status: 'declined' });
           const messagesColRef = collection(firestore, `bookings/${bookingToUpdate.id}/messages`);
+          
+          const requestedDates = `${format(bookingToUpdate.checkInDate.toDate(), 'MMM d, yyyy')} to ${format(bookingToUpdate.checkOutDate.toDate(), 'MMM d, yyyy')}`;
+          const conflictingDates = `${format(conflictingBooking.checkInDate.toDate(), 'MMM d, yyyy')} to ${format(conflictingBooking.checkOutDate.toDate(), 'MMM d, yyyy')}`;
+          const listingName = bookingToUpdate.listing?.title || 'the property';
+
+          const automatedMessage = `Hello, thank you for your booking request for "${listingName}" from ${requestedDates}. Unfortunately, these dates could not be confirmed because they conflict with an existing reservation for ${conflictingDates}. Please feel free to select other dates.`;
+
           await addDoc(messagesColRef, {
             bookingId: bookingToUpdate.id,
             senderId: user.uid, // The host is the sender
             receiverId: bookingToUpdate.guestId,
             listingId: bookingToUpdate.listingId,
-            text: "Unfortunately, your booking request was automatically declined because the dates were no longer available. Please feel free to select other dates.",
+            text: automatedMessage,
             createdAt: serverTimestamp(),
             isRead: false,
           });
@@ -127,7 +134,7 @@ export default function ProfilePage() {
           toast({
             variant: "destructive",
             title: "Date Conflict",
-            description: "This request conflicts with a confirmed booking and has been automatically declined. The guest has been notified.",
+            description: "This request conflicts with a confirmed booking and has been automatically declined. The guest has been notified with a detailed message.",
           });
           return;
         }
