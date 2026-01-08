@@ -23,10 +23,14 @@ function Calendar({
     if (props.mode === 'range') {
       const { from, to } = (props.selected as { from?: Date; to?: Date }) || {};
       let tooltipContent: React.ReactNode = null;
-      if (from && date.getTime() === from.getTime()) {
-        tooltipContent = <TooltipContent>Start date</TooltipContent>;
-      } else if (to && date.getTime() === to.getTime()) {
-        tooltipContent = <TooltipContent>End date</TooltipContent>;
+
+      // Add a check to ensure 'date' is defined before using it
+      if (date) {
+          if (from && date.getTime() === from.getTime()) {
+            tooltipContent = <TooltipContent>Start date</TooltipContent>;
+          } else if (to && date.getTime() === to.getTime()) {
+            tooltipContent = <TooltipContent>End date</TooltipContent>;
+          }
       }
 
       if (tooltipContent) {
