@@ -16,32 +16,75 @@ import {
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
 import { useUser, useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collectionGroup, query, where } from 'firebase/firestore';
-import type { Message } from '@/lib/types';
+import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import type { Message, Booking } from '@/lib/types';
 import { Badge } from './ui/badge';
+import React from 'react';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const firestore = useFirestore();
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [isUnreadLoading, setIsUnreadLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!user || !firestore) {
+      setIsUnreadLoading(false);
+      return;
+    }
+
+    const fetchUnreadMessages = async () => {
+      setIsUnreadLoading(true);
+      try {
+        const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+        const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+
+        const [guestBookingsSnap, hostBookingsSnap] = await Promise.all([
+          getDocs(guestBookingsQuery),
+          getDocs(hostBookingsQuery)
+        ]);
+        
+        const allBookings = [
+          ...guestBookingsSnap.docs.map(d => d.id),
+          ...hostBookingsSnap.docs.map(d => d.id)
+        ];
+        
+        if (allBookings.length === 0) {
+            setUnreadCount(0);
+            setIsUnreadLoading(false);
+            return;
+        }
+
+        const unreadMessagesQuery = query(
+          collectionGroup(firestore, 'messages'),
+          where('bookingId', 'in', allBookings),
+          where('receiverId', '==', user.uid),
+          where('isRead', '==', false)
+        );
+
+        const unreadMessagesSnap = await getDocs(unreadMessagesQuery);
+        setUnreadCount(unreadMessagesSnap.size);
+
+      } catch (e) {
+        console.error("Failed to fetch unread messages count:", e);
+        setUnreadCount(0);
+      } finally {
+        setIsUnreadLoading(false);
+      }
+    };
+    
+    fetchUnreadMessages();
+
+    // We can also set up a listener here if we want it to be real-time,
+    // but a fetch on load is often sufficient for a badge count.
+  }, [user, firestore]);
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/');
   };
-
-  const unreadMessagesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
-      collectionGroup(firestore, 'messages'),
-      where('receiverId', '==', user.uid),
-      where('isRead', '==', false)
-    );
-  }, [user, firestore]);
-  
-  const { data: unreadMessages } = useCollection<Message>(unreadMessagesQuery);
-  const unreadCount = unreadMessages?.length || 0;
 
   if (isUserLoading) {
     return <Loader2 className="animate-spin" />;

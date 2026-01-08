@@ -64,11 +64,6 @@ service cloud.firestore {
       allow list: if isSignedIn();
     }
     
-    // This allows a user to query for their unread messages across all bookings.
-    // It's a bit of a workaround because Firestore doesn't have collection group queries
-    // that can be secured with a dynamic path segment from the request.
-    // By querying the top-level 'bookings' collection for messages where they are the receiver,
-    // we can achieve the desired outcome.
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
@@ -82,9 +77,11 @@ service cloud.firestore {
          allow delete: if false;
        }
     }
-     // Rule for querying unread messages across all bookings
+     // Rule for querying unread messages across bookings
+     // This rule allows a user to query the 'messages' collection group
+     // only if they are filtering by their own UID as the receiver.
     match /{path=**}/messages/{messageId} {
-       allow list: if isSignedIn() && request.query.get('receiverId') == request.auth.uid;
+       allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
     }
   }
 }
