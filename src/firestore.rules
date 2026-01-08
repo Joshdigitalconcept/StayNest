@@ -41,7 +41,8 @@ service cloud.firestore {
     }
     
     match /roles_admin/{userId} {
-      allow get, list: if isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create, update, delete: if false;
     }
 
@@ -68,11 +69,14 @@ service cloud.firestore {
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
 
        match /messages/{messageId} {
-         allow get, list: if isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
-         allow create: if isSignedIn() && (request.auth.uid == request.resource.data.senderId) && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
+         allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId);
+         allow list: if isSignedIn() && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId);
+         allow create: if isSignedIn() && (request.auth.uid == request.resource.data.senderId);
          allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
          allow delete: if false;
        }
     }
   }
 }
+
+    

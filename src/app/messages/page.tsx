@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -206,9 +207,26 @@ export default function MessagesPage() {
     const { data: hostBookings, isLoading: isHostBookingsLoading } = useCollection<Booking>(hostBookingsQuery);
     
     const conversations = React.useMemo(() => {
+        if (!guestBookings && !hostBookings) return [];
         const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
-        const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
-        return uniqueBookings.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        if (allBookings.length === 0) return [];
+    
+        const uniqueBookingsMap = new Map<string, Booking>();
+        allBookings.forEach(booking => {
+            // Only add if it's confirmed or declined. Do not show pending here
+            if (booking.status === 'confirmed' || booking.status === 'declined') {
+                 uniqueBookingsMap.set(booking.id, booking);
+            }
+        });
+        
+        const uniqueBookings = Array.from(uniqueBookingsMap.values());
+        
+        return uniqueBookings.sort((a, b) => {
+            if (a.createdAt && b.createdAt) {
+                return b.createdAt.toMillis() - a.createdAt.toMillis();
+            }
+            return 0;
+        });
     }, [guestBookings, hostBookings]);
     
     const activeBooking = React.useMemo(() => {
@@ -248,3 +266,5 @@ export default function MessagesPage() {
         </div>
     );
 }
+
+    
