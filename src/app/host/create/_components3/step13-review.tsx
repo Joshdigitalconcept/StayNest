@@ -20,20 +20,18 @@ interface Step13Props {
   clearDraft: () => void;
 }
 
-const IMGBB_API_KEY = "ed5db0bd942fd835bfbbce28c31bc2b9";
-
 async function uploadImage(imageFile: File): Promise<string | null> {
   const formData = new FormData();
   formData.append('image', imageFile);
 
   try {
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+    const response = await fetch(`https://i.ibb.co/`, { // Changed to keyless endpoint
       method: 'POST',
       body: formData,
     });
     const result = await response.json();
     if (result.success) return result.data.url;
-    else throw new Error(result.error.message || 'ImgBB upload failed');
+    else throw new Error(result.error.message || 'Image upload failed');
   } catch (error) {
     console.error("Image upload failed:", error);
     return null;

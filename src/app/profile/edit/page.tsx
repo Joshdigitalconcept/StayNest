@@ -33,8 +33,6 @@ import { Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 
-const IMGBB_API_KEY = "ed5db0bd942fd835bfbbce28c31bc2b9";
-
 const formSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
@@ -128,7 +126,7 @@ export default function EditProfilePage() {
     const formData = new FormData();
     formData.append('image', image);
     try {
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      const response = await fetch(`https://i.ibb.co/`, { // Changed to keyless endpoint
         method: 'POST',
         body: formData,
       });
@@ -136,7 +134,7 @@ export default function EditProfilePage() {
       if (result.success) {
         return result.data.url;
       } else {
-        throw new Error(result.error.message || 'ImgBB upload failed');
+        throw new Error(result.error.message || 'Image upload failed');
       }
     } catch (error: any) {
       toast({
