@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, useDayRender, type DayProps } from "react-day-picker"
-import { format } from "date-fns"
+import { DayPicker, DayProps, DayContentProps } from "react-day-picker"
+import { addDays } from "date-fns"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants, Button } from "@/components/ui/button"
@@ -19,28 +19,20 @@ function Calendar({
   ...props
 }: CalendarProps) {
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0) // Normalize to start of day
 
-  const CustomDay = (dayProps: DayProps) => {
-    const { date, displayMonth } = dayProps
-    if (!date) return <></>
-
-    const ref = React.useRef<HTMLButtonElement>(null)
-    const dayRender = useDayRender(date, displayMonth, ref)
-
-    if (dayRender.isHidden) {
-      return <></>
-    }
-
+  const DayWithTooltipAndStyles = (dayProps: DayContentProps) => {
+    const { date, selected, modifiers } = dayProps
     const isPast = date < today
-    const isDisabled = dayRender.isDisabled || isPast
+    const isDisabled = modifiers.disabled || isPast
 
+    // Determine if this is start or end of range
     let tooltipContent: React.ReactNode = null
-    if (props.mode === "range" && props.selected) {
-      const selected = props.selected as { from?: Date; to?: Date }
-      if (selected.from && date.toDateString() === selected.from.toDateString()) {
+    if (props.mode === "range" && selected && "from" in selected && "to" in selected) {
+      const { from, to } = selected as { from?: Date; to?: Date }
+      if (from && date && from.toDateString() === date.toDateString()) {
         tooltipContent = <TooltipContent>Start date</TooltipContent>
-      } else if (selected.to && date.toDateString() === selected.to.toDateString()) {
+      } else if (to && date && to.toDateString() === date.toDateString()) {
         tooltipContent = <TooltipContent>End date</TooltipContent>
       }
     }
@@ -48,68 +40,33 @@ function Calendar({
     const dayElement = (
       <div
         className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full text-sm transition-colors",
+          "relative flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition-all",
+          // Font weight
           isDisabled ? "font-light text-muted-foreground/60" : "font-bold",
+          // Selected state
+          modifiers.selected && !isDisabled && "bg-primary text-primary-foreground",
+          // Range middle
+          modifiers.range_middle && "bg-accent text-accent-foreground rounded-none",
+          // Hover only on enabled dates
           !isDisabled && "hover:bg-accent hover:text-accent-foreground cursor-pointer",
-          dayRender.modifiers.selected && !dayRender.modifiers.range_middle && "bg-primary text-primary-foreground",
-          dayRender.modifiers.range_middle && "bg-accent text-accent-foreground rounded-none",
-          dayRender.modifiers.today && "ring-2 ring-primary ring-offset-2"
+          // Today
+          modifiers.today && "ring-2 ring-primary ring-offset-2"
         )}
       >
         {date.getDate()}
       </div>
     )
 
-    if (!dayRender.isButton) {
-      return <div {...dayRender.divProps}>{dayElement}</div>
-    }
-
-    const buttonElement = <button {...dayRender.buttonProps} ref={ref}>{dayElement}</button>
-
     if (tooltipContent) {
       return (
         <Tooltip>
-          <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
+          <TooltipTrigger asChild>{dayElement}</TooltipTrigger>
           {tooltipContent}
         </Tooltip>
       )
     }
 
-    return buttonElement
-  }
-
-  const CustomCaption = () => {
-    return (
-      <div className="flex items-center justify-between px-1 py-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          onClick={(e) => {
-            e.preventDefault()
-            props.onMonthChange?.(new Date(props.month!.getFullYear(), props.month!.getMonth() - 1))
-          }}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-
-        <div className="text-sm font-semibold">
-          {format(props.month || new Date(), "MMMM yyyy")}
-        </div>
-
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          onClick={(e) => {
-            e.preventDefault()
-            props.onMonthChange?.(new Date(props.month!.getFullYear(), props.month!.getMonth() + 1))
-          }}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    )
+    return dayElement
   }
 
   return (
@@ -117,25 +74,33 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn("p-4", className)}
       classNames={{
-        months: "flex flex-col space-y-6",
+        months: "flex flex-col sm:flex-row space-y-6 sm:space-x-8 sm:space-y-0",
         month: "space-y-4",
-        caption: "hidden",
-        table: "w-full border-collapse",
+        caption: "flex justify-center pt-1 relative items-center",
+        caption_label: "text-lg font-semibold",
+        nav: "space-x-1 flex items-center",
+        nav_button: cn(
+          buttonVariants({ variant: "outline" }),
+          "h-8 w-8 bg-transparent p-0 opacity-70 hover:opacity-100"
+        ),
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse space-y-1",
         head_row: "flex mt-2",
         head_cell: "text-muted-foreground w-9 font-medium text-[0.8rem]",
         row: "flex w-full mt-2",
         cell: "relative p-0 text-center",
+        day: "h-9 w-9 p-0",
         day_outside: "text-muted-foreground opacity-40",
         day_disabled: "text-muted-foreground/60 font-light",
         day_hidden: "invisible",
         ...classNames,
       }}
       components={{
-        Day: CustomDay,
-        CaptionLabel: CustomCaption,
+        DayContent: DayWithTooltipAndStyles,
       }}
       disabled={[
-        { before: today },
+        { before: today }, // Disable all past dates
         ...(Array.isArray(disabled) ? disabled : disabled ? [disabled] : []),
       ]}
       {...props}
