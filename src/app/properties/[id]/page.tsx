@@ -27,7 +27,6 @@ import {
   Edit,
   ChevronDown,
   MessageSquare,
-  Calendar as CalendarIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,13 +38,13 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, Firestore
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { addDays, differenceInCalendarDays, format, eachDayOfInterval, getDay, isSameDay } from "date-fns";
+import { differenceInCalendarDays, format, eachDayOfInterval, getDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { propertyTypes, guestSpaces, whoElseOptions, amenitiesList } from "@/lib/types";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { propertyTypes, guestSpaces, whoElseOptions } from "@/lib/types";
 import Link from "next/link";
 
 
@@ -296,10 +295,21 @@ function PropertyDetails({ property }: { property: Property }) {
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
 
   const bookingsQuery = useMemoFirebase(
-    () => (firestore && property) ? query(collection(firestore, 'bookings'), where('listingId', '==', property.id)) : null,
+    () => (firestore && property) ? query(collection(firestore, 'bookings'), where('listingId', '==', property.id), where('status', '==', 'confirmed')) : null,
     [firestore, property]
   );
   const { data: bookings } = useCollection<Booking>(bookingsQuery);
+  
+  const handleDayClick = (day: Date, modifiers: any) => {
+    if (modifiers.disabled) {
+      toast({
+        variant: "destructive",
+        title: "Date Unavailable",
+        description: "This date is already booked and confirmed.",
+      });
+    }
+  };
+
 
   const disabledDates = React.useMemo(() => {
     const dates: (Date | { from: Date; to: Date })[] = [{ before: new Date() }];
@@ -326,7 +336,7 @@ function PropertyDetails({ property }: { property: Property }) {
   const isOwner = user?.uid === property.ownerId;
   const userBooking = React.useMemo(() => {
     if (!user || !bookings) return null;
-    return bookings.find(b => b.guestId === user.uid && b.status === 'confirmed');
+    return bookings.find(b => b.guestId === user.uid);
   }, [user, bookings]);
 
 
@@ -604,31 +614,7 @@ function PropertyDetails({ property }: { property: Property }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={'outline'}
-                        className="w-full justify-between text-left font-normal"
-                        >
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
-                          <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
-                        </div>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground"/>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-48 p-2">
-                       <div className="flex items-center justify-between">
-                          <span className="font-medium">Guests</span>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
-                            <span>{guests}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
-                          </div>
-                       </div>
-                    </PopoverContent>
-                  </Popover>
-
+                  
                  <Popover>
                     <PopoverTrigger asChild>
                        <Button
@@ -658,11 +644,36 @@ function PropertyDetails({ property }: { property: Property }) {
                           numberOfMonths={1}
                           disabled={disabledDates}
                           showOutsideDays={false}
+                          onDayClick={handleDayClick}
                         />
                       </TooltipProvider>
                     </PopoverContent>
                   </Popover>
 
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className="w-full justify-between text-left font-normal"
+                        >
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
+                          <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                        </div>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground"/>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2">
+                       <div className="flex items-center justify-between">
+                          <span className="font-medium">Guests</span>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
+                            <span>{guests}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
+                          </div>
+                       </div>
+                    </PopoverContent>
+                  </Popover>
 
                   {userBooking ? (
                      <Button className="w-full" asChild>

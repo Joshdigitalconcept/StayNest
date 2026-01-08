@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -16,12 +17,13 @@ import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { useEffect, useState, ReactNode } from 'react';
 import Link from 'next/link';
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDocs } from 'firebase/firestore';
 import PropertyCard from '@/components/property-card';
 import type { Property, Booking, User as UserType } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, areIntervalsOverlapping } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
+import { useToast } from '@/hooks/use-toast';
 
 const badgeVariants: { [key: string]: 'default' | 'secondary' | 'destructive' } = {
   pending: 'secondary',
@@ -51,6 +53,7 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'profile');
   
   const userDocRef = useMemoFirebase(
@@ -85,9 +88,45 @@ export default function ProfilePage() {
     }
   }, [searchParams]);
 
-  const handleBookingStatusUpdate = (bookingId: string, status: 'confirmed' | 'declined') => {
+  const handleBookingStatusUpdate = async (bookingToUpdate: Booking, status: 'confirmed' | 'declined') => {
     if (!firestore) return;
-    const bookingRef = doc(firestore, 'bookings', bookingId);
+
+    if (status === 'confirmed') {
+      // Check for conflicts before confirming
+      const confirmedBookingsQuery = query(
+        collection(firestore, 'bookings'),
+        where('listingId', '==', bookingToUpdate.listingId),
+        where('status', '==', 'confirmed')
+      );
+
+      try {
+        const confirmedSnaps = await getDocs(confirmedBookingsQuery);
+        const hasConflict = confirmedSnaps.docs.some(doc => {
+          const existingBooking = doc.data() as Booking;
+          return areIntervalsOverlapping(
+            { start: bookingToUpdate.checkInDate.toDate(), end: bookingToUpdate.checkOutDate.toDate() },
+            { start: existingBooking.checkInDate.toDate(), end: existingBooking.checkOutDate.toDate() },
+            { inclusive: false } // Dates are exclusive at the boundaries for booking
+          );
+        });
+        
+        if (hasConflict) {
+          toast({
+            variant: "destructive",
+            title: "Date Conflict",
+            description: "Another booking is already confirmed for these dates.",
+          });
+          return; // Stop the confirmation
+        }
+
+      } catch (error) {
+        console.error("Error checking for booking conflicts:", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not check for booking conflicts."});
+        return;
+      }
+    }
+
+    const bookingRef = doc(firestore, 'bookings', bookingToUpdate.id);
     updateDoc(bookingRef, { status })
       .catch((error) => {
         const permissionError = new FirestorePermissionError({
@@ -275,8 +314,8 @@ export default function ProfilePage() {
                                 <div className="flex flex-col items-stretch gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                 {booking.status === 'pending' ? (
                                     <>
-                                    <Button size="sm" onClick={() => handleBookingStatusUpdate(booking.id, 'confirmed')}>Approve</Button>
-                                    <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking.id, 'declined')}>Decline</Button>
+                                    <Button size="sm" onClick={() => handleBookingStatusUpdate(booking, 'confirmed')}>Approve</Button>
+                                    <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking, 'declined')}>Decline</Button>
                                     </>
                                 ) : (
                                     <Badge variant={badgeVariants[booking.status]} className="self-center sm:self-end">{booking.status}</Badge>

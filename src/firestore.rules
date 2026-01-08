@@ -61,7 +61,8 @@ service cloud.firestore {
     
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId || isAdmin());
-      allow list: if true; // Allows queries, which are then filtered by security rules on get
+      // Allow signed-in users to query bookings. The queries themselves should be secured on the client.
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
