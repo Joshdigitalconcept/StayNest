@@ -3,17 +3,25 @@
 
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNowStrict } from 'date-fns';
-import type { Booking, Message, User as UserType } from '@/lib/types';
+import type { Booking, Message } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
+
+
+interface Conversation extends Booking {
+    lastMessage?: string;
+    unreadCount?: number;
+    lastMessageTimestamp?: number;
+}
 
 function ConversationList({ conversations, activeBookingId, setActiveBookingId }: {
-    conversations: Booking[],
+    conversations: Conversation[],
     activeBookingId: string | null,
     setActiveBookingId: (id: string) => void
 }) {
@@ -38,8 +46,16 @@ function ConversationList({ conversations, activeBookingId, setActiveBookingId }
                                 <AvatarFallback>{otherParty?.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 truncate">
-                                <h3 className="font-semibold">{otherParty?.name}</h3>
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-semibold">{otherParty?.name}</h3>
+                                    {booking.unreadCount && booking.unreadCount > 0 && (
+                                        <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{booking.unreadCount}</Badge>
+                                    )}
+                                </div>
                                 <p className="text-sm text-muted-foreground truncate">{booking.listing?.title}</p>
+                                <p className="text-sm text-muted-foreground truncate italic">
+                                  {booking.lastMessage || 'No messages yet'}
+                                </p>
                             </div>
                         </div>
                     );
@@ -193,58 +209,83 @@ export default function MessagesPage() {
     const firestore = useFirestore();
     const searchParams = useSearchParams();
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
-    const [conversations, setConversations] = React.useState<Booking[]>([]);
+    const [conversations, setConversations] = React.useState<Conversation[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
-    React.useEffect(() => {
+     React.useEffect(() => {
         if (!user || !firestore) {
             setIsLoading(false);
             return;
         }
 
-        const fetchConversations = async () => {
-            setIsLoading(true);
-            try {
-                const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-                const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+        const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+        const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
 
-                const [guestSnap, hostSnap] = await Promise.all([getDocs(guestQuery), getDocs(hostQuery)]);
+        const conversationMap = new Map<string, Conversation>();
+        const unsubscribers: Unsubscribe[] = [];
 
-                const allBookingsMap = new Map<string, Booking>();
+        const processBookingSnapshot = (snapshot: any) => {
+            snapshot.docChanges().forEach((change: any) => {
+                const booking = { id: change.doc.id, ...change.doc.data() } as Booking;
+                if (change.type === 'removed' || (booking.status !== 'confirmed' && booking.status !== 'declined')) {
+                    conversationMap.delete(booking.id);
+                } else {
+                    conversationMap.set(booking.id, { ...booking, unreadCount: 0, lastMessage: '' });
 
-                const processSnapshot = (snap: any) => {
-                    snap.docs.forEach((doc: any) => {
-                        const booking = { id: doc.id, ...doc.data() } as Booking;
-                        if (booking.status === 'confirmed' || booking.status === 'declined') {
-                            allBookingsMap.set(doc.id, booking);
+                    // Set up message listener for this booking
+                    const messagesQuery = query(
+                        collection(firestore, `bookings/${booking.id}/messages`),
+                        orderBy('createdAt', 'desc'),
+                        limit(1)
+                    );
+                    const unreadQuery = query(
+                        collection(firestore, `bookings/${booking.id}/messages`),
+                        where('receiverId', '==', user.uid),
+                        where('isRead', '==', false)
+                    );
+
+                    const unsubMessages = onSnapshot(messagesQuery, (msgSnap) => {
+                        const lastMsg = msgSnap.docs[0]?.data() as Message;
+                        const convo = conversationMap.get(booking.id);
+                        if (convo) {
+                            convo.lastMessage = lastMsg?.text;
+                            convo.lastMessageTimestamp = lastMsg?.createdAt?.toMillis() || booking.createdAt.toMillis();
+                            updateConversations();
                         }
                     });
-                };
-                
-                processSnapshot(guestSnap);
-                processSnapshot(hostSnap);
 
-                const uniqueBookings = Array.from(allBookingsMap.values()).sort((a, b) => {
-                    if (a.createdAt && b.createdAt) {
-                        return b.createdAt.toMillis() - a.createdAt.toMillis();
-                    }
-                    return 0;
-                });
-                
-                setConversations(uniqueBookings);
+                    const unsubUnread = onSnapshot(unreadQuery, (unreadSnap) => {
+                        const convo = conversationMap.get(booking.id);
+                        if (convo) {
+                            convo.unreadCount = unreadSnap.size;
+                            updateConversations();
+                        }
+                    });
 
-                if (!activeBookingId && uniqueBookings.length > 0) {
-                    setActiveBookingId(uniqueBookings[0].id);
+                    unsubscribers.push(unsubMessages, unsubUnread);
                 }
+            });
+            updateConversations();
+        };
 
-            } catch (error) {
-                console.error("Failed to fetch conversations:", error);
-            } finally {
-                setIsLoading(false);
+        const updateConversations = () => {
+            const updatedConversations = Array.from(conversationMap.values())
+                .sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0));
+            setConversations(updatedConversations);
+            setIsLoading(false);
+             if (!activeBookingId && updatedConversations.length > 0) {
+                setActiveBookingId(updatedConversations[0].id);
             }
         };
 
-        fetchConversations();
+        const unsubGuest = onSnapshot(guestQuery, processBookingSnapshot);
+        const unsubHost = onSnapshot(hostQuery, processBookingSnapshot);
+        unsubscribers.push(unsubGuest, unsubHost);
+
+        return () => {
+            unsubscribers.forEach(unsub => unsub());
+        };
+
     }, [user, firestore, activeBookingId]);
 
     const activeBooking = React.useMemo(() => {
