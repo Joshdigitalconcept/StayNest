@@ -26,7 +26,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if true;
-      // List permission is handled by the collection group rule below
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if (isOwner(userId) || isAdmin());
@@ -44,6 +44,7 @@ service cloud.firestore {
 
     match /listings/{listingId} {
       allow read: if true;
+      allow list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
@@ -57,7 +58,7 @@ service cloud.firestore {
     
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      // List permission is handled by the collection group rule below
+      allow list: if isAdmin();
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
@@ -74,17 +75,6 @@ service cloud.firestore {
     // Collection Group Query Rules
     // -------------------------------------------------------------------------
      
-    // Rule for admins to query top-level collections
-    match /{path=**}/users/{userId} {
-      allow list: if isAdmin();
-    }
-    match /{path=**}/bookings/{bookingId} {
-      allow list: if isAdmin();
-    }
-    match /{path=**}/listings/{listingId} {
-      allow list: if true;
-    }
-
      // Rule for querying unread messages across bookings
      // This rule allows a user to query the 'messages' collection group
      // only if they are filtering by their own UID as the receiver.
