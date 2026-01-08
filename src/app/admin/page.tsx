@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
 import type { User, Property, Booking } from '@/lib/types';
 import {
   Users,
@@ -33,6 +33,7 @@ import {
   CalendarX,
 } from 'lucide-react';
 import Link from 'next/link';
+import * as React from 'react';
 
 const kpiCardsData = [
   { key: 'users', title: 'Total Users', icon: Users, href: '/admin/users' },
@@ -60,11 +61,17 @@ const activityFeed = [
 export default function AdminDashboard() {
   const firestore = useFirestore();
 
+  const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const startOfMonthTimestamp = Timestamp.fromDate(startOfMonth);
+
   // Firestore Queries
   const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const hostsQuery = useMemoFirebase(() => query(collection(firestore, 'users'), where('isHost', '==', true)), [firestore]);
   const listingsQuery = useMemoFirebase(() => collection(firestore, 'listings'), [firestore]);
   const bookingsQuery = useMemoFirebase(() => collection(firestore, 'bookings'), [firestore]);
+  const bookingsTodayQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('createdAt', '>=', twentyFourHoursAgo)), [firestore, twentyFourHoursAgo]);
+  const bookingsThisMonthQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('createdAt', '>=', startOfMonthTimestamp)), [firestore, startOfMonthTimestamp]);
   const pendingBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'pending')), [firestore]);
   const confirmedBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'confirmed')), [firestore]);
   const declinedBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'declined')), [firestore]);
@@ -74,20 +81,26 @@ export default function AdminDashboard() {
   const { data: hosts, isLoading: hostsLoading } = useCollection<User>(hostsQuery);
   const { data: listings, isLoading: listingsLoading } = useCollection<Property>(listingsQuery);
   const { data: bookings, isLoading: bookingsLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: bookingsToday, isLoading: bookingsTodayLoading } = useCollection<Booking>(bookingsTodayQuery);
+  const { data: bookingsThisMonth, isLoading: bookingsThisMonthLoading } = useCollection<Booking>(bookingsThisMonthQuery);
   const { data: pendingBookings, isLoading: pendingLoading } = useCollection<Booking>(pendingBookingsQuery);
   const { data: confirmedBookings, isLoading: confirmedLoading } = useCollection<Booking>(confirmedBookingsQuery);
   const { data: declinedBookings, isLoading: declinedLoading } = useCollection<Booking>(declinedBookingsQuery);
+  
+  const revenueThisMonth = React.useMemo(() => {
+    return bookingsThisMonth?.reduce((sum, booking) => sum + booking.totalPrice, 0) ?? 0;
+  }, [bookingsThisMonth]);
 
   const kpiValues = {
     users: users?.length ?? 0,
     hosts: hosts?.length ?? 0,
     listings: listings?.length ?? 0,
     bookings: bookings?.length ?? 0,
-    bookingsToday: 12, // Placeholder
-    revenue: 148800, // Placeholder
+    bookingsToday: bookingsToday?.length ?? 0,
+    revenue: revenueThisMonth,
   };
   
-  const isLoading = usersLoading || hostsLoading || listingsLoading || bookingsLoading || pendingLoading || confirmedLoading || declinedLoading;
+  const isLoading = usersLoading || hostsLoading || listingsLoading || bookingsLoading || pendingLoading || confirmedLoading || declinedLoading || bookingsTodayLoading || bookingsThisMonthLoading;
   
   const bookingActivity = [
       { label: 'Pending', value: pendingBookings?.length ?? 0, icon: CalendarClock, className: 'text-amber-500' },
