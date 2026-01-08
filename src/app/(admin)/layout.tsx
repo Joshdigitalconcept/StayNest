@@ -7,7 +7,6 @@ import { Loader2, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from './components/sidebar';
 import { cn } from '@/lib/utils';
-import Header from '@/components/header';
 
 
 export default function AdminLayout({
@@ -59,8 +58,6 @@ export default function AdminLayout({
   }
 
   return (
-    <>
-    <Header />
     <div className="min-h-screen w-full bg-muted/40">
         <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
             <Sidebar />
@@ -71,6 +68,5 @@ export default function AdminLayout({
             </div>
         </div>
     </div>
-    </>
   );
 }
