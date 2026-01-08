@@ -192,11 +192,11 @@ export default function MessagesPage() {
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
 
     const guestBookingsQuery = useMemoFirebase(
-        () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid), where('status', '==', 'confirmed')) : null,
+        () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
         [user, firestore]
     );
     const hostBookingsQuery = useMemoFirebase(
-        () => user ? query(collection(firestore, 'bookings'), where('hostId', '==', user.uid), where('status', '==', 'confirmed')) : null,
+        () => user ? query(collection(firestore, 'bookings'), where('hostId', '==', user.uid)) : null,
         [user, firestore]
     );
 
@@ -206,6 +206,8 @@ export default function MessagesPage() {
     const conversations = React.useMemo(() => {
         const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
         const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
+        // Show conversations for confirmed or pending bookings, or declined bookings that have messages.
+        // For simplicity, we can show all non-past bookings. A more advanced filter could be added.
         return uniqueBookings.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
     }, [guestBookings, hostBookings]);
     
