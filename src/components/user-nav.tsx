@@ -17,7 +17,7 @@ import {
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import React from 'react';
 
@@ -32,62 +32,84 @@ export function UserNav() {
   React.useEffect(() => {
     if (!user || !firestore) {
       setIsUnreadLoading(false);
-      return;
+      return () => {}; // Return an empty cleanup function
     }
 
-    const fetchUnreadMessages = async () => {
-      setIsUnreadLoading(true);
-      try {
-        // Fetch all bookings where the user is either a guest or a host
-        const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-        const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+    setIsUnreadLoading(true);
+    
+    // Object to hold unsubscribe functions for message listeners for each booking
+    const messageUnsubscribers: { [bookingId: string]: () => void } = {};
+    // Object to hold the unread count for each booking
+    const unreadCounts: { [bookingId: string]: number } = {};
 
-        const [guestBookingsSnap, hostBookingsSnap] = await Promise.all([
-          getDocs(guestBookingsQuery),
-          getDocs(hostBookingsQuery),
-        ]);
-        
-        const bookingIds = new Set<string>();
-        guestBookingsSnap.forEach(doc => bookingIds.add(doc.id));
-        hostBookingsSnap.forEach(doc => bookingIds.add(doc.id));
-
-        if (bookingIds.size === 0) {
-          setUnreadCount(0);
-          setIsUnreadLoading(false);
-          return;
-        }
-
-        let totalUnread = 0;
-        
-        // Create a promise for each booking's unread message query
-        const unreadPromises = Array.from(bookingIds).map(bookingId => {
-          const messagesQuery = query(
+    const updateGlobalUnreadCount = () => {
+        const total = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+        setUnreadCount(total);
+    };
+    
+    const setupMessageListener = (bookingId: string) => {
+        const messagesQuery = query(
             collection(firestore, `bookings/${bookingId}/messages`),
             where('receiverId', '==', user.uid),
             where('isRead', '==', false)
-          );
-          return getDocs(messagesQuery);
+        );
+
+        messageUnsubscribers[bookingId] = onSnapshot(messagesQuery, (snapshot) => {
+            unreadCounts[bookingId] = snapshot.size;
+            updateGlobalUnreadCount();
+        }, (error) => {
+            console.error(`Error listening to messages for booking ${bookingId}:`, error);
+            unreadCounts[bookingId] = 0;
+            updateGlobalUnreadCount();
         });
-
-        // Wait for all queries to complete
-        const unreadSnapshots = await Promise.all(unreadPromises);
-
-        // Sum up the results
-        unreadSnapshots.forEach(snapshot => {
-          totalUnread += snapshot.size;
-        });
-
-        setUnreadCount(totalUnread);
-
-      } catch (e) {
-        console.error("Failed to fetch unread messages count:", e);
-        setUnreadCount(0);
-      } finally {
-        setIsUnreadLoading(false);
-      }
     };
     
-    fetchUnreadMessages();
+    const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+    const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+
+    const allBookings = new Map<string, any>();
+    
+    const processSnapshot = (snapshot: any) => {
+      let initialLoad = true;
+      snapshot.docChanges().forEach((change) => {
+        const docId = change.doc.id;
+        if (change.type === 'removed') {
+          allBookings.delete(docId);
+          if (messageUnsubscribers[docId]) {
+            messageUnsubscribers[docId](); // Unsubscribe from messages
+            delete messageUnsubscribers[docId];
+            delete unreadCounts[docId];
+          }
+        } else {
+          allBookings.set(docId, change.doc.data());
+          if (!messageUnsubscribers[docId]) {
+            setupMessageListener(docId);
+          }
+        }
+      });
+      updateGlobalUnreadCount();
+      if(initialLoad) {
+        setIsUnreadLoading(false);
+        initialLoad = false;
+      }
+    };
+
+    const unsubGuestBookings = onSnapshot(guestBookingsQuery, processSnapshot, (error) => {
+        console.error("Error listening to guest bookings:", error);
+        setIsUnreadLoading(false);
+    });
+
+    const unsubHostBookings = onSnapshot(hostBookingsQuery, processSnapshot, (error) => {
+        console.error("Error listening to host bookings:", error);
+        setIsUnreadLoading(false);
+    });
+
+    // Cleanup function
+    return () => {
+      unsubGuestBookings();
+      unsubHostBookings();
+      Object.values(messageUnsubscribers).forEach(unsub => unsub());
+    };
   }, [user, firestore]);
 
   const handleLogout = async () => {
