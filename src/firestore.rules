@@ -55,17 +55,14 @@ service cloud.firestore {
       }
     }
 
-    // Allow admins to query listings and bookings collections
+    // Allow querying listings
     match /{path=**}/listings/{listingId} {
       allow list: if true;
-    }
-
-     match /{path=**}/bookings/{bookingId} {
-      allow list: if isAdmin();
     }
     
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
+      allow list: if isAdmin(); // This rule allows admins to query the bookings collection
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
