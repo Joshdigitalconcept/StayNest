@@ -14,33 +14,39 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings, BellRing } from 'lucide-react';
 import { useUser, useAuth, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import React from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const firestore = useFirestore();
+  const { toast } = useToast();
+
   const [unreadCount, setUnreadCount] = React.useState(0);
-  const [isUnreadLoading, setIsUnreadLoading] = React.useState(true);
+  const [pendingReservationsCount, setPendingReservationsCount] = React.useState(0);
+  const [isLoading, setIsLoading] = React.useState(true);
+  
+  const totalNotifications = unreadCount + pendingReservationsCount;
 
   React.useEffect(() => {
     if (!user || !firestore) {
-      setIsUnreadLoading(false);
-      return () => {}; // Return an empty cleanup function
+      setIsLoading(false);
+      return () => {};
     }
 
-    setIsUnreadLoading(true);
+    setIsLoading(true);
     
-    // Object to hold unsubscribe functions for message listeners for each booking
+    // --- Unread Messages Listener ---
     const messageUnsubscribers: { [bookingId: string]: () => void } = {};
-    // Object to hold the unread count for each booking
     const unreadCounts: { [bookingId: string]: number } = {};
+    const allBookings = new Map<string, any>();
 
     const updateGlobalUnreadCount = () => {
         const total = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
@@ -53,33 +59,20 @@ export function UserNav() {
             where('receiverId', '==', user.uid),
             where('isRead', '==', false)
         );
-
         messageUnsubscribers[bookingId] = onSnapshot(messagesQuery, (snapshot) => {
             unreadCounts[bookingId] = snapshot.size;
-            updateGlobalUnreadCount();
-        }, (error) => {
-            console.error(`Error listening to messages for booking ${bookingId}:`, error);
-            unreadCounts[bookingId] = 0;
             updateGlobalUnreadCount();
         });
     };
     
-    const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-    const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
-
-    const allBookings = new Map<string, any>();
-    
-    const processSnapshot = (snapshot: any) => {
-      let initialLoad = true;
-      snapshot.docChanges().forEach((change) => {
+    const processBookingsSnapshot = (snapshot: any) => {
+      snapshot.docChanges().forEach((change: any) => {
         const docId = change.doc.id;
         if (change.type === 'removed') {
           allBookings.delete(docId);
-          if (messageUnsubscribers[docId]) {
-            messageUnsubscribers[docId](); // Unsubscribe from messages
-            delete messageUnsubscribers[docId];
-            delete unreadCounts[docId];
-          }
+          messageUnsubscribers[docId]?.();
+          delete messageUnsubscribers[docId];
+          delete unreadCounts[docId];
         } else {
           allBookings.set(docId, change.doc.data());
           if (!messageUnsubscribers[docId]) {
@@ -88,32 +81,40 @@ export function UserNav() {
         }
       });
       updateGlobalUnreadCount();
-      if(initialLoad) {
-        setIsUnreadLoading(false);
-        initialLoad = false;
-      }
+      setIsLoading(false);
     };
 
-    const unsubGuestBookings = onSnapshot(guestBookingsQuery, processSnapshot, (error) => {
-        console.error("Error listening to guest bookings:", error);
-        setIsUnreadLoading(false);
+    const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+    const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+    const unsubGuest = onSnapshot(guestBookingsQuery, processBookingsSnapshot);
+    const unsubHost = onSnapshot(hostBookingsQuery, processBookingsSnapshot);
+    
+    // --- Pending Reservations Listener ---
+    const pendingReservationsQuery = query(
+      collection(firestore, 'bookings'),
+      where('hostId', '==', user.uid),
+      where('status', '==', 'pending')
+    );
+    const unsubReservations = onSnapshot(pendingReservationsQuery, (snapshot) => {
+        setPendingReservationsCount(snapshot.size);
+        setIsLoading(false);
     });
 
-    const unsubHostBookings = onSnapshot(hostBookingsQuery, processSnapshot, (error) => {
-        console.error("Error listening to host bookings:", error);
-        setIsUnreadLoading(false);
-    });
-
-    // Cleanup function
+    // --- Cleanup ---
     return () => {
-      unsubGuestBookings();
-      unsubHostBookings();
+      unsubGuest();
+      unsubHost();
+      unsubReservations();
       Object.values(messageUnsubscribers).forEach(unsub => unsub());
     };
   }, [user, firestore]);
 
   const handleLogout = async () => {
     await signOut(auth);
+    toast({
+        title: 'Logged Out',
+        description: 'You have been successfully signed out.',
+    });
     router.push('/');
   };
 
@@ -142,7 +143,7 @@ export function UserNav() {
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
-           {unreadCount > 0 && (
+           {totalNotifications > 0 && (
             <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
           )}
         </Button>
@@ -176,11 +177,22 @@ export function UserNav() {
                  <MessageSquare className="mr-2 h-4 w-4" />
                 <span>Messages</span>
               </div>
-              {!isUnreadLoading && unreadCount > 0 && (
+              {!isLoading && unreadCount > 0 && (
                 <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
               )}
             </Link>
           </DropdownMenuItem>
+          {pendingReservationsCount > 0 && (
+            <DropdownMenuItem asChild>
+                <Link href="/profile?tab=reservations" className="flex justify-between items-center">
+                    <div className="flex items-center">
+                        <BellRing className="mr-2 h-4 w-4" />
+                        <span>Reservations</span>
+                    </div>
+                    <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{pendingReservationsCount}</Badge>
+                </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild>
             <Link href="/profile?tab=bookings">
               <Home className="mr-2 h-4 w-4" />

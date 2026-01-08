@@ -37,20 +37,22 @@ import * as React from 'react';
 
 const kpiCardsData = [
   { key: 'users', title: 'Total Users', icon: Users, href: '/admin/users' },
-  { key: 'hosts', title: 'Active Hosts', icon: Users2, href: '/admin/users' },
+  { key: 'hosts', title: 'Active Hosts', icon: Users2, href: '/admin/users?filter=hosts' },
   { key: 'listings', title: 'Active Listings', icon: Home, href: '/admin/listings' },
-  { key: 'bookings', title: 'Total Bookings', icon: BookCopy, href: '/admin/bookings' },
-  { key: 'bookingsToday', title: 'Bookings Today', icon: CalendarCheck, href: '/admin/bookings' },
+  { key: 'bookings', title: 'Confirmed Bookings', icon: BookCopy, href: '/admin/bookings?status=confirmed' },
+  { key: 'bookingsToday', title: 'Confirmed Today', icon: CalendarCheck, href: '/admin/bookings?status=confirmed' },
   { key: 'revenue', title: 'Revenue (MTD)', icon: DollarSign, href: '/admin/payouts' },
 ];
 
 const safetyAlerts = [
+  // This section is hardcoded as it requires a flagging/reporting system not yet built.
   { text: '3 listings flagged for misleading photos', icon: FileWarning, href: '/admin/listings?filter=flagged' },
   { text: '1 payment failed (retry needed)', icon: CreditCard, href: '/admin/payments?filter=failed' },
   { text: '2 unresolved disputes', icon: MessageSquareWarning, href: '/admin/disputes' },
 ];
 
 const activityFeed = [
+    // This section is hardcoded as it requires an audit trail/event logging system not yet built.
     { text: 'John D. listed a new apartment in Lagos', time: '2m ago', icon: PlusCircle },
     { text: 'Booking #A92 confirmed for "Cozy Cabin"', time: '15m ago', icon: CalendarCheck },
     { text: 'User Sarah L. reported a listing', time: '30m ago', icon: AlertTriangle },
@@ -66,7 +68,8 @@ export default function AdminDashboard() {
     []
   );
   const startOfMonthTimestamp = React.useMemo(() => {
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return Timestamp.fromDate(startOfMonth);
   }, []);
 
@@ -74,34 +77,32 @@ export default function AdminDashboard() {
   const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const hostsQuery = useMemoFirebase(() => query(collection(firestore, 'users'), where('isHost', '==', true)), [firestore]);
   const listingsQuery = useMemoFirebase(() => collection(firestore, 'listings'), [firestore]);
-  const bookingsQuery = useMemoFirebase(() => collection(firestore, 'bookings'), [firestore]);
-  const bookingsTodayQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('createdAt', '>=', twentyFourHoursAgo)), [firestore, twentyFourHoursAgo]);
-  const bookingsThisMonthQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('createdAt', '>=', startOfMonthTimestamp)), [firestore, startOfMonthTimestamp]);
-  const pendingBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'pending')), [firestore]);
   const confirmedBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'confirmed')), [firestore]);
+  const confirmedTodayQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'confirmed'), where('createdAt', '>=', twentyFourHoursAgo)), [firestore, twentyFourHoursAgo]);
+  const confirmedThisMonthQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'confirmed'), where('createdAt', '>=', startOfMonthTimestamp)), [firestore, startOfMonthTimestamp]);
+  const pendingBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'pending')), [firestore]);
   const declinedBookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings'), where('status', '==', 'declined')), [firestore]);
 
   // Data Hooks
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);
   const { data: hosts, isLoading: hostsLoading } = useCollection<User>(hostsQuery);
   const { data: listings, isLoading: listingsLoading } = useCollection<Property>(listingsQuery);
-  const { data: bookings, isLoading: bookingsLoading } = useCollection<Booking>(bookingsQuery);
-  const { data: bookingsToday, isLoading: bookingsTodayLoading } = useCollection<Booking>(bookingsTodayQuery);
-  const { data: bookingsThisMonth, isLoading: bookingsThisMonthLoading } = useCollection<Booking>(bookingsThisMonthQuery);
+  const { data: confirmedBookings, isLoading: bookingsLoading } = useCollection<Booking>(confirmedBookingsQuery);
+  const { data: confirmedToday, isLoading: bookingsTodayLoading } = useCollection<Booking>(confirmedTodayQuery);
+  const { data: confirmedThisMonth, isLoading: bookingsThisMonthLoading } = useCollection<Booking>(confirmedThisMonthQuery);
   const { data: pendingBookings, isLoading: pendingLoading } = useCollection<Booking>(pendingBookingsQuery);
-  const { data: confirmedBookings, isLoading: confirmedLoading } = useCollection<Booking>(confirmedBookingsQuery);
   const { data: declinedBookings, isLoading: declinedLoading } = useCollection<Booking>(declinedBookingsQuery);
   
   const revenueThisMonth = React.useMemo(() => {
-    return bookingsThisMonth?.reduce((sum, booking) => sum + booking.totalPrice, 0) ?? 0;
-  }, [bookingsThisMonth]);
+    return confirmedThisMonth?.reduce((sum, booking) => sum + booking.totalPrice, 0) ?? 0;
+  }, [confirmedThisMonth]);
 
   const kpiValues = {
     users: users?.length ?? 0,
     hosts: hosts?.length ?? 0,
     listings: listings?.length ?? 0,
-    bookings: bookings?.length ?? 0,
-    bookingsToday: bookingsToday?.length ?? 0,
+    bookings: confirmedBookings?.length ?? 0,
+    bookingsToday: confirmedToday?.length ?? 0,
     revenue: revenueThisMonth,
   };
   
@@ -172,6 +173,7 @@ export default function AdminDashboard() {
                     <CardDescription>Placeholder for financial data.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {/* This section is hardcoded as it requires a dedicated payments/transactions collection. */}
                     <div className="flex justify-between items-baseline">
                         <span className="text-muted-foreground">Gross Booking Value</span>
                         <span className="font-bold text-lg">₦1,240,000</span>
@@ -214,7 +216,7 @@ export default function AdminDashboard() {
                  <CardDescription>New user and listing activity.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Placeholders */}
+                {/* This section is hardcoded as it requires more complex date-based queries or a dedicated analytics setup. */}
                  <p>New users this week: <strong>150</strong></p>
                  <p>New hosts this week: <strong>25</strong></p>
                  <p>New listings created today: <strong>40</strong></p>

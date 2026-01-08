@@ -2,10 +2,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Home, Users, Briefcase, BookCopy, CreditCard, Star, ShieldAlert, FileText, BarChart3, Settings, Send, TrendingUp, Activity } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Home, Users, Briefcase, BookCopy, CreditCard, Star, ShieldAlert, FileText, BarChart3, Settings, Send, TrendingUp, Activity, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 const mainNav = [
   { href: '/admin', label: 'Dashboard', icon: Home },
@@ -32,6 +36,26 @@ const platformNav = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        toast({
+            title: 'Logged Out',
+            description: 'You have been successfully logged out.',
+        });
+        router.push('/login');
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Logout Failed',
+            description: 'There was an error while logging out.',
+        });
+    }
+  };
 
   const renderNav = (items: typeof mainNav, title: string) => (
      <div className="px-3 py-2">
@@ -56,21 +80,27 @@ export default function Sidebar() {
 
   return (
     <div className="hidden border-r bg-muted/40 md:block">
-        <div className="flex h-full max-h-screen flex-col gap-2">
+        <div className="flex h-full max-h-screen flex-col">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
                 <Link href="/admin" className="flex items-center gap-2 font-semibold">
                     <ShieldAlert className="h-6 w-6 text-primary" />
                     <span className="">Admin Panel</span>
                 </Link>
             </div>
-            <div className="flex-1">
-                <nav className="grid items-start text-sm font-medium">
+            <div className="flex-1 overflow-y-auto">
+                <nav className="grid items-start text-sm font-medium py-4">
                    {renderNav(mainNav, 'Core')}
                    <Separator className="my-2" />
                    {renderNav(secondaryNav, 'Operations')}
                    <Separator className="my-2" />
                    {renderNav(platformNav, 'Platform')}
                 </nav>
+            </div>
+             <div className="mt-auto p-4 border-t">
+                <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                </Button>
             </div>
         </div>
     </div>

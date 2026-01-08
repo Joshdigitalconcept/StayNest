@@ -62,11 +62,21 @@ export default function LoginPage() {
     return '/';
   }
 
+  const handleSuccessfulLogin = async (user: User) => {
+    toast({
+      title: 'Login Successful',
+      description: `Welcome back, ${user.displayName || user.email}!`,
+    });
+    const redirectPath = await checkAdminAndRedirect(user);
+    router.push(redirectPath);
+    router.refresh(); // Force a refresh to ensure all states are updated
+  };
+
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const redirectPath = await checkAdminAndRedirect(userCredential.user);
-      router.push(redirectPath);
+      await handleSuccessfulLogin(userCredential.user);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -80,8 +90,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const redirectPath = await checkAdminAndRedirect(result.user);
-      router.push(redirectPath);
+      await handleSuccessfulLogin(result.user);
     } catch (error: any) {
       toast({
         variant: 'destructive',

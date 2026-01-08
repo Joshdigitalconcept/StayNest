@@ -17,7 +17,7 @@ import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { useEffect, useState, ReactNode } from 'react';
 import Link from 'next/link';
-import { collection, query, where, doc, updateDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import PropertyCard from '@/components/property-card';
 import type { Property, Booking, User as UserType } from '@/lib/types';
 import { format, areIntervalsOverlapping } from 'date-fns';
@@ -68,12 +68,12 @@ export default function ProfilePage() {
   );
   
   const guestBookingsQuery = useMemoFirebase(
-    () => (user && firestore) ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
+    () => (user && firestore) ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid), orderBy('createdAt', 'desc')) : null,
     [user, firestore]
   );
 
   const hostReservationsQuery = useMemoFirebase(
-    () => (user && firestore) ? query(collection(firestore, 'bookings'), where('hostId', '==', user.uid)) : null,
+    () => (user && firestore) ? query(collection(firestore, 'bookings'), where('hostId', '==', user.uid), orderBy('createdAt', 'desc')) : null,
     [user, firestore]
   );
 
