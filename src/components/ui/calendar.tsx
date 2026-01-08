@@ -88,6 +88,26 @@ function Calendar({
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
         Day: DayWithTooltip
       }}
+      footer={
+          <div className="flex justify-between pt-4">
+               <Button
+                size="sm"
+                variant="outline"
+                onClick={() => props.onMonthChange?.(addDays(props.month || new Date(), -30))}
+              >
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Prev
+              </Button>
+               <Button
+                size="sm"
+                variant="outline"
+                onClick={() => props.onMonthChange?.(addDays(props.month || new Date(), 30))}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+          </div>
+      }
       {...props}
     />
   )
@@ -95,9 +115,16 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 function isSameDay(d1: Date, d2: Date) {
+    if (!d1 || !d2) return false;
     return d1.getFullYear() === d2.getFullYear() &&
            d1.getMonth() === d2.getMonth() &&
            d1.getDate() === d2.getDate();
+}
+
+function addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
 }
 
 

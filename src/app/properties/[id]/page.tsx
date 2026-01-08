@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import Image from "next/image";
@@ -605,6 +604,31 @@ function PropertyDetails({ property }: { property: Property }) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={'outline'}
+                        className="w-full justify-between text-left font-normal"
+                        >
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
+                          <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                        </div>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground"/>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-2">
+                       <div className="flex items-center justify-between">
+                          <span className="font-medium">Guests</span>
+                          <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
+                            <span>{guests}</span>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
+                          </div>
+                       </div>
+                    </PopoverContent>
+                  </Popover>
+
                  <Popover>
                     <PopoverTrigger asChild>
                        <Button
@@ -633,35 +657,12 @@ function PropertyDetails({ property }: { property: Property }) {
                           onSelect={setDate}
                           numberOfMonths={1}
                           disabled={disabledDates}
+                          showOutsideDays={false}
                         />
                       </TooltipProvider>
                     </PopoverContent>
                   </Popover>
 
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={'outline'}
-                        className="w-full justify-between text-left font-normal"
-                        >
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
-                          <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
-                        </div>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground"/>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-48 p-2">
-                       <div className="flex items-center justify-between">
-                          <span className="font-medium">Guests</span>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
-                            <span>{guests}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
-                          </div>
-                       </div>
-                    </PopoverContent>
-                  </Popover>
 
                   {userBooking ? (
                      <Button className="w-full" asChild>
