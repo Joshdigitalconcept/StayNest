@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
 import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
