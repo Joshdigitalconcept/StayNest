@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,10 +15,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
-import { useUser, useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useAuth, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
-import type { Message, Booking } from '@/lib/types';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import React from 'react';
 
@@ -38,34 +38,46 @@ export function UserNav() {
     const fetchUnreadMessages = async () => {
       setIsUnreadLoading(true);
       try {
+        // Fetch all bookings where the user is either a guest or a host
         const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
         const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
 
         const [guestBookingsSnap, hostBookingsSnap] = await Promise.all([
           getDocs(guestBookingsQuery),
-          getDocs(hostBookingsQuery)
+          getDocs(hostBookingsQuery),
         ]);
         
-        const allBookings = [
-          ...guestBookingsSnap.docs.map(d => d.id),
-          ...hostBookingsSnap.docs.map(d => d.id)
-        ];
-        
-        if (allBookings.length === 0) {
-            setUnreadCount(0);
-            setIsUnreadLoading(false);
-            return;
+        const bookingIds = new Set<string>();
+        guestBookingsSnap.forEach(doc => bookingIds.add(doc.id));
+        hostBookingsSnap.forEach(doc => bookingIds.add(doc.id));
+
+        if (bookingIds.size === 0) {
+          setUnreadCount(0);
+          setIsUnreadLoading(false);
+          return;
         }
 
-        const unreadMessagesQuery = query(
-          collectionGroup(firestore, 'messages'),
-          where('bookingId', 'in', allBookings),
-          where('receiverId', '==', user.uid),
-          where('isRead', '==', false)
-        );
+        let totalUnread = 0;
+        
+        // Create a promise for each booking's unread message query
+        const unreadPromises = Array.from(bookingIds).map(bookingId => {
+          const messagesQuery = query(
+            collection(firestore, `bookings/${bookingId}/messages`),
+            where('receiverId', '==', user.uid),
+            where('isRead', '==', false)
+          );
+          return getDocs(messagesQuery);
+        });
 
-        const unreadMessagesSnap = await getDocs(unreadMessagesQuery);
-        setUnreadCount(unreadMessagesSnap.size);
+        // Wait for all queries to complete
+        const unreadSnapshots = await Promise.all(unreadPromises);
+
+        // Sum up the results
+        unreadSnapshots.forEach(snapshot => {
+          totalUnread += snapshot.size;
+        });
+
+        setUnreadCount(totalUnread);
 
       } catch (e) {
         console.error("Failed to fetch unread messages count:", e);
@@ -76,9 +88,6 @@ export function UserNav() {
     };
     
     fetchUnreadMessages();
-
-    // We can also set up a listener here if we want it to be real-time,
-    // but a fetch on load is often sufficient for a badge count.
   }, [user, firestore]);
 
   const handleLogout = async () => {
@@ -145,7 +154,7 @@ export function UserNav() {
                  <MessageSquare className="mr-2 h-4 w-4" />
                 <span>Messages</span>
               </div>
-              {unreadCount > 0 && (
+              {!isUnreadLoading && unreadCount > 0 && (
                 <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
               )}
             </Link>

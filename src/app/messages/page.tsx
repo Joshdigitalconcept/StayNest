@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -193,55 +193,65 @@ export default function MessagesPage() {
     const firestore = useFirestore();
     const searchParams = useSearchParams();
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
+    const [conversations, setConversations] = React.useState<Booking[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
 
-    const guestBookingsQuery = useMemoFirebase(
-        () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
-        [user, firestore]
-    );
-    const hostBookingsQuery = useMemoFirebase(
-        () => user ? query(collection(firestore, 'bookings'), where('hostId', '==', user.uid)) : null,
-        [user, firestore]
-    );
+    React.useEffect(() => {
+        if (!user || !firestore) {
+            setIsLoading(false);
+            return;
+        }
 
-    const { data: guestBookings, isLoading: isGuestBookingsLoading } = useCollection<Booking>(guestBookingsQuery);
-    const { data: hostBookings, isLoading: isHostBookingsLoading } = useCollection<Booking>(hostBookingsQuery);
-    
-    const conversations = React.useMemo(() => {
-        if (!guestBookings && !hostBookings) return [];
-        const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
-        if (allBookings.length === 0) return [];
-    
-        const uniqueBookingsMap = new Map<string, Booking>();
-        allBookings.forEach(booking => {
-            // Only add if it's confirmed or declined. Do not show pending here
-            if (booking.status === 'confirmed' || booking.status === 'declined') {
-                 uniqueBookingsMap.set(booking.id, booking);
+        const fetchConversations = async () => {
+            setIsLoading(true);
+            try {
+                const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+                const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+
+                const [guestSnap, hostSnap] = await Promise.all([getDocs(guestQuery), getDocs(hostQuery)]);
+
+                const allBookingsMap = new Map<string, Booking>();
+
+                const processSnapshot = (snap: any) => {
+                    snap.docs.forEach((doc: any) => {
+                        const booking = { id: doc.id, ...doc.data() } as Booking;
+                        if (booking.status === 'confirmed' || booking.status === 'declined') {
+                            allBookingsMap.set(doc.id, booking);
+                        }
+                    });
+                };
+                
+                processSnapshot(guestSnap);
+                processSnapshot(hostSnap);
+
+                const uniqueBookings = Array.from(allBookingsMap.values()).sort((a, b) => {
+                    if (a.createdAt && b.createdAt) {
+                        return b.createdAt.toMillis() - a.createdAt.toMillis();
+                    }
+                    return 0;
+                });
+                
+                setConversations(uniqueBookings);
+
+                if (!activeBookingId && uniqueBookings.length > 0) {
+                    setActiveBookingId(uniqueBookings[0].id);
+                }
+
+            } catch (error) {
+                console.error("Failed to fetch conversations:", error);
+            } finally {
+                setIsLoading(false);
             }
-        });
-        
-        const uniqueBookings = Array.from(uniqueBookingsMap.values());
-        
-        return uniqueBookings.sort((a, b) => {
-            if (a.createdAt && b.createdAt) {
-                return b.createdAt.toMillis() - a.createdAt.toMillis();
-            }
-            return 0;
-        });
-    }, [guestBookings, hostBookings]);
-    
+        };
+
+        fetchConversations();
+    }, [user, firestore, activeBookingId]);
+
     const activeBooking = React.useMemo(() => {
         return conversations.find(c => c.id === activeBookingId) || null;
     }, [conversations, activeBookingId]);
-
-    React.useEffect(() => {
-        if (!activeBookingId && conversations.length > 0) {
-            setActiveBookingId(conversations[0].id);
-        }
-    }, [conversations, activeBookingId]);
-
-    const isLoading = isUserLoading || isGuestBookingsLoading || isHostBookingsLoading;
     
-    if (isLoading) {
+    if (isUserLoading || isLoading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>
     }
 
@@ -266,5 +276,3 @@ export default function MessagesPage() {
         </div>
     );
 }
-
-    
