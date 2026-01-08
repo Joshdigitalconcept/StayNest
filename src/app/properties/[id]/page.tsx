@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import Image from "next/image";
@@ -613,11 +614,11 @@ function PropertyDetails({ property }: { property: Property }) {
                         <div className="grid grid-cols-2 w-full divide-x">
                             <div className="p-2">
                                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
-                                <p className="text-sm font-medium">{date?.from ? format(date.from, 'M/d/yyyy') : 'Add date'}</p>
+                                <p className="text-sm font-medium">{date?.from ? format(date.from, 'dd/MM/yyyy') : 'Add date'}</p>
                             </div>
                             <div className="p-2">
                                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
-                                <p className="text-sm font-medium">{date?.to ? format(date.to, 'M/d/yyyy') : 'Add date'}</p>
+                                <p className="text-sm font-medium">{date?.to ? format(date.to, 'dd/MM/yyyy') : 'Add date'}</p>
                             </div>
                         </div>
                        </Button>

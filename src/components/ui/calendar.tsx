@@ -19,18 +19,16 @@ function Calendar({
 }: CalendarProps) {
   
   const DayWithTooltip = (dayProps: DayProps) => {
-    const { date } = dayProps;
-    if (props.mode === 'range') {
+    const { date, displayMonth } = dayProps;
+
+    if (date && props.mode === 'range') {
       const { from, to } = (props.selected as { from?: Date; to?: Date }) || {};
       let tooltipContent: React.ReactNode = null;
-
-      // Add a check to ensure 'date' is defined before using it
-      if (date) {
-          if (from && date.getTime() === from.getTime()) {
-            tooltipContent = <TooltipContent>Start date</TooltipContent>;
-          } else if (to && date.getTime() === to.getTime()) {
-            tooltipContent = <TooltipContent>End date</TooltipContent>;
-          }
+      
+      if (from && isSameDay(date, from)) {
+        tooltipContent = <TooltipContent>Start date</TooltipContent>;
+      } else if (to && isSameDay(date, to)) {
+        tooltipContent = <TooltipContent>End date</TooltipContent>;
       }
 
       if (tooltipContent) {
@@ -71,7 +69,7 @@ function Calendar({
         cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-bold rounded-full aria-selected:opacity-100"
+          "h-9 w-9 p-0 font-normal rounded-full aria-selected:opacity-100"
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -86,18 +84,21 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Day: DayWithTooltip,
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("h-4 w-4", className)} {...props} />
-        ),
+        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        Day: DayWithTooltip
       }}
       {...props}
     />
   )
 }
 Calendar.displayName = "Calendar"
+
+function isSameDay(d1: Date, d2: Date) {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+}
+
 
 export { Calendar }
