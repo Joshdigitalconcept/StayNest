@@ -316,8 +316,15 @@ export default function ProfilePage() {
                         {hostReservations.map(booking => (
                             <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg">
                                 <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
-                                <div className="flex-1 space-y-1">
+                                <div className="flex-1 space-y-2">
                                     <h3 className="font-semibold">{booking.listing?.title}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                            <AvatarImage src={booking.guest?.photoURL} />
+                                            <AvatarFallback>{booking.guest?.name?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <span className="text-sm font-medium">{booking.guest?.name}</span>
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
                                     {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
                                     </p>
