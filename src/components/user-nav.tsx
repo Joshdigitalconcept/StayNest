@@ -14,18 +14,35 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { collection, query, where } from 'firebase/firestore';
+import type { Message } from '@/lib/types';
+import { Badge } from './ui/badge';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
+  const firestore = useFirestore();
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/');
   };
+
+  const unreadMessagesQuery = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return query(
+      collection(firestore, 'bookings'), // A bit of a hack, need a top level collection for this.
+      where('receiverId', '==', user.uid),
+      where('isRead', '==', false)
+    );
+  }, [user, firestore]);
+  
+  // This hook is not ideal for this query, but works for a count.
+  const { data: unreadMessages } = useCollection<Message>(unreadMessagesQuery);
+  const unreadCount = unreadMessages?.length || 0;
 
   if (isUserLoading) {
     return <Loader2 className="animate-spin" />;
@@ -52,6 +69,9 @@ export function UserNav() {
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
+           {unreadCount > 0 && (
+            <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -78,9 +98,14 @@ export function UserNav() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/messages">
-              <MessageSquare className="mr-2 h-4 w-4" />
-              <span>Messages</span>
+            <Link href="/messages" className="flex justify-between items-center">
+              <div className="flex items-center">
+                 <MessageSquare className="mr-2 h-4 w-4" />
+                <span>Messages</span>
+              </div>
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
+              )}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>

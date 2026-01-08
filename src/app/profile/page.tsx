@@ -88,9 +88,33 @@ export default function ProfilePage() {
     }
   }, [searchParams]);
 
+  const sendAutomatedMessage = async (booking: Booking, customText: string) => {
+    if (!firestore || !user) return;
+    const messagesColRef = collection(firestore, `bookings/${booking.id}/messages`);
+    const messageData = {
+      bookingId: booking.id,
+      senderId: user.uid,
+      receiverId: booking.guestId,
+      listingId: booking.listingId,
+      guestId: booking.guestId,
+      hostId: booking.hostId,
+      text: customText,
+      createdAt: serverTimestamp(),
+      isRead: false,
+    };
+    try {
+      await addDoc(messagesColRef, messageData);
+    } catch (error) {
+      console.error("Failed to send automated message:", error);
+    }
+  };
+
+
  const handleBookingStatusUpdate = async (bookingToUpdate: Booking, status: 'confirmed' | 'declined') => {
     if (!firestore || !user) return;
     const bookingRef = doc(firestore, 'bookings', bookingToUpdate.id);
+    const listingName = bookingToUpdate.listing?.title || 'the property';
+    const requestedDates = `${format(bookingToUpdate.checkInDate.toDate(), 'MMM d, yyyy')} to ${format(bookingToUpdate.checkOutDate.toDate(), 'MMM d, yyyy')}`;
 
     if (status === 'confirmed') {
       const confirmedBookingsQuery = query(
@@ -113,23 +137,10 @@ export default function ProfilePage() {
         if (conflictingBookingDoc) {
           const conflictingBooking = conflictingBookingDoc.data() as Booking;
           await updateDoc(bookingRef, { status: 'declined' });
-          const messagesColRef = collection(firestore, `bookings/${bookingToUpdate.id}/messages`);
           
-          const requestedDates = `${format(bookingToUpdate.checkInDate.toDate(), 'MMM d, yyyy')} to ${format(bookingToUpdate.checkOutDate.toDate(), 'MMM d, yyyy')}`;
           const conflictingDates = `${format(conflictingBooking.checkInDate.toDate(), 'MMM d, yyyy')} to ${format(conflictingBooking.checkOutDate.toDate(), 'MMM d, yyyy')}`;
-          const listingName = bookingToUpdate.listing?.title || 'the property';
-
           const automatedMessage = `Hello, thank you for your booking request for "${listingName}" from ${requestedDates}. Unfortunately, these dates could not be confirmed because they conflict with an existing reservation for ${conflictingDates}. Please feel free to select other dates.`;
-
-          await addDoc(messagesColRef, {
-            bookingId: bookingToUpdate.id,
-            senderId: user.uid, // The host is the sender
-            receiverId: bookingToUpdate.guestId,
-            listingId: bookingToUpdate.listingId,
-            text: automatedMessage,
-            createdAt: serverTimestamp(),
-            isRead: false,
-          });
+          await sendAutomatedMessage(bookingToUpdate, automatedMessage);
 
           toast({
             variant: "destructive",
@@ -138,23 +149,24 @@ export default function ProfilePage() {
           });
           return;
         }
+        
+        // If no conflict, proceed with confirmation
+        await updateDoc(bookingRef, { status });
+        const confirmationMessage = `Great news! Your booking for "${listingName}" from ${requestedDates} has been confirmed. I look forward to hosting you!`;
+        await sendAutomatedMessage(bookingToUpdate, confirmationMessage);
+        toast({ title: "Booking Confirmed", description: "The guest has been notified." });
 
       } catch (error) {
         console.error("Error checking for booking conflicts:", error);
         toast({ variant: "destructive", title: "Error", description: "Could not check for booking conflicts."});
         return;
       }
+    } else { // Handle 'declined' status
+        await updateDoc(bookingRef, { status });
+        const declineMessage = `Hi there, unfortunately I'm unable to accept your request to book "${listingName}" from ${requestedDates} at this time. I hope you can find another suitable stay.`;
+        await sendAutomatedMessage(bookingToUpdate, declineMessage);
+        toast({ title: "Booking Declined", description: "The guest has been notified." });
     }
-
-    updateDoc(bookingRef, { status })
-      .catch((error) => {
-        const permissionError = new FirestorePermissionError({
-          path: bookingRef.path,
-          operation: 'update',
-          requestResourceData: { status },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      });
   };
   
   const handleEditRedirect = () => {
