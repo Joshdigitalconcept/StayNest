@@ -17,7 +17,7 @@ import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map
 import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
 import { useEffect, useState, ReactNode } from 'react';
 import Link from 'next/link';
-import { collection, query, where, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import PropertyCard from '@/components/property-card';
 import type { Property, Booking, User as UserType } from '@/lib/types';
 import { format, areIntervalsOverlapping } from 'date-fns';
@@ -88,11 +88,11 @@ export default function ProfilePage() {
     }
   }, [searchParams]);
 
-  const handleBookingStatusUpdate = async (bookingToUpdate: Booking, status: 'confirmed' | 'declined') => {
-    if (!firestore) return;
+ const handleBookingStatusUpdate = async (bookingToUpdate: Booking, status: 'confirmed' | 'declined') => {
+    if (!firestore || !user) return;
+    const bookingRef = doc(firestore, 'bookings', bookingToUpdate.id);
 
     if (status === 'confirmed') {
-      // Check for conflicts before confirming
       const confirmedBookingsQuery = query(
         collection(firestore, 'bookings'),
         where('listingId', '==', bookingToUpdate.listingId),
@@ -101,22 +101,35 @@ export default function ProfilePage() {
 
       try {
         const confirmedSnaps = await getDocs(confirmedBookingsQuery);
-        const hasConflict = confirmedSnaps.docs.some(doc => {
-          const existingBooking = doc.data() as Booking;
+        const hasConflict = confirmedSnaps.docs.some(docSnap => {
+          const existingBooking = docSnap.data() as Booking;
           return areIntervalsOverlapping(
             { start: bookingToUpdate.checkInDate.toDate(), end: bookingToUpdate.checkOutDate.toDate() },
             { start: existingBooking.checkInDate.toDate(), end: existingBooking.checkOutDate.toDate() },
-            { inclusive: false } // Dates are exclusive at the boundaries for booking
+            { inclusive: false }
           );
         });
         
         if (hasConflict) {
+          // Auto-decline and send a message
+          await updateDoc(bookingRef, { status: 'declined' });
+          const messagesColRef = collection(firestore, `bookings/${bookingToUpdate.id}/messages`);
+          await addDoc(messagesColRef, {
+            bookingId: bookingToUpdate.id,
+            senderId: user.uid, // The host is the sender
+            receiverId: bookingToUpdate.guestId,
+            listingId: bookingToUpdate.listingId,
+            text: "Unfortunately, your booking request was automatically declined because the dates were no longer available. Please feel free to select other dates.",
+            createdAt: serverTimestamp(),
+            isRead: false,
+          });
+
           toast({
             variant: "destructive",
             title: "Date Conflict",
-            description: "Another booking is already confirmed for these dates.",
+            description: "This request conflicts with a confirmed booking and has been automatically declined. The guest has been notified.",
           });
-          return; // Stop the confirmation
+          return;
         }
 
       } catch (error) {
@@ -126,7 +139,6 @@ export default function ProfilePage() {
       }
     }
 
-    const bookingRef = doc(firestore, 'bookings', bookingToUpdate.id);
     updateDoc(bookingRef, { status })
       .catch((error) => {
         const permissionError = new FirestorePermissionError({
