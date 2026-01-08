@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -8,10 +9,13 @@ import { Logo } from "./logo";
 import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import type { User } from '@/lib/types';
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { usePathname } from 'next/navigation';
+
 
 export default function Header() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const pathname = usePathname();
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(firestore, 'users', user.uid) : null),
@@ -42,7 +46,6 @@ export default function Header() {
       }
     }
   }, [user, userProfile, isProfileLoading, userProfileRef]);
-
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
