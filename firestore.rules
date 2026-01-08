@@ -70,7 +70,7 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get: if true;
-      allow list: if false;
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
       allow delete: if (isOwner(userId) || isAdmin());
@@ -93,11 +93,11 @@ service cloud.firestore {
      * @path /roles_admin/{userId}
      */
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
+      // A user can read their own role document to check if they are an admin.
+      // Admins can list all roles.
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow create, update, delete: if false; // Must be managed server-side
     }
 
     /**
@@ -109,8 +109,8 @@ service cloud.firestore {
     match /listings/{listingId} {
       allow get, list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
       
       /**
        * @description Manages reviews for a listing.
@@ -135,11 +135,11 @@ service cloud.firestore {
      * @path /bookings/{bookingId}
      */
     match /bookings/{bookingId} {
-      allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId);
-      allow list: if true;
+      allow get: if isSignedIn() && (request.auth.uid == resource.data.guestId || request.auth.uid == resource.data.hostId || isAdmin());
+      allow list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid); // Host can change status, guest can update too
-      allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid; // Guest can cancel
+      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
 
       /**
        * @description Stores messages for a specific booking.
@@ -156,5 +156,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
