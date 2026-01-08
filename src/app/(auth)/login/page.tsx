@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -23,9 +24,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/logo';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { useAuth, useFirestore } from '@/firebase';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { doc, getDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -35,6 +37,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -45,10 +48,25 @@ export default function LoginPage() {
     },
   });
 
+  const checkAdminAndRedirect = async (user: User) => {
+    if (!firestore) return '/';
+    const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+    try {
+      const adminRoleSnap = await getDoc(adminRoleRef);
+      if (adminRoleSnap.exists()) {
+        return '/admin';
+      }
+    } catch (error) {
+      console.error("Error checking for admin role:", error);
+    }
+    return '/';
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      router.push('/');
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const redirectPath = await checkAdminAndRedirect(userCredential.user);
+      router.push(redirectPath);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -61,8 +79,9 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      router.push('/');
+      const result = await signInWithPopup(auth, provider);
+      const redirectPath = await checkAdminAndRedirect(result.user);
+      router.push(redirectPath);
     } catch (error: any) {
       toast({
         variant: 'destructive',
