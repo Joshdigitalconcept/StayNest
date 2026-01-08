@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Users, Briefcase, BookCopy, CreditCard, Star, ShieldAlert, FileText, BarChart3, Settings } from 'lucide-react';
+import { Home, Users, Briefcase, BookCopy, CreditCard, Star, ShieldAlert, FileText, BarChart3, Settings, Send, TrendingUp, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
@@ -16,8 +16,10 @@ const mainNav = [
 
 const secondaryNav = [
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/payouts', label: 'Payouts & Reports', icon: TrendingUp },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/disputes', label: 'Disputes & Support', icon: ShieldAlert },
+  { href: '/admin/notifications', label: 'Notifications', icon: Send },
 ];
 
 const platformNav = [
@@ -25,6 +27,7 @@ const platformNav = [
     { href: '/admin/content', label: 'Content & Policies', icon: FileText },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/settings', label: 'Settings & Roles', icon: Settings },
+    { href: '/admin/health', label: 'System Health', icon: Activity },
 ];
 
 export default function Sidebar() {
