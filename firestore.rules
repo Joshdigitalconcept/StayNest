@@ -83,12 +83,8 @@ service cloud.firestore {
        }
     }
      // Rule for querying unread messages across all bookings
-    match /bookings/{bookingId}/messages/{messageId} {
-      allow list: if isSignedIn() && request.query.offset == 0 && request.query.limit <= 1000 
-                  && request.query.wheres[0][2] == request.auth.uid 
-                  && request.query.wheres[0][0] == "receiverId"
-                  && request.query.wheres[1][0] == "isRead"
-                  && request.query.wheres[1][2] == false;
+    match /{path=**}/messages/{messageId} {
+       allow list: if isSignedIn() && request.query.get('receiverId') == request.auth.uid;
     }
   }
 }

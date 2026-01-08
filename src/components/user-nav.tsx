@@ -16,7 +16,7 @@ import {
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings } from 'lucide-react';
 import { useUser, useAuth, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where } from 'firebase/firestore';
+import { collectionGroup, query, where } from 'firebase/firestore';
 import type { Message } from '@/lib/types';
 import { Badge } from './ui/badge';
 
@@ -34,13 +34,12 @@ export function UserNav() {
   const unreadMessagesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
-      collection(firestore, 'bookings'), // A bit of a hack, need a top level collection for this.
+      collectionGroup(firestore, 'messages'),
       where('receiverId', '==', user.uid),
       where('isRead', '==', false)
     );
   }, [user, firestore]);
   
-  // This hook is not ideal for this query, but works for a count.
   const { data: unreadMessages } = useCollection<Message>(unreadMessagesQuery);
   const unreadCount = unreadMessages?.length || 0;
 
