@@ -1,4 +1,3 @@
-
 'use client';
 import {
   Card,
@@ -7,25 +6,40 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Users, Home, BookCheck, AlertTriangle, ShieldCheck, FileText, BarChart2 } from 'lucide-react';
-
-const kpiCards = [
-    { title: 'Total Users', value: '1,250', icon: Users, change: '+150 this month' },
-    { title: 'Active Listings', value: '840', icon: Home, change: '+40 this week' },
-    { title: 'Bookings Today', value: '75', icon: BookCheck, change: '-5 from yesterday' },
-    { title: 'Pending Disputes', value: '8', icon: AlertTriangle, change: '+2 new', variant: 'destructive' },
-    { title: 'Suspended Accounts', value: '12', icon: Users, variant: 'destructive' },
-    { title: 'Flagged Listings', value: '23', icon: Home, variant: 'destructive' },
-];
-
-const sectionCards = [
-    { title: "Trust & Safety", description: "Verify IDs, detect fraud, manage flags.", icon: ShieldCheck, href: "/admin/trust-safety" },
-    { title: "Content & Policies", description: "Manage TOS, policies, and help articles.", icon: FileText, href: "/admin/content" },
-    { title: "Analytics", description: "Explore platform metrics and insights.", icon: BarChart2, href: "/admin/analytics" },
-];
+import { Users, Home, BookCheck, AlertTriangle, ShieldCheck, FileText, BarChart2, Loader2, BookCopy } from 'lucide-react';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { User, Property, Booking } from '@/lib/types';
 
 
 export default function AdminDashboard() {
+  const firestore = useFirestore();
+
+  const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const listingsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'listings') : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'bookings') : null, [firestore]);
+  const pendingBookingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bookings'), where('status', '==', 'pending')) : null, [firestore]);
+
+  const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);
+  const { data: listings, isLoading: listingsLoading } = useCollection<Property>(listingsQuery);
+  const { data: bookings, isLoading: bookingsLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: pendingBookings, isLoading: pendingBookingsLoading } = useCollection<Booking>(pendingBookingsQuery);
+
+  const isLoading = usersLoading || listingsLoading || bookingsLoading || pendingBookingsLoading;
+
+  const kpiCards = [
+    { title: 'Total Users', value: users?.length ?? 0, icon: Users },
+    { title: 'Active Listings', value: listings?.length ?? 0, icon: Home },
+    { title: 'Total Bookings', value: bookings?.length ?? 0, icon: BookCopy },
+    { title: 'Pending Bookings', value: pendingBookings?.length ?? 0, icon: AlertTriangle, variant: 'destructive' },
+  ];
+
+  const sectionCards = [
+      { title: "Trust & Safety", description: "Verify IDs, detect fraud, manage flags.", icon: ShieldCheck, href: "/admin/trust-safety" },
+      { title: "Content & Policies", description: "Manage TOS, policies, and help articles.", icon: FileText, href: "/admin/content" },
+      { title: "Analytics", description: "Explore platform metrics and insights.", icon: BarChart2, href: "/admin/analytics" },
+  ];
+
   return (
     <div className="space-y-6">
         <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -37,8 +51,11 @@ export default function AdminDashboard() {
                         <card.icon className={`h-4 w-4 text-muted-foreground ${card.variant === 'destructive' ? 'text-destructive' : ''}`} />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{card.value}</div>
-                        <p className="text-xs text-muted-foreground">{card.change}</p>
+                        {isLoading ? (
+                           <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                           <div className="text-2xl font-bold">{card.value}</div>
+                        )}
                     </CardContent>
                 </Card>
             ))}
