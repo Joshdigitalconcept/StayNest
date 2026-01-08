@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   FileWarning,
   MessageSquareWarning,
-  CreditCardOff,
+  CreditCard,
   PlusCircle,
   Eye,
   List,
@@ -45,7 +45,7 @@ const kpiCardsData = [
 
 const safetyAlerts = [
   { text: '3 listings flagged for misleading photos', icon: FileWarning, href: '/admin/listings?filter=flagged' },
-  { text: '1 payment failed (retry needed)', icon: CreditCardOff, href: '/admin/payments?filter=failed' },
+  { text: '1 payment failed (retry needed)', icon: CreditCard, href: '/admin/payments?filter=failed' },
   { text: '2 unresolved disputes', icon: MessageSquareWarning, href: '/admin/disputes' },
 ];
 
