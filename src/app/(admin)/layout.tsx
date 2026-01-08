@@ -28,10 +28,10 @@ export default function AdminLayout({
   const isLoading = isUserLoading || isAdminRoleLoading;
 
   React.useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    if (!isLoading && !user) {
       router.push('/login');
     }
-  }, [isLoading, isAdmin, router]);
+  }, [isLoading, user, router]);
 
   if (isLoading) {
     return (
