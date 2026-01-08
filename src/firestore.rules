@@ -55,28 +55,26 @@ service cloud.firestore {
       }
     }
 
-    // Allow querying listings and bookings
-    match /{path=**}/listings/{listingId} {
-      allow list: if true;
-    }
-
-     match /{path=**}/bookings/{bookingId} {
-      allow list: if isSignedIn();
-    }
-    
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
 
        match /messages/{messageId} {
-         allow list: if isSignedIn() && (get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId == request.auth.uid || get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId == request.auth.uid);
-         allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid);
+         allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId == request.auth.uid || get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId == request.auth.uid);
          allow create: if isSignedIn() && (request.resource.data.senderId == request.auth.uid);
-         allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
-         allow delete: if false;
+         update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
+         delete: if false;
        }
+    }
+
+    // Rule for querying unread messages across bookings
+    // This rule allows a user to query the 'messages' collection group
+    // only if they are filtering by their own UID as the receiver.
+    match /{path=**}/messages/{messageId} {
+       allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
     }
   }
 }
