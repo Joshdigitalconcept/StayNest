@@ -61,9 +61,14 @@ const activityFeed = [
 export default function AdminDashboard() {
   const firestore = useFirestore();
 
-  const twentyFourHoursAgo = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  const startOfMonthTimestamp = Timestamp.fromDate(startOfMonth);
+  const twentyFourHoursAgo = React.useMemo(
+    () => Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000),
+    []
+  );
+  const startOfMonthTimestamp = React.useMemo(() => {
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    return Timestamp.fromDate(startOfMonth);
+  }, []);
 
   // Firestore Queries
   const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
