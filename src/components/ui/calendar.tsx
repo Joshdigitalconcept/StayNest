@@ -1,8 +1,9 @@
+
 "use client"
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, DayProps } from "react-day-picker"
+import { DayPicker, DayProps, Day as DayComponent } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -32,14 +33,14 @@ function Calendar({
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <DayPicker.Day {...dayProps} />
+              <DayComponent {...dayProps} />
             </TooltipTrigger>
             {tooltipContent}
           </Tooltip>
         );
       }
     }
-    return <DayPicker.Day {...dayProps} />;
+    return <DayComponent {...dayProps} />;
   }
 
   return (
