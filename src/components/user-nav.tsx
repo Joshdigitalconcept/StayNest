@@ -62,8 +62,10 @@ export function UserNav() {
       </div>
     );
   }
-
-  const hasPendingReservations = false; // Simplified to fix error
+  
+  // This is a simplified value. The complex query was causing permission errors.
+  // The true count should be fetched on the reservations page itself.
+  const hasPendingReservations = false; 
 
   return (
     <DropdownMenu>
@@ -116,6 +118,11 @@ export function UserNav() {
                         <BellRing className="mr-2 h-4 w-4" />
                         <span>Reservations</span>
                     </div>
+                     {hasPendingReservations && !isLoading && (
+                        <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                           {/* Intentionally left blank to avoid complex queries here */}
+                        </span>
+                    )}
                 </Link>
             </DropdownMenuItem>
           )}
