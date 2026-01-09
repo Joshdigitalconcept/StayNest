@@ -15,27 +15,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings, BellRing } from 'lucide-react';
-import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import type { User as UserType } from '@/lib/types';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const router = useRouter();
-  const firestore = useFirestore();
   const { toast } = useToast();
-
-  const userProfileRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'users', user.uid) : null),
-    [user, firestore]
-  );
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userProfileRef);
-
-  const isLoading = isUserLoading || isProfileLoading;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -46,7 +35,7 @@ export function UserNav() {
     router.push('/');
   };
 
-  if (isLoading) {
+  if (isUserLoading) {
     return <Loader2 className="animate-spin" />;
   }
 
@@ -104,7 +93,6 @@ export function UserNav() {
               </div>
             </Link>
           </DropdownMenuItem>
-          {userProfile?.isHost && (
             <DropdownMenuItem asChild>
                 <Link href="/profile?tab=reservations" className="flex justify-between items-center">
                     <div className="flex items-center">
@@ -113,7 +101,6 @@ export function UserNav() {
                     </div>
                 </Link>
             </DropdownMenuItem>
-          )}
           <DropdownMenuItem asChild>
             <Link href="/profile?tab=bookings">
               <Home className="mr-2 h-4 w-4" />
