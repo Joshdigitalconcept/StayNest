@@ -38,23 +38,23 @@ export function UserNav() {
 
   const pendingReservationsQuery = useMemoFirebase(
     () =>
-      user && firestore
+      user && userProfile?.isHost
         ? query(
             collection(firestore, 'bookings'),
             where('hostId', '==', user.uid),
             where('status', '==', 'pending')
           )
         : null,
-    [user, firestore]
+    [user, firestore, userProfile?.isHost]
   );
 
   const { data: pendingReservations, isLoading: isReservationsLoading } = useCollection(
-    userProfile?.isHost ? pendingReservationsQuery : null
+    pendingReservationsQuery
   );
 
   const pendingReservationsCount = pendingReservations?.length || 0;
   
-  const isLoading = isUserLoading || isProfileLoading;
+  const isLoading = isUserLoading || isProfileLoading || (userProfile?.isHost && isReservationsLoading);
 
   const handleLogout = async () => {
     await signOut(auth);
