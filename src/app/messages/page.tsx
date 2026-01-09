@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, getDocs } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -218,17 +218,15 @@ export default function MessagesPage() {
             return;
         }
 
-        const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-        const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
-
         const conversationMap = new Map<string, Conversation>();
         const unsubscribers: Unsubscribe[] = [];
 
         const processBookingSnapshot = (snapshot: any) => {
             snapshot.docChanges().forEach((change: any) => {
                 const booking = { id: change.doc.id, ...change.doc.data() } as Booking;
-                if (change.type === 'removed' || (booking.status !== 'confirmed' && booking.status !== 'declined')) {
+                 if (change.type === 'removed' || (booking.status !== 'confirmed' && booking.status !== 'pending')) {
                     conversationMap.delete(booking.id);
+                    // In a real app, you'd also need to clean up the message listeners here
                 } else {
                     conversationMap.set(booking.id, { ...booking, unreadCount: 0, lastMessage: '' });
 
@@ -278,9 +276,20 @@ export default function MessagesPage() {
             }
         };
 
-        const unsubGuest = onSnapshot(guestQuery, processBookingSnapshot);
-        const unsubHost = onSnapshot(hostQuery, processBookingSnapshot);
+        const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+        const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+        
+        const unsubGuest = onSnapshot(guestQuery, processBookingSnapshot, (error) => {
+            console.error("Error fetching guest bookings:", error);
+            setIsLoading(false);
+        });
+        const unsubHost = onSnapshot(hostQuery, processBookingSnapshot, (error) => {
+            console.error("Error fetching host bookings:", error);
+            setIsLoading(false);
+        });
+
         unsubscribers.push(unsubGuest, unsubHost);
+
 
         return () => {
             unsubscribers.forEach(unsub => unsub());
