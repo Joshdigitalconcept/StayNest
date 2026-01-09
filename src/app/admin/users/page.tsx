@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -96,7 +95,7 @@ function UsersTable({ users, isLoading }: { users: User[] | null, isLoading: boo
             </TableCell>
             <TableCell>
                <Button variant="ghost" size="icon" asChild>
-                <Link href={`/users/${user.id}`} target="_blank" title="View Public Profile">
+                <Link href={`/admin/users/${user.id}`} title="View Admin Profile">
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </Button>
