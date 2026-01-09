@@ -25,6 +25,7 @@ import {
   Activity,
   CalendarClock,
   CalendarX,
+  PlusCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
@@ -45,6 +46,7 @@ const safetyAlerts = [
   { text: '2 unresolved disputes', icon: MessageSquareWarning, href: '/admin/disputes' },
 ];
 
+/*
 const activityFeed = [
     // This section is hardcoded as it requires an audit trail/event logging system not yet built.
     { text: 'John D. listed a new apartment in Lagos', time: '2m ago', icon: PlusCircle },
@@ -52,6 +54,7 @@ const activityFeed = [
     { text: 'User Sarah L. reported a listing', time: '30m ago', icon: AlertTriangle },
     { text: 'Host Mark B. declined booking #B31', time: '1h ago', icon: CalendarX },
 ];
+*/
 
 
 export default function AdminDashboard() {
@@ -283,5 +286,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-    
