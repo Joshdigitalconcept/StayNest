@@ -17,7 +17,7 @@ import {
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings, BellRing } from 'lucide-react';
 import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, onSnapshot, doc, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -36,20 +36,6 @@ export function UserNav() {
   );
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userProfileRef);
 
-  // Unread messages query
-  const unreadMessagesQuery = useMemoFirebase(
-    () => user && firestore 
-      ? query(
-          collectionGroup(firestore, 'messages'), 
-          where('receiverId', '==', user.uid), 
-          where('isRead', '==', false)
-        )
-      : null,
-    [user, firestore]
-  );
-  const { data: unreadMessages } = useCollection(unreadMessagesQuery);
-  const unreadCount = unreadMessages?.length || 0;
-
   // Pending reservations query (for hosts only)
   const pendingReservationsQuery = useMemoFirebase(
       () => user && firestore && userProfile?.isHost
@@ -65,7 +51,6 @@ export function UserNav() {
   const pendingReservationsCount = pendingReservations?.length || 0;
   
   const isLoading = isUserLoading || isProfileLoading || isReservationsLoading;
-  const totalNotifications = unreadCount + pendingReservationsCount;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -101,7 +86,7 @@ export function UserNav() {
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
-           {totalNotifications > 0 && !isLoading && (
+           {pendingReservationsCount > 0 && !isLoading && (
             <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
           )}
         </Button>
@@ -135,9 +120,6 @@ export function UserNav() {
                  <MessageSquare className="mr-2 h-4 w-4" />
                 <span>Messages</span>
               </div>
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
-              )}
             </Link>
           </DropdownMenuItem>
           {userProfile?.isHost && (

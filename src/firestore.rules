@@ -70,15 +70,5 @@ service cloud.firestore {
          allow delete: if false;
        }
     }
-
-    // -------------------------------------------------------------------------
-    // Collection Group Query Rules
-    // -------------------------------------------------------------------------
-     
-     // This rule allows a user to query the 'messages' collection group
-     // only if they are filtering by their own UID as the receiver.
-    match /{path=**}/messages/{messageId} {
-       allow list: if isSignedIn() && request.query.where[0][0] == "receiverId" && request.query.where[0][2] == request.auth.uid;
-    }
   }
 }
