@@ -25,7 +25,7 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get: if true;
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
@@ -58,9 +58,7 @@ service cloud.firestore {
     
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      allow list: if isAdmin() || 
-                   (isSignedIn() && request.query.get("guestId") == request.auth.uid) ||
-                   (isSignedIn() && request.query.get("hostId") == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && request.query.get("guestId") == request.auth.uid) || (isSignedIn() && request.query.get("hostId") == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
