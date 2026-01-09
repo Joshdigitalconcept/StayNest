@@ -15,12 +15,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings, BellRing } from 'lucide-react';
-import { useUser, useAuth, useFirestore } from '@/firebase';
+import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
+import type { User as UserType } from '@/lib/types';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
@@ -28,6 +29,12 @@ export function UserNav() {
   const router = useRouter();
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  const userProfileRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'users', user.uid) : null),
+    [user, firestore]
+  );
+  const { data: userProfile } = useDoc<UserType>(userProfileRef);
 
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [pendingReservationsCount, setPendingReservationsCount] = React.useState(0);
@@ -89,16 +96,23 @@ export function UserNav() {
     const unsubGuest = onSnapshot(guestBookingsQuery, processBookingsSnapshot);
     const unsubHost = onSnapshot(hostBookingsQuery, processBookingsSnapshot);
     
-    // --- Pending Reservations Listener ---
-    const pendingReservationsQuery = query(
-      collection(firestore, 'bookings'),
-      where('hostId', '==', user.uid),
-      where('status', '==', 'pending')
-    );
-    const unsubReservations = onSnapshot(pendingReservationsQuery, (snapshot) => {
-        setPendingReservationsCount(snapshot.size);
+    // --- Pending Reservations Listener (Only for Hosts) ---
+    let unsubReservations = () => {};
+    if (userProfile?.isHost) {
+        const pendingReservationsQuery = query(
+          collection(firestore, 'bookings'),
+          where('hostId', '==', user.uid),
+          where('status', '==', 'pending')
+        );
+        unsubReservations = onSnapshot(pendingReservationsQuery, (snapshot) => {
+            setPendingReservationsCount(snapshot.size);
+            setIsLoading(false);
+        });
+    } else {
+        setPendingReservationsCount(0);
         setIsLoading(false);
-    });
+    }
+
 
     // --- Cleanup ---
     return () => {
@@ -107,7 +121,7 @@ export function UserNav() {
       unsubReservations();
       Object.values(messageUnsubscribers).forEach(unsub => unsub());
     };
-  }, [user, firestore]);
+  }, [user, firestore, userProfile]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -182,7 +196,7 @@ export function UserNav() {
               )}
             </Link>
           </DropdownMenuItem>
-          {pendingReservationsCount > 0 && (
+          {userProfile?.isHost && pendingReservationsCount > 0 && (
             <DropdownMenuItem asChild>
                 <Link href="/profile?tab=reservations" className="flex justify-between items-center">
                     <div className="flex items-center">
