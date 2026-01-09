@@ -15,9 +15,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings, BellRing } from 'lucide-react';
-import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useAuth, useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, collectionGroup } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -34,94 +34,38 @@ export function UserNav() {
     () => (user ? doc(firestore, 'users', user.uid) : null),
     [user, firestore]
   );
-  const { data: userProfile } = useDoc<UserType>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userProfileRef);
 
-  const [unreadCount, setUnreadCount] = React.useState(0);
-  const [pendingReservationsCount, setPendingReservationsCount] = React.useState(0);
-  const [isLoading, setIsLoading] = React.useState(true);
+  // Unread messages query
+  const unreadMessagesQuery = useMemoFirebase(
+    () => user && firestore 
+      ? query(
+          collectionGroup(firestore, 'messages'), 
+          where('receiverId', '==', user.uid), 
+          where('isRead', '==', false)
+        )
+      : null,
+    [user, firestore]
+  );
+  const { data: unreadMessages } = useCollection(unreadMessagesQuery);
+  const unreadCount = unreadMessages?.length || 0;
+
+  // Pending reservations query (for hosts only)
+  const pendingReservationsQuery = useMemoFirebase(
+      () => user && firestore && userProfile?.isHost
+          ? query(
+              collection(firestore, 'bookings'),
+              where('hostId', '==', user.uid),
+              where('status', '==', 'pending')
+          )
+          : null,
+      [user, firestore, userProfile?.isHost]
+  );
+  const { data: pendingReservations, isLoading: isReservationsLoading } = useCollection(pendingReservationsQuery);
+  const pendingReservationsCount = pendingReservations?.length || 0;
   
+  const isLoading = isUserLoading || isProfileLoading || isReservationsLoading;
   const totalNotifications = unreadCount + pendingReservationsCount;
-
-  React.useEffect(() => {
-    if (!user || !firestore) {
-      setIsLoading(false);
-      return () => {};
-    }
-
-    setIsLoading(true);
-    
-    // --- Unread Messages Listener ---
-    const messageUnsubscribers: { [bookingId: string]: () => void } = {};
-    const unreadCounts: { [bookingId: string]: number } = {};
-    const allBookings = new Map<string, any>();
-
-    const updateGlobalUnreadCount = () => {
-        const total = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
-        setUnreadCount(total);
-    };
-    
-    const setupMessageListener = (bookingId: string) => {
-        const messagesQuery = query(
-            collection(firestore, `bookings/${bookingId}/messages`),
-            where('receiverId', '==', user.uid),
-            where('isRead', '==', false)
-        );
-        messageUnsubscribers[bookingId] = onSnapshot(messagesQuery, (snapshot) => {
-            unreadCounts[bookingId] = snapshot.size;
-            updateGlobalUnreadCount();
-        });
-    };
-    
-    const processBookingsSnapshot = (snapshot: any) => {
-      snapshot.docChanges().forEach((change: any) => {
-        const docId = change.doc.id;
-        if (change.type === 'removed') {
-          allBookings.delete(docId);
-          messageUnsubscribers[docId]?.();
-          delete messageUnsubscribers[docId];
-          delete unreadCounts[docId];
-        } else {
-          allBookings.set(docId, change.doc.data());
-          if (!messageUnsubscribers[docId]) {
-            setupMessageListener(docId);
-          }
-        }
-      });
-      updateGlobalUnreadCount();
-      setIsLoading(false);
-    };
-
-    const guestBookingsQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-    const hostBookingsQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
-    const unsubGuest = onSnapshot(guestBookingsQuery, processBookingsSnapshot);
-    const unsubHost = onSnapshot(hostBookingsQuery, processBookingsSnapshot);
-    
-    // --- Pending Reservations Listener (Only for Hosts) ---
-    let unsubReservations = () => {};
-    if (userProfile?.isHost) {
-        const pendingReservationsQuery = query(
-          collection(firestore, 'bookings'),
-          where('hostId', '==', user.uid),
-          where('status', '==', 'pending')
-        );
-        unsubReservations = onSnapshot(pendingReservationsQuery, (snapshot) => {
-            setPendingReservationsCount(snapshot.size);
-            setIsLoading(false);
-        });
-    } else {
-        setPendingReservationsCount(0);
-        setIsLoading(false);
-    }
-
-
-    // --- Cleanup ---
-    return () => {
-      unsubGuest();
-      unsubHost();
-      unsubReservations();
-      Object.values(messageUnsubscribers).forEach(unsub => unsub());
-    };
-  }, [user, firestore, userProfile]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -157,7 +101,7 @@ export function UserNav() {
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
-           {totalNotifications > 0 && (
+           {totalNotifications > 0 && !isLoading && (
             <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
           )}
         </Button>
@@ -191,19 +135,21 @@ export function UserNav() {
                  <MessageSquare className="mr-2 h-4 w-4" />
                 <span>Messages</span>
               </div>
-              {!isLoading && unreadCount > 0 && (
+              {unreadCount > 0 && (
                 <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{unreadCount}</Badge>
               )}
             </Link>
           </DropdownMenuItem>
-          {userProfile?.isHost && pendingReservationsCount > 0 && (
+          {userProfile?.isHost && (
             <DropdownMenuItem asChild>
                 <Link href="/profile?tab=reservations" className="flex justify-between items-center">
                     <div className="flex items-center">
                         <BellRing className="mr-2 h-4 w-4" />
                         <span>Reservations</span>
                     </div>
-                    <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{pendingReservationsCount}</Badge>
+                     {pendingReservationsCount > 0 && (
+                        <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center">{pendingReservationsCount}</Badge>
+                     )}
                 </Link>
             </DropdownMenuItem>
           )}
