@@ -27,6 +27,17 @@ function ConversationList({ conversations, activeBookingId, setActiveBookingId }
 }) {
     const { user } = useUser();
 
+    if (conversations.length === 0) {
+        return (
+            <div className="md:col-span-1 lg:col-span-1 border-r p-4">
+                 <h1 className="text-2xl font-bold font-headline p-4 border-b -m-4 mb-4">
+                    Messages
+                </h1>
+                <p className="text-center text-muted-foreground mt-8">No conversations yet.</p>
+            </div>
+        )
+    }
+
     return (
         <div className="md:col-span-1 lg:col-span-1 border-r">
             <h1 className="text-2xl font-bold font-headline p-4 border-b">
@@ -209,71 +220,85 @@ export default function MessagesPage() {
     const firestore = useFirestore();
     const searchParams = useSearchParams();
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
-    const [conversations, setConversations] = React.useState<Conversation[]>([]);
+    const [conversations, setConversations] = React.useState<Map<string, Conversation>>(new Map());
     const [isLoading, setIsLoading] = React.useState(true);
 
-    // This effect fetches all relevant bookings once.
+    const updateConversations = React.useCallback(async (booking: Booking, userUid: string) => {
+        const convo: Conversation = { ...booking };
+        
+        // Get last message
+        const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
+        const lastMsgSnap = await getDocs(lastMsgQuery);
+        const lastMsg = lastMsgSnap.docs[0]?.data() as Message;
+        if (lastMsg) {
+            convo.lastMessage = lastMsg.text;
+            convo.lastMessageTimestamp = lastMsg.createdAt?.toMillis() || booking.createdAt.toMillis();
+        } else {
+            convo.lastMessageTimestamp = booking.createdAt.toMillis();
+        }
+
+        // Get unread count
+        const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', userUid), where('isRead', '==', false));
+        const unreadSnap = await getDocs(unreadQuery);
+        convo.unreadCount = unreadSnap.size;
+
+        setConversations(prev => new Map(prev).set(booking.id, convo));
+    }, [firestore]);
+
+
     React.useEffect(() => {
         if (!user || !firestore) {
             setIsLoading(false);
             return;
         }
-        
+
         setIsLoading(true);
-        const bookingsRef = collection(firestore, 'bookings');
-        // This OR query requires a composite index on guestId and hostId.
-        const bookingsQuery = query(bookingsRef, or(where('guestId', '==', user.uid), where('hostId', '==', user.uid)));
-        
-        const unsubscribe = onSnapshot(bookingsQuery, async (snapshot) => {
-            const bookingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
-            
-            // For each booking, we fetch the last message and unread count.
-            // This is more robust than nested listeners.
-            const conversationPromises = bookingsData.map(async (booking) => {
-                const convo: Conversation = { ...booking };
-                
-                // Get last message
-                const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
-                const lastMsgSnap = await getDocs(lastMsgQuery);
-                const lastMsg = lastMsgSnap.docs[0]?.data() as Message;
-                if (lastMsg) {
-                    convo.lastMessage = lastMsg.text;
-                    convo.lastMessageTimestamp = lastMsg.createdAt?.toMillis() || booking.createdAt.toMillis();
+
+        const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
+        const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+
+        const handleSnapshot = (snapshot: any) => {
+            snapshot.docChanges().forEach((change: any) => {
+                const booking = { id: change.doc.id, ...change.doc.data() } as Booking;
+                if (change.type === 'removed') {
+                    setConversations(prev => {
+                        const newMap = new Map(prev);
+                        newMap.delete(booking.id);
+                        return newMap;
+                    });
                 } else {
-                    convo.lastMessageTimestamp = booking.createdAt.toMillis();
+                    updateConversations(booking, user.uid);
                 }
-
-                // Get unread count
-                const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
-                const unreadSnap = await getDocs(unreadQuery);
-                convo.unreadCount = unreadSnap.size;
-
-                return convo;
             });
-            
-            const resolvedConversations = await Promise.all(conversationPromises);
-            
-            resolvedConversations.sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0));
+            setIsLoading(false);
+        };
+        
+        const guestUnsub = onSnapshot(guestQuery, handleSnapshot, (err) => { console.error("Guest bookings listener error:", err); setIsLoading(false); });
+        const hostUnsub = onSnapshot(hostQuery, handleSnapshot, (err) => { console.error("Host bookings listener error:", err); setIsLoading(false); });
 
-            setConversations(resolvedConversations);
-            
-            // Set initial active booking if none is set via URL
-            if (!activeBookingId && resolvedConversations.length > 0) {
-                setActiveBookingId(resolvedConversations[0].id);
+        return () => {
+            guestUnsub();
+            hostUnsub();
+        };
+
+    }, [user, firestore, updateConversations]);
+    
+    // Set initial active booking ID
+    React.useEffect(() => {
+        if (!activeBookingId && conversations.size > 0) {
+            const firstConvo = Array.from(conversations.values())[0];
+            if (firstConvo) {
+                setActiveBookingId(firstConvo.id);
             }
-            
-            setIsLoading(false);
+        }
+    }, [conversations, activeBookingId]);
 
-        }, (error) => {
-            console.error("Error fetching conversations:", error);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [user, firestore, activeBookingId]); // re-run only if user or firestore instance changes.
+    const sortedConversations = React.useMemo(() => {
+        return Array.from(conversations.values()).sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0));
+    }, [conversations]);
 
     const activeBooking = React.useMemo(() => {
-        return conversations.find(c => c.id === activeBookingId) || null;
+        return conversations.get(activeBookingId || '') || null;
     }, [conversations, activeBookingId]);
     
     if (isUserLoading || isLoading) {
@@ -286,20 +311,10 @@ export default function MessagesPage() {
 
     return (
         <div className="container mx-auto py-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 h-[calc(100vh-150px)] border rounded-lg">
-                {conversations.length > 0 ? (
-                    <>
-                        <ConversationList conversations={conversations} activeBookingId={activeBookingId} setActiveBookingId={setActiveBookingId} />
-                        <ChatWindow activeBooking={activeBooking} />
-                    </>
-                ) : (
-                    <div className="col-span-full flex items-center justify-center text-muted-foreground h-full">
-                       <p>You have no active conversations. Conversations appear after a booking is confirmed.</p>
-                    </div>
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-[calc(100vh-150px)] border rounded-lg">
+                <ConversationList conversations={sortedConversations} activeBookingId={activeBookingId} setActiveBookingId={setActiveBookingId} />
+                <ChatWindow activeBooking={activeBooking} />
             </div>
         </div>
     );
 }
-
-    
