@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, getDocs, or } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, getDocs } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -256,6 +256,8 @@ export default function MessagesPage() {
 
         const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
         const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
+        
+        const combinedUnsub: Unsubscribe[] = [];
 
         const handleSnapshot = (snapshot: any) => {
             snapshot.docChanges().forEach((change: any) => {
@@ -275,10 +277,11 @@ export default function MessagesPage() {
         
         const guestUnsub = onSnapshot(guestQuery, handleSnapshot, (err) => { console.error("Guest bookings listener error:", err); setIsLoading(false); });
         const hostUnsub = onSnapshot(hostQuery, handleSnapshot, (err) => { console.error("Host bookings listener error:", err); setIsLoading(false); });
+        
+        combinedUnsub.push(guestUnsub, hostUnsub);
 
         return () => {
-            guestUnsub();
-            hostUnsub();
+            combinedUnsub.forEach(unsub => unsub());
         };
 
     }, [user, firestore, updateConversations]);
