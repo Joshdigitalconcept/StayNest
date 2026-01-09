@@ -58,7 +58,8 @@ service cloud.firestore {
     
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      allow list: if isAdmin();
+      // A user can list bookings if they are an admin, OR if their query is specifically filtering for their own bookings as a guest or host.
+      allow list: if isAdmin() || (isSignedIn() && request.query.where.size() > 0 && (request.query.where.any(w => w.field == 'guestId' && w.op == '==' && w.value == request.auth.uid) || request.query.where.any(w => w.field == 'hostId' && w.op == '==' && w.value == request.auth.uid)));
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
@@ -69,6 +70,17 @@ service cloud.firestore {
          allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
          allow delete: if false;
        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Group Query Rules
+    // -------------------------------------------------------------------------
+     
+     // Rule for querying unread messages across bookings
+     // This rule allows a user to query the 'messages' collection group
+     // only if they are filtering by their own UID as the receiver.
+    match /{path=**}/messages/{messageId} {
+       allow list: if isSignedIn() && request.query.where[0][2] == request.auth.uid;
     }
   }
 }
