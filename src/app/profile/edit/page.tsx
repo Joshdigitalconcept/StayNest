@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -36,6 +37,7 @@ import Link from 'next/link';
 const formSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  phone: z.string().optional(),
   profilePicture: z.instanceof(File).optional(),
   about: z.string().optional(),
   live: z.string().optional(),
@@ -73,6 +75,7 @@ export default function EditProfilePage() {
     defaultValues: {
       firstName: '',
       lastName: '',
+      phone: '',
       about: '',
       live: '',
       work: '',
@@ -95,6 +98,7 @@ export default function EditProfilePage() {
       form.reset({
         firstName: userProfile.firstName || '',
         lastName: userProfile.lastName || '',
+        phone: userProfile.phone || '',
         about: userProfile.about || '',
         live: userProfile.live || '',
         work: userProfile.work || '',
@@ -232,6 +236,7 @@ export default function EditProfilePage() {
   }
   
   const profileFields = [
+      { name: "phone", label: "Phone Number", placeholder: "e.g. +1 555-555-5555" },
       { name: "about", label: "About me", placeholder: "Write something fun and punchy.", component: "textarea" },
       { name: "work", label: "My work", placeholder: "What do you do for work?" },
       { name: "live", label: "Where I live", placeholder: "e.g. San Francisco, CA" },

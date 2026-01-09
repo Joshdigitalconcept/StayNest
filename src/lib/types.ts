@@ -73,6 +73,7 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
   signInProvider?: string; // e.g., 'password', 'google.com'
   emailVerified?: boolean;
   phoneVerified?: boolean; // New

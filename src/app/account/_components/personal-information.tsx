@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -73,7 +74,7 @@ export function PersonalInformationSection() {
                 <Separator />
                 <InfoRow label="Email Address" value={userProfile.email} verified={user.emailVerified} />
                 <Separator />
-                <InfoRow label="Phone Number" value={user.phoneNumber} verified={!!user.phoneNumber} />
+                <InfoRow label="Phone Number" value={userProfile.phone} verified={!!user.phoneNumber} />
                  <Separator />
                 <InfoRow label="Date of Birth" value={userProfile.born} />
             </CardContent>
