@@ -46,7 +46,7 @@ export function UserNav() {
     router.push('/');
   };
 
-  if (isUserLoading) {
+  if (isLoading) {
     return <Loader2 className="animate-spin" />;
   }
 
@@ -63,8 +63,6 @@ export function UserNav() {
     );
   }
   
-  const hasPendingReservations = false; // Removed the query causing the crash
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -73,9 +71,6 @@ export function UserNav() {
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
-           {hasPendingReservations && !isLoading && (
-            <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-background" />
-          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
