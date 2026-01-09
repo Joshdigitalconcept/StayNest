@@ -8,10 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
-import type { User, Property, Booking } from '@/lib/types';
+import { collection, query, where, Timestamp, getCountFromServer, getDocs } from 'firebase/firestore';
+import type { User, Booking, Property } from '@/lib/types';
 import {
   Users,
   Home,
@@ -19,14 +18,9 @@ import {
   Users2,
   CalendarCheck,
   DollarSign,
-  ArrowRight,
   AlertTriangle,
   FileWarning,
   MessageSquareWarning,
-  CreditCard,
-  PlusCircle,
-  Eye,
-  List,
   Loader2,
   Activity,
   CalendarClock,
@@ -34,12 +28,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import * as React from 'react';
+import { startOfMonth, startOfToday } from 'date-fns';
 
 const kpiCardsData = [
   { key: 'users', title: 'Total Users', icon: Users, href: '/admin/users' },
   { key: 'hosts', title: 'Active Hosts', icon: Users2, href: '/admin/users?filter=hosts' },
   { key: 'listings', title: 'Active Listings', icon: Home, href: '/admin/listings' },
-  { key: 'bookings', title: 'Confirmed Bookings', icon: BookCopy, href: '/admin/bookings?status=confirmed' },
+  { key: 'bookings', title: 'Total Confirmed Bookings', icon: BookCopy, href: '/admin/bookings?status=confirmed' },
   { key: 'bookingsToday', title: 'Confirmed Today', icon: CalendarCheck, href: '/admin/bookings?status=confirmed' },
   { key: 'revenue', title: 'Revenue (MTD)', icon: DollarSign, href: '/admin/payouts' },
 ];
@@ -47,7 +42,6 @@ const kpiCardsData = [
 const safetyAlerts = [
   // This section is hardcoded as it requires a flagging/reporting system not yet built.
   { text: '3 listings flagged for misleading photos', icon: FileWarning, href: '/admin/listings?filter=flagged' },
-  { text: '1 payment failed (retry needed)', icon: CreditCard, href: '/admin/payments?filter=failed' },
   { text: '2 unresolved disputes', icon: MessageSquareWarning, href: '/admin/disputes' },
 ];
 
@@ -62,27 +56,95 @@ const activityFeed = [
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
+  const [kpiValues, setKpiValues] = React.useState<any>({});
+  const [bookingActivity, setBookingActivity] = React.useState<any[]>([]);
+  const [revenueToday, setRevenueToday] = React.useState({ gross: 0, fees: 0, refunds: 0 });
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  // NOTE: Most of the data fetching has been moved to the specific sub-pages (e.g., /admin/users).
-  // This dashboard now shows hardcoded values for many KPIs as a placeholder.
-  // The original queries were causing permission errors and have been removed
-  // in favor of a more scalable and secure data-fetching pattern on sub-pages.
-  const isLoading = false; // Placeholder loading state.
+  React.useEffect(() => {
+    if (!firestore) return;
 
-  const kpiValues = {
-    users: 1250,
-    hosts: 150,
-    listings: 840,
-    bookings: 75,
-    bookingsToday: 5,
-    revenue: 1250000,
-  };
-  
-  const bookingActivity = [
-      { label: 'Pending', value: 12, icon: CalendarClock, className: 'text-amber-500' },
-      { label: 'Confirmed', value: 75, icon: CalendarCheck, className: 'text-green-500' },
-      { label: 'Cancelled / Declined', value: 8, icon: CalendarX, className: 'text-red-500' },
-  ];
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // KPI Queries
+        const usersCollection = collection(firestore, 'users');
+        const hostsQuery = query(usersCollection, where('isHost', '==', true));
+        const listingsCollection = collection(firestore, 'listings');
+        const bookingsCollection = collection(firestore, 'bookings');
+        
+        const confirmedBookingsQuery = query(bookingsCollection, where('status', '==', 'confirmed'));
+        const todayTimestamp = Timestamp.fromDate(startOfToday());
+        const confirmedTodayQuery = query(confirmedBookingsQuery, where('createdAt', '>=', todayTimestamp));
+        
+        const monthStartTimestamp = Timestamp.fromDate(startOfMonth(new Date()));
+        const revenueMtdQuery = query(confirmedBookingsQuery, where('createdAt', '>=', monthStartTimestamp));
+
+        const [
+            usersSnap,
+            hostsSnap,
+            listingsSnap,
+            bookingsSnap,
+            bookingsTodaySnap,
+            revenueMtdSnap
+        ] = await Promise.all([
+            getCountFromServer(usersCollection),
+            getCountFromServer(hostsQuery),
+            getCountFromServer(listingsCollection),
+            getCountFromServer(confirmedBookingsQuery),
+            getCountFromServer(confirmedTodayQuery),
+            getDocs(revenueMtdQuery)
+        ]);
+        
+        const totalRevenueMtd = revenueMtdSnap.docs.reduce((sum, doc) => sum + (doc.data() as Booking).totalPrice, 0);
+
+        // Booking Activity Queries
+        const pendingQuery = query(bookingsCollection, where('status', '==', 'pending'));
+        const declinedQuery = query(bookingsCollection, where('status', '==', 'declined'));
+        
+        const [pendingSnap, declinedSnap] = await Promise.all([
+            getCountFromServer(pendingQuery),
+            getCountFromServer(declinedQuery)
+        ]);
+
+        setKpiValues({
+            users: usersSnap.data().count,
+            hosts: hostsSnap.data().count,
+            listings: listingsSnap.data().count,
+            bookings: bookingsSnap.data().count,
+            bookingsToday: bookingsTodaySnap.data().count,
+            revenue: totalRevenueMtd,
+        });
+
+        setBookingActivity([
+            { label: 'Pending', value: pendingSnap.data().count, icon: CalendarClock, className: 'text-amber-500' },
+            { label: 'Confirmed', value: bookingsSnap.data().count, icon: CalendarCheck, className: 'text-green-500' },
+            { label: 'Declined', value: declinedSnap.data().count, icon: CalendarX, className: 'text-red-500' },
+        ]);
+        
+        // Revenue Today Query
+        const confirmedTodayDocs = await getDocs(confirmedTodayQuery);
+        const grossToday = confirmedTodayDocs.docs.reduce((sum, doc) => sum + (doc.data() as Booking).totalPrice, 0);
+        // Assuming serviceFee is stored on the listing, not booking. This is a simplification.
+        // A real implementation would likely store fees on the booking document itself.
+        const feesToday = grossToday * 0.12; // Placeholder calculation
+
+        setRevenueToday({
+            gross: grossToday,
+            fees: feesToday,
+            refunds: 0 // Placeholder
+        });
+
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [firestore]);
+
 
   return (
     <div className="space-y-6">
@@ -100,7 +162,7 @@ export default function AdminDashboard() {
                 <CardContent>
                   {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (
                     <div className="text-2xl font-bold">
-                       {card.key === 'revenue' ? `₦${kpiValues.revenue.toLocaleString()}` : kpiValues[card.key as keyof typeof kpiValues].toLocaleString()}
+                       {card.key === 'revenue' ? `₦${(kpiValues.revenue || 0).toLocaleString()}` : (kpiValues[card.key as keyof typeof kpiValues] || 0).toLocaleString()}
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
@@ -140,22 +202,25 @@ export default function AdminDashboard() {
             <Card>
                 <CardHeader>
                     <CardTitle>Revenue Snapshot (Today)</CardTitle>
-                    <CardDescription>Placeholder for financial data.</CardDescription>
+                    <CardDescription>Live financial data for today.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* This section is hardcoded as it requires a dedicated payments/transactions collection. */}
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground">Gross Booking Value</span>
-                        <span className="font-bold text-lg">₦1,240,000</span>
-                    </div>
-                     <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground">Platform Fees Earned</span>
-                        <span className="font-bold text-lg text-green-600">₦148,800</span>
-                    </div>
-                     <div className="flex justify-between items-baseline">
-                        <span className="text-muted-foreground">Refunds Issued</span>
-                        <span className="font-bold text-lg text-red-600">₦32,000</span>
-                    </div>
+                    {isLoading ? <Loader2 className="animate-spin" /> : (
+                        <>
+                           <div className="flex justify-between items-baseline">
+                                <span className="text-muted-foreground">Gross Booking Value</span>
+                                <span className="font-bold text-lg">₦{revenueToday.gross.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-muted-foreground">Platform Fees Earned</span>
+                                <span className="font-bold text-lg text-green-600">₦{revenueToday.fees.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-muted-foreground">Refunds Issued</span>
+                                <span className="font-bold text-lg text-red-600">₦{revenueToday.refunds.toLocaleString()}</span>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -168,12 +233,13 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {safetyAlerts.map(alert => (
+             <p className="text-sm text-muted-foreground p-4 text-center">No alerts. This requires a reporting system.</p>
+            {/* {safetyAlerts.map(alert => (
               <Link key={alert.text} href={alert.href} className="flex items-start gap-3 p-2 -m-2 rounded-lg hover:bg-destructive/10">
                 <alert.icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
                 <span className="text-sm font-medium">{alert.text}</span>
               </Link>
-            ))}
+            ))} */}
           </CardContent>
         </Card>
       </div>
@@ -187,9 +253,10 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
                 {/* This section is hardcoded as it requires more complex date-based queries or a dedicated analytics setup. */}
-                 <p>New users this week: <strong>150</strong></p>
-                 <p>New hosts this week: <strong>25</strong></p>
-                 <p>New listings created today: <strong>40</strong></p>
+                 <p>New users this week: <strong>...</strong></p>
+                 <p>New hosts this week: <strong>...</strong></p>
+                 <p>New listings created today: <strong>...</strong></p>
+                 <p className="text-xs text-muted-foreground">Note: Real-time growth metrics require dedicated analytics setup.</p>
             </CardContent>
         </Card>
         
@@ -198,8 +265,9 @@ export default function AdminDashboard() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Activity /> Recent Activity</CardTitle>
             </CardHeader>
-            <CardContent>
-                <ul className="space-y-4">
+            <CardContent className="flex items-center justify-center h-40">
+                 <p className="text-sm text-muted-foreground">Live activity feed coming soon.</p>
+                {/* <ul className="space-y-4">
                      {activityFeed.map((item, index) => (
                         <li key={index} className="flex items-center gap-3">
                            <item.icon className="h-5 w-5 text-muted-foreground" />
@@ -207,7 +275,7 @@ export default function AdminDashboard() {
                            <span className="text-xs text-muted-foreground">{item.time}</span>
                         </li>
                      ))}
-                </ul>
+                </ul> */}
             </CardContent>
         </Card>
       </div>
@@ -215,3 +283,5 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+    
