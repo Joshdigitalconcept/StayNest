@@ -30,7 +30,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 1200;
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -48,13 +51,14 @@ export default function AdminUserProfilePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const { user: adminUser } = useUser(); // The currently logged-in admin
+  const [retryCount, setRetryCount] = React.useState(0);
 
   // Fetch the user being viewed
   const userDocRef = useMemoFirebase(
     () => (firestore && id) ? doc(firestore, 'users', id) : null,
     [firestore, id]
   );
-  const { data: user, isLoading: isUserLoading, setData: setUser } = useDoc<UserType>(userDocRef);
+  const { data: user, isLoading: isUserLoading, error, setData: setUser } = useDoc<UserType>(userDocRef);
 
   // Check if the viewed user is an admin
   const adminRoleRef = useMemoFirebase(
@@ -63,6 +67,27 @@ export default function AdminUserProfilePage() {
   );
   const { data: userAdminRole, isLoading: isAdminRoleLoading, setData: setAdminRole } = useDoc(adminRoleRef);
   const isUserAdmin = !!userAdminRole;
+
+
+   React.useEffect(() => {
+    // This effect handles the retry logic for fetching a user that might not be immediately available.
+    if (!isUserLoading && !user && !error && retryCount < MAX_RETRIES) {
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        // This is a bit of a hack to force the useDoc hook to re-evaluate.
+        // In a real app, you might have a more direct way to re-trigger a fetch.
+        const recheck = async () => {
+          if (userDocRef) {
+            await getDoc(userDocRef);
+          }
+        };
+        recheck();
+
+      }, RETRY_DELAY_MS);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isUserLoading, user, error, retryCount, userDocRef]);
 
 
   const handleHostToggle = async (isHost: boolean) => {
@@ -119,12 +144,23 @@ export default function AdminUserProfilePage() {
 
   const isLoading = isUserLoading || isAdminRoleLoading;
 
-  if (isLoading) {
+  if (isLoading && retryCount === 0) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin" /></div>;
   }
-
-  if (!user && !isLoading) {
+  
+  // After all retries, if user is still not found, then show 404.
+  if (!isLoading && !user && retryCount >= MAX_RETRIES) {
     notFound();
+  }
+
+  if (!user) {
+    // This state is shown during the retry attempts.
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin" />
+        <p className="ml-4 text-muted-foreground">Locating user profile...</p>
+      </div>
+    );
   }
 
   return (
