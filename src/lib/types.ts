@@ -73,6 +73,7 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
+  signInProvider?: string; // e.g., 'password', 'google.com'
   emailVerified?: boolean;
   phoneVerified?: boolean; // New
   idVerified?: boolean; // New
@@ -82,6 +83,7 @@ export interface User {
   profilePictureUrl?: string;
   favorites?: string[];
   isHost?: boolean;
+  isGuest?: boolean;
   // New detailed profile fields
   work?: string;
   school?: string;

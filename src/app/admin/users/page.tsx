@@ -19,19 +19,27 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, ExternalLink, Search, CheckCircle, XCircle, Phone, Mail, ShieldQuestion } from 'lucide-react';
+import { Loader2, Search, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function UsersTable({ users, isLoading }: { users: User[] | null, isLoading: boolean }) {
+  const router = useRouter();
+
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="animate-spin h-8 w-8" /></div>;
   if (!users) return <p className="text-muted-foreground p-8 text-center">No users found.</p>;
   
   const getRole = (user: User) => {
+    if (user.isHost && user.isGuest) return <Badge variant="secondary">Host & Guest</Badge>;
     if (user.isHost) return <Badge variant="secondary">Host</Badge>;
     return <Badge variant="outline">Guest</Badge>;
   };
@@ -43,6 +51,39 @@ function UsersTable({ users, isLoading }: { users: User[] | null, isLoading: boo
     if (status === 'banned') variant = 'destructive';
     
     return <Badge variant={variant} className={status === 'active' ? 'bg-green-100 text-green-800' : ''}>{status}</Badge>;
+  }
+  
+  const getVerificationMethod = (user: User) => {
+    if (!user.signInProvider) return <Badge variant="outline">Unknown</Badge>;
+
+    let text;
+    switch(user.signInProvider) {
+        case 'google.com':
+            text = 'Google';
+            break;
+        case 'password':
+            text = 'Password';
+            break;
+        default:
+            text = user.signInProvider;
+    }
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger>
+                    <Badge variant="default" className="bg-blue-100 text-blue-800">{text}</Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{user.email}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    )
+  }
+
+  const handleRowClick = (userId: string) => {
+    router.push(`/admin/users/${userId}`);
   }
 
   return (
@@ -56,49 +97,45 @@ function UsersTable({ users, isLoading }: { users: User[] | null, isLoading: boo
           <TableHead className="hidden md:table-cell">Verification</TableHead>
           <TableHead className="hidden lg:table-cell">Joined</TableHead>
           <TableHead className="hidden lg:table-cell">Last Active</TableHead>
-          <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {users.map(user => (
-          <TableRow key={user.id}>
+          <TableRow key={user.id} onClick={() => handleRowClick(user.id)} className="cursor-pointer">
             <TableCell>
               <div className="flex items-center gap-3">
                 <Avatar className="h-9 w-9">
                     <AvatarImage src={user.profilePictureUrl} />
                     <AvatarFallback>{user.firstName?.[0]}</AvatarFallback>
                 </Avatar>
-                <div className="font-medium">{user.firstName} {user.lastName}</div>
+                 <div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">{user.firstName} {user.lastName}</span>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                     <Badge variant="outline" className="px-1"><Info className="h-3 w-3" /></Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="font-mono text-xs">{user.id}</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
+                </div>
               </div>
             </TableCell>
             <TableCell className="hidden lg:table-cell">{user.email}</TableCell>
             <TableCell>{getRole(user)}</TableCell>
             <TableCell>{getStatus(user)}</TableCell>
             <TableCell className="hidden md:table-cell">
-                <div className="flex items-center gap-2">
-                    <Badge variant={user.emailVerified ? "default" : "outline"} className={user.emailVerified ? "bg-green-100 text-green-800" : ""}>
-                        <Mail className="h-3 w-3 mr-1" /> Email
-                    </Badge>
-                     <Badge variant={user.phoneVerified ? "default" : "outline"} className={user.phoneVerified ? "bg-green-100 text-green-800" : ""}>
-                        <Phone className="h-3 w-3 mr-1" /> Phone
-                    </Badge>
-                     <Badge variant={user.idVerified ? "default" : "outline"} className={user.idVerified ? "bg-green-100 text-green-800" : ""}>
-                        <ShieldQuestion className="h-3 w-3 mr-1" /> ID
-                    </Badge>
-                </div>
+                {getVerificationMethod(user)}
             </TableCell>
             <TableCell className="hidden lg:table-cell">
               {user.createdAt ? format(user.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}
             </TableCell>
             <TableCell className="hidden lg:table-cell">
               {user.lastActive ? format(user.lastActive.toDate(), 'MMM d, yyyy') : 'N/A'}
-            </TableCell>
-            <TableCell>
-               <Button variant="ghost" size="icon" asChild>
-                <Link href={`/admin/users/${user.id}`} title="View Admin Profile">
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
-              </Button>
             </TableCell>
           </TableRow>
         ))}

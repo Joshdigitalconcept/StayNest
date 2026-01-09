@@ -71,8 +71,11 @@ export default function SignupPage() {
         email: user.email,
         isHost: false,
         isGuest: true,
+        signInProvider: 'password',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        accountStatus: 'active',
+        lastActive: serverTimestamp(),
       });
       
       router.push('/');
@@ -102,8 +105,11 @@ export default function SignupPage() {
         profilePictureUrl: user.photoURL,
         isHost: false,
         isGuest: true,
+        signInProvider: result.providerId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        accountStatus: 'active',
+        lastActive: serverTimestamp(),
       }, { merge: true });
       
       router.push('/');
