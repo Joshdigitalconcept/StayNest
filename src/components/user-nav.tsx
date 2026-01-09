@@ -36,21 +36,25 @@ export function UserNav() {
   );
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userProfileRef);
 
-  // Pending reservations query (for hosts only)
   const pendingReservationsQuery = useMemoFirebase(
-      () => user && firestore && userProfile?.isHost
-          ? query(
-              collection(firestore, 'bookings'),
-              where('hostId', '==', user.uid),
-              where('status', '==', 'pending')
+    () =>
+      user && firestore
+        ? query(
+            collection(firestore, 'bookings'),
+            where('hostId', '==', user.uid),
+            where('status', '==', 'pending')
           )
-          : null,
-      [user, firestore, userProfile?.isHost]
+        : null,
+    [user, firestore]
   );
-  const { data: pendingReservations, isLoading: isReservationsLoading } = useCollection(pendingReservationsQuery);
+
+  const { data: pendingReservations, isLoading: isReservationsLoading } = useCollection(
+    userProfile?.isHost ? pendingReservationsQuery : null
+  );
+
   const pendingReservationsCount = pendingReservations?.length || 0;
   
-  const isLoading = isUserLoading || isProfileLoading || isReservationsLoading;
+  const isLoading = isUserLoading || isProfileLoading;
 
   const handleLogout = async () => {
     await signOut(auth);
