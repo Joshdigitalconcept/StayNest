@@ -223,6 +223,25 @@ export default function MessagesPage() {
     const [conversations, setConversations] = React.useState<Map<string, Conversation>>(new Map());
     const [isLoading, setIsLoading] = React.useState(true);
 
+    const guestQuery = useMemoFirebase(
+      () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
+      [user, firestore]
+    );
+    const hostQuery = useMemoFirebase(
+      () => user ? query(collection(firestore, 'bookings'), where('hostId', '==', user.uid)) : null,
+      [user, firestore]
+    );
+
+    const { data: guestBookings } = useCollection<Booking>(guestQuery);
+    const { data: hostBookings } = useCollection<Booking>(hostQuery);
+
+    const allBookings = React.useMemo(() => {
+        const bookingsMap = new Map<string, Booking>();
+        (guestBookings || []).forEach(b => bookingsMap.set(b.id, b));
+        (hostBookings || []).forEach(b => bookingsMap.set(b.id, b));
+        return Array.from(bookingsMap.values());
+    }, [guestBookings, hostBookings]);
+
     const updateConversations = React.useCallback(async (booking: Booking, userUid: string) => {
         const convo: Conversation = { ...booking };
         
@@ -251,45 +270,35 @@ export default function MessagesPage() {
             setIsLoading(false);
             return;
         }
-
-        setIsLoading(true);
-
-        const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-        const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
         
-        const combinedUnsub: Unsubscribe[] = [];
-
-        const handleSnapshot = (snapshot: any) => {
-            snapshot.docChanges().forEach((change: any) => {
-                const booking = { id: change.doc.id, ...change.doc.data() } as Booking;
-                if (change.type === 'removed') {
-                    setConversations(prev => {
-                        const newMap = new Map(prev);
-                        newMap.delete(booking.id);
-                        return newMap;
-                    });
-                } else {
-                    updateConversations(booking, user.uid);
-                }
-            });
+        if (guestBookings === null && hostBookings === null) {
+            setIsLoading(true);
+        } else {
             setIsLoading(false);
-        };
+        }
         
-        const guestUnsub = onSnapshot(guestQuery, handleSnapshot, (err) => { console.error("Guest bookings listener error:", err); setIsLoading(false); });
-        const hostUnsub = onSnapshot(hostQuery, handleSnapshot, (err) => { console.error("Host bookings listener error:", err); setIsLoading(false); });
+        const existingConvoIds = new Set(conversations.keys());
         
-        combinedUnsub.push(guestUnsub, hostUnsub);
+        allBookings.forEach(booking => {
+            updateConversations(booking, user.uid);
+            existingConvoIds.delete(booking.id);
+        });
 
-        return () => {
-            combinedUnsub.forEach(unsub => unsub());
-        };
-
-    }, [user, firestore, updateConversations]);
+        // Remove conversations for bookings that no longer exist
+        if (existingConvoIds.size > 0) {
+            setConversations(prev => {
+                const newMap = new Map(prev);
+                existingConvoIds.forEach(id => newMap.delete(id));
+                return newMap;
+            });
+        }
+        
+    }, [allBookings, user, firestore, updateConversations]);
     
     // Set initial active booking ID
     React.useEffect(() => {
         if (!activeBookingId && conversations.size > 0) {
-            const firstConvo = Array.from(conversations.values())[0];
+            const firstConvo = Array.from(conversations.values()).sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0))[0];
             if (firstConvo) {
                 setActiveBookingId(firstConvo.id);
             }
