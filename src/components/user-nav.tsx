@@ -63,7 +63,7 @@ export function UserNav() {
     );
   }
   
-  const hasPendingReservations = false; 
+  const hasPendingReservations = false; // Removed the query causing the crash
 
   return (
     <DropdownMenu>
