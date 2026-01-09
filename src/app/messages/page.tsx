@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, getDocs, or } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -212,90 +212,65 @@ export default function MessagesPage() {
     const [conversations, setConversations] = React.useState<Conversation[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
-     React.useEffect(() => {
+    // This effect fetches all relevant bookings once.
+    React.useEffect(() => {
         if (!user || !firestore) {
             setIsLoading(false);
             return;
         }
-
-        const conversationMap = new Map<string, Conversation>();
-        const unsubscribers: Unsubscribe[] = [];
-
-        const processBookingSnapshot = (snapshot: any) => {
-            snapshot.docChanges().forEach((change: any) => {
-                const booking = { id: change.doc.id, ...change.doc.data() } as Booking;
-                 if (change.type === 'removed' || (booking.status !== 'confirmed' && booking.status !== 'pending')) {
-                    conversationMap.delete(booking.id);
-                    // In a real app, you'd also need to clean up the message listeners here
-                } else {
-                    conversationMap.set(booking.id, { ...booking, unreadCount: 0, lastMessage: '' });
-
-                    // Set up message listener for this booking
-                    const messagesQuery = query(
-                        collection(firestore, `bookings/${booking.id}/messages`),
-                        orderBy('createdAt', 'desc'),
-                        limit(1)
-                    );
-                    const unreadQuery = query(
-                        collection(firestore, `bookings/${booking.id}/messages`),
-                        where('receiverId', '==', user.uid),
-                        where('isRead', '==', false)
-                    );
-
-                    const unsubMessages = onSnapshot(messagesQuery, (msgSnap) => {
-                        const lastMsg = msgSnap.docs[0]?.data() as Message;
-                        const convo = conversationMap.get(booking.id);
-                        if (convo) {
-                            convo.lastMessage = lastMsg?.text;
-                            convo.lastMessageTimestamp = lastMsg?.createdAt?.toMillis() || booking.createdAt.toMillis();
-                            updateConversations();
-                        }
-                    });
-
-                    const unsubUnread = onSnapshot(unreadQuery, (unreadSnap) => {
-                        const convo = conversationMap.get(booking.id);
-                        if (convo) {
-                            convo.unreadCount = unreadSnap.size;
-                            updateConversations();
-                        }
-                    });
-
-                    unsubscribers.push(unsubMessages, unsubUnread);
-                }
-            });
-            updateConversations();
-        };
-
-        const updateConversations = () => {
-            const updatedConversations = Array.from(conversationMap.values())
-                .sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0));
-            setConversations(updatedConversations);
-            setIsLoading(false);
-             if (!activeBookingId && updatedConversations.length > 0) {
-                setActiveBookingId(updatedConversations[0].id);
-            }
-        };
-
-        const guestQuery = query(collection(firestore, 'bookings'), where('guestId', '==', user.uid));
-        const hostQuery = query(collection(firestore, 'bookings'), where('hostId', '==', user.uid));
         
-        const unsubGuest = onSnapshot(guestQuery, processBookingSnapshot, (error) => {
-            console.error("Error fetching guest bookings:", error);
+        setIsLoading(true);
+        const bookingsRef = collection(firestore, 'bookings');
+        // This OR query requires a composite index on guestId and hostId.
+        const bookingsQuery = query(bookingsRef, or(where('guestId', '==', user.uid), where('hostId', '==', user.uid)));
+        
+        const unsubscribe = onSnapshot(bookingsQuery, async (snapshot) => {
+            const bookingsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
+            
+            // For each booking, we fetch the last message and unread count.
+            // This is more robust than nested listeners.
+            const conversationPromises = bookingsData.map(async (booking) => {
+                const convo: Conversation = { ...booking };
+                
+                // Get last message
+                const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
+                const lastMsgSnap = await getDocs(lastMsgQuery);
+                const lastMsg = lastMsgSnap.docs[0]?.data() as Message;
+                if (lastMsg) {
+                    convo.lastMessage = lastMsg.text;
+                    convo.lastMessageTimestamp = lastMsg.createdAt?.toMillis() || booking.createdAt.toMillis();
+                } else {
+                    convo.lastMessageTimestamp = booking.createdAt.toMillis();
+                }
+
+                // Get unread count
+                const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
+                const unreadSnap = await getDocs(unreadQuery);
+                convo.unreadCount = unreadSnap.size;
+
+                return convo;
+            });
+            
+            const resolvedConversations = await Promise.all(conversationPromises);
+            
+            resolvedConversations.sort((a, b) => (b.lastMessageTimestamp || 0) - (a.lastMessageTimestamp || 0));
+
+            setConversations(resolvedConversations);
+            
+            // Set initial active booking if none is set via URL
+            if (!activeBookingId && resolvedConversations.length > 0) {
+                setActiveBookingId(resolvedConversations[0].id);
+            }
+            
+            setIsLoading(false);
+
+        }, (error) => {
+            console.error("Error fetching conversations:", error);
             setIsLoading(false);
         });
-        const unsubHost = onSnapshot(hostQuery, processBookingSnapshot, (error) => {
-            console.error("Error fetching host bookings:", error);
-            setIsLoading(false);
-        });
 
-        unsubscribers.push(unsubGuest, unsubHost);
-
-
-        return () => {
-            unsubscribers.forEach(unsub => unsub());
-        };
-
-    }, [user, firestore, activeBookingId]);
+        return () => unsubscribe();
+    }, [user, firestore, activeBookingId]); // re-run only if user or firestore instance changes.
 
     const activeBooking = React.useMemo(() => {
         return conversations.find(c => c.id === activeBookingId) || null;
@@ -326,3 +301,5 @@ export default function MessagesPage() {
         </div>
     );
 }
+
+    
