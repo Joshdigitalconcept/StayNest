@@ -74,7 +74,11 @@ export interface User {
   lastName: string;
   email: string;
   emailVerified?: boolean;
+  phoneVerified?: boolean; // New
+  idVerified?: boolean; // New
   createdAt: Timestamp;
+  lastActive?: Timestamp; // New
+  accountStatus?: 'active' | 'suspended' | 'banned'; // New
   profilePictureUrl?: string;
   favorites?: string[];
   isHost?: boolean;
