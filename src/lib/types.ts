@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Property {
@@ -72,6 +73,8 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
+  emailVerified?: boolean;
+  createdAt: Timestamp;
   profilePictureUrl?: string;
   favorites?: string[];
   isHost?: boolean;
