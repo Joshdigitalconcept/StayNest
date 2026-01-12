@@ -244,8 +244,9 @@ export default function MessagesPage() {
       const unsubscribes: Unsubscribe[] = [];
 
       uniqueBookings.forEach(booking => {
+          if (!user || !firestore) return;
           const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
-          const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user!.uid), where('isRead', '==', false));
+          const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
 
           const unsubLastMsg = onSnapshot(lastMsgQuery, (snap) => {
               const lastMsg = snap.docs[0]?.data() as Message;

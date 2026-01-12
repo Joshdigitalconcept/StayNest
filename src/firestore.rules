@@ -60,8 +60,8 @@ service cloud.firestore {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
       // A user can list bookings if they are an admin, OR if their query is filtered by their own guestId or hostId.
       allow list: if isAdmin() || 
-                   (isSignedIn() && request.query.filters[0].field == "guestId" && request.query.filters[0].value == request.auth.uid) ||
-                   (isSignedIn() && request.query.filters[0].field == "hostId" && request.query.filters[0].value == request.auth.uid);
+                   (isSignedIn() && request.query.filters[0].fieldPath == "guestId" && request.query.filters[0].value == request.auth.uid) ||
+                   (isSignedIn() && request.query.filters[0].fieldPath == "hostId" && request.query.filters[0].value == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
@@ -86,3 +86,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
