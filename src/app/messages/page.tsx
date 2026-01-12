@@ -237,6 +237,8 @@ export default function MessagesPage() {
     const isLoading = isUserLoading || isGuestBookingsLoading || isHostBookingsLoading;
 
     React.useEffect(() => {
+      if (!guestBookings && !hostBookings) return;
+
       const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
       const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
       
@@ -327,3 +329,5 @@ export default function MessagesPage() {
         </div>
     );
 }
+
+    
