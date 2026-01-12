@@ -222,6 +222,7 @@ export default function MessagesPage() {
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
     const [conversations, setConversations] = React.useState<Map<string, Conversation>>(new Map());
     
+    // -- Separate Queries for guest bookings and host reservations --
     const guestQuery = useMemoFirebase(
       () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
       [user, firestore]
@@ -240,34 +241,56 @@ export default function MessagesPage() {
       const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
       const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
       
+      const unsubscribes: Unsubscribe[] = [];
+
       uniqueBookings.forEach(booking => {
-          updateConversation(booking);
+          const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
+          const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user!.uid), where('isRead', '==', false));
+
+          const unsubLastMsg = onSnapshot(lastMsgQuery, (snap) => {
+              const lastMsg = snap.docs[0]?.data() as Message;
+              setConversations(prev => {
+                  const newConversations = new Map(prev);
+                  const currentConvo = newConversations.get(booking.id) || { ...booking };
+                  currentConvo.lastMessage = lastMsg?.text || 'No messages yet';
+                  currentConvo.lastMessageTimestamp = lastMsg?.createdAt?.toMillis() || booking.createdAt.toMillis();
+                  newConversations.set(booking.id, currentConvo);
+                  return newConversations;
+              });
+          });
+
+          const unsubUnread = onSnapshot(unreadQuery, (snap) => {
+              setConversations(prev => {
+                  const newConversations = new Map(prev);
+                  const currentConvo = newConversations.get(booking.id) || { ...booking };
+                  currentConvo.unreadCount = snap.size;
+                  newConversations.set(booking.id, currentConvo);
+                  return newConversations;
+              });
+          });
+          
+          unsubscribes.push(unsubLastMsg, unsubUnread);
+      });
+      
+      // Initial state for bookings without messages
+      setConversations(prev => {
+        const newConversations = new Map(prev);
+        uniqueBookings.forEach(booking => {
+            if (!newConversations.has(booking.id)) {
+                newConversations.set(booking.id, {
+                    ...booking,
+                    lastMessage: 'No messages yet',
+                    lastMessageTimestamp: booking.createdAt.toMillis(),
+                    unreadCount: 0,
+                });
+            }
+        });
+        return newConversations;
       });
 
+      return () => unsubscribes.forEach(unsub => unsub());
+
     }, [guestBookings, hostBookings, firestore, user]);
-
-    const updateConversation = React.useCallback(async (booking: Booking) => {
-        if (!firestore || !user) return;
-        const convo: Conversation = { ...booking };
-        
-        // Get last message
-        const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
-        const lastMsgSnap = await getDocs(lastMsgQuery);
-        const lastMsg = lastMsgSnap.docs[0]?.data() as Message;
-        if (lastMsg) {
-            convo.lastMessage = lastMsg.text;
-            convo.lastMessageTimestamp = lastMsg.createdAt?.toMillis() || booking.createdAt.toMillis();
-        } else {
-            convo.lastMessageTimestamp = booking.createdAt.toMillis();
-        }
-
-        // Get unread count
-        const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
-        const unreadSnap = await getDocs(unreadQuery);
-        convo.unreadCount = unreadSnap.size;
-
-        setConversations(prev => new Map(prev).set(booking.id, convo));
-    }, [firestore, user]);
     
     // Set initial active booking ID
     React.useEffect(() => {

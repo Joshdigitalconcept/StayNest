@@ -66,6 +66,7 @@ export default function ProfilePage() {
     [user, firestore]
   );
   
+  // -- Separate Queries for guest bookings and host reservations --
   const guestBookingsQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid), orderBy('createdAt', 'desc')) : null,
     [user, firestore]
