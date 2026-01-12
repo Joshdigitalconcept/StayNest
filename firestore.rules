@@ -59,7 +59,9 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
       // A user can list bookings if they are an admin, OR if their query is filtered by their own guestId or hostId.
-      allow list: if isAdmin() || (isSignedIn() && (request.query.where.size() > 0 && (request.query.where[0][2] == request.auth.uid)));
+      allow list: if isAdmin() || 
+                   (isSignedIn() && request.query.get("guestId") == request.auth.uid) ||
+                   (isSignedIn() && request.query.get("hostId") == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
