@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -78,8 +77,10 @@ export default function ProfilePage() {
   );
 
   const { data: userProperties, isLoading: arePropertiesLoading } = useCollection<Property>(userListingsQuery);
-  const { data: myBookings, isLoading: areBookingsLoading } = useCollection<Booking>(guestBookingsQuery);
-  const { data: hostReservations, isLoading: areReservationsLoading } = useCollection<Booking>(hostReservationsQuery);
+  const { data: myBookings, isLoading: areMyBookingsLoading } = useCollection<Booking>(guestBookingsQuery);
+  const { data: hostReservations, isLoading: areHostReservationsLoading } = useCollection<Booking>(hostReservationsQuery);
+
+  const areBookingsLoading = areMyBookingsLoading || areHostReservationsLoading;
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -378,3 +379,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

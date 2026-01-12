@@ -221,8 +221,7 @@ export default function MessagesPage() {
     const searchParams = useSearchParams();
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
     const [conversations, setConversations] = React.useState<Map<string, Conversation>>(new Map());
-    const [isLoading, setIsLoading] = React.useState(true);
-
+    
     const guestQuery = useMemoFirebase(
       () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
       [user, firestore]
@@ -232,17 +231,23 @@ export default function MessagesPage() {
       [user, firestore]
     );
 
-    const { data: guestBookings } = useCollection<Booking>(guestQuery);
-    const { data: hostBookings } = useCollection<Booking>(hostQuery);
+    const { data: guestBookings, isLoading: isGuestBookingsLoading } = useCollection<Booking>(guestQuery);
+    const { data: hostBookings, isLoading: isHostBookingsLoading } = useCollection<Booking>(hostQuery);
 
-    const allBookings = React.useMemo(() => {
-        const bookingsMap = new Map<string, Booking>();
-        (guestBookings || []).forEach(b => bookingsMap.set(b.id, b));
-        (hostBookings || []).forEach(b => bookingsMap.set(b.id, b));
-        return Array.from(bookingsMap.values());
-    }, [guestBookings, hostBookings]);
+    const isLoading = isUserLoading || isGuestBookingsLoading || isHostBookingsLoading;
 
-    const updateConversations = React.useCallback(async (booking: Booking, userUid: string) => {
+    React.useEffect(() => {
+      const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
+      const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
+      
+      uniqueBookings.forEach(booking => {
+          updateConversation(booking);
+      });
+
+    }, [guestBookings, hostBookings, firestore, user]);
+
+    const updateConversation = React.useCallback(async (booking: Booking) => {
+        if (!firestore || !user) return;
         const convo: Conversation = { ...booking };
         
         // Get last message
@@ -257,43 +262,12 @@ export default function MessagesPage() {
         }
 
         // Get unread count
-        const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', userUid), where('isRead', '==', false));
+        const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
         const unreadSnap = await getDocs(unreadQuery);
         convo.unreadCount = unreadSnap.size;
 
         setConversations(prev => new Map(prev).set(booking.id, convo));
-    }, [firestore]);
-
-
-    React.useEffect(() => {
-        if (!user || !firestore) {
-            setIsLoading(false);
-            return;
-        }
-        
-        if (guestBookings === null && hostBookings === null) {
-            setIsLoading(true);
-        } else {
-            setIsLoading(false);
-        }
-        
-        const existingConvoIds = new Set(conversations.keys());
-        
-        allBookings.forEach(booking => {
-            updateConversations(booking, user.uid);
-            existingConvoIds.delete(booking.id);
-        });
-
-        // Remove conversations for bookings that no longer exist
-        if (existingConvoIds.size > 0) {
-            setConversations(prev => {
-                const newMap = new Map(prev);
-                existingConvoIds.forEach(id => newMap.delete(id));
-                return newMap;
-            });
-        }
-        
-    }, [allBookings, user, firestore, updateConversations]);
+    }, [firestore, user]);
     
     // Set initial active booking ID
     React.useEffect(() => {
@@ -313,7 +287,7 @@ export default function MessagesPage() {
         return conversations.get(activeBookingId || '') || null;
     }, [conversations, activeBookingId]);
     
-    if (isUserLoading || isLoading) {
+    if (isLoading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>
     }
 
@@ -330,3 +304,5 @@ export default function MessagesPage() {
         </div>
     );
 }
+
+    
