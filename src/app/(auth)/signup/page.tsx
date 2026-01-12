@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/logo';
 import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
@@ -61,6 +61,13 @@ export default function SignupPage() {
       );
       const user = userCredential.user;
       
+      // Send verification email
+      await sendEmailVerification(user);
+      toast({
+        title: 'Verification Email Sent',
+        description: 'Please check your inbox to verify your email address.',
+      });
+
       const fullName = `${values.firstName} ${values.lastName}`.trim();
       await updateProfile(user, { displayName: fullName });
 
