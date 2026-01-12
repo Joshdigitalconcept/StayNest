@@ -222,7 +222,6 @@ export default function MessagesPage() {
     const [activeBookingId, setActiveBookingId] = React.useState<string | null>(searchParams.get('bookingId'));
     const [conversations, setConversations] = React.useState<Map<string, Conversation>>(new Map());
     
-    // -- Separate Queries for guest bookings and host reservations --
     const guestQuery = useMemoFirebase(
       () => user ? query(collection(firestore, 'bookings'), where('guestId', '==', user.uid)) : null,
       [user, firestore]
@@ -328,5 +327,3 @@ export default function MessagesPage() {
         </div>
     );
 }
-
-    
