@@ -266,7 +266,7 @@ export default function ProfilePage() {
                   <CardDescription>View your past and upcoming trips.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {areBookingsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
+                  {areMyBookingsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
                     myBookings && myBookings.length > 0 ? (
                       <div className="space-y-4">
                         {myBookings.map(booking => (
@@ -330,7 +330,7 @@ export default function ProfilePage() {
                     <CardDescription>Approve or decline requests from guests for your properties.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {areReservationsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
+                    {areHostReservationsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
                     hostReservations && hostReservations.length > 0 ? (
                         <div className="space-y-4">
                         {hostReservations.map(booking => (
@@ -379,5 +379,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
