@@ -1,17 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { Loader2, Share2 } from 'lucide-react';
+import { useUser } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 import { PersonalInformationSection } from './_components/personal-information';
 import { LoginSecuritySection } from './_components/login-security';
 import { PaymentsPayoutsSection } from './_components/payments-payouts';
 import { PrivacySharingSection } from './_components/privacy-sharing';
-import { doc } from 'firebase/firestore';
 
 const baseSections = {
   'personal-info': { title: 'Personal Information', component: PersonalInformationSection },
