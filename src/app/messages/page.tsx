@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
-import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit } from 'firebase/firestore';
 import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -240,11 +240,11 @@ export default function MessagesPage() {
       if (!guestBookings && !hostBookings) return;
 
       const allBookings = [...(guestBookings || []), ...(hostBookings || [])];
-      const uniqueBookings = Array.from(new Map(allBookings.map(item => [item.id, item])).values());
+      const uniqueBookingsMap = new Map(allBookings.map(item => [item.id, item]));
       
       const unsubscribes: Unsubscribe[] = [];
 
-      uniqueBookings.forEach(booking => {
+      uniqueBookingsMap.forEach(booking => {
           if (!user || !firestore) return;
           const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
           const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
@@ -274,10 +274,10 @@ export default function MessagesPage() {
           unsubscribes.push(unsubLastMsg, unsubUnread);
       });
       
-      // Initial state for bookings without messages
+      // Set initial state for any new bookings that might not have messages yet
       setConversations(prev => {
         const newConversations = new Map(prev);
-        uniqueBookings.forEach(booking => {
+        uniqueBookingsMap.forEach(booking => {
             if (!newConversations.has(booking.id)) {
                 newConversations.set(booking.id, {
                     ...booking,
