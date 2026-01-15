@@ -37,11 +37,9 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      // Any signed-in user can check their own admin role document.
-      // Removed the circular isAdmin() check.
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId); // Allow users to check their own admin status without being an admin.
       allow list: if isAdmin();
-      allow create, update, delete: if false; // Only allow creation through server-side logic
+      allow create, update, delete: if false; // Server-side only
     }
 
     match /listings/{listingId} {
@@ -61,6 +59,7 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
       allow list: if isAdmin() || 
+                   (isSignedIn() && request.query.filters[0][0].fieldPath == "listingId") || // Allow listing by property to check dates
                    (isSignedIn() && request.query.filters[0][0].fieldPath == "guestId" && request.query.filters[0][1] == "==" && request.query.filters[0][2] == request.auth.uid) ||
                    (isSignedIn() && request.query.filters[0][0].fieldPath == "hostId" && request.query.filters[0][1] == "==" && request.query.filters[0][2] == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
