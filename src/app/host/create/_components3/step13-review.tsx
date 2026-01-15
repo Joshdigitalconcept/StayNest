@@ -23,15 +23,24 @@ interface Step13Props {
 async function uploadImage(imageFile: File): Promise<string | null> {
   const formData = new FormData();
   formData.append('image', imageFile);
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+
+  if (!apiKey) {
+    console.error("Image upload failed: API key is missing.");
+    return null;
+  }
 
   try {
-    const response = await fetch(`https://i.ibb.co/`, { // Changed to keyless endpoint
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
       body: formData,
     });
     const result = await response.json();
-    if (result.success) return result.data.url;
-    else throw new Error(result.error.message || 'Image upload failed');
+    if (result.success) {
+      return result.data.url;
+    } else {
+      throw new Error(result.error.message || 'Image upload failed');
+    }
   } catch (error) {
     console.error("Image upload failed:", error);
     return null;
@@ -60,10 +69,13 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
     
     const successfulUrls = uploadedImageUrls.filter((url): url is string => url !== null);
 
-    if (successfulUrls.length !== formData.images.length) {
-        toast({ variant: 'destructive', title: 'Some images failed to upload. Please try again.'});
+    if (successfulUrls.length === 0) {
+        toast({ variant: 'destructive', title: 'Image upload failed. Please try again.'});
         setIsPublishing(false);
         return;
+    }
+    if (successfulUrls.length < formData.images.length) {
+        toast({ variant: 'destructive', title: 'Some images failed to upload. Please try again.'});
     }
 
     // 2. Prepare listing data
