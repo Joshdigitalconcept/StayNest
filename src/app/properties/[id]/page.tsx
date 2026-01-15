@@ -294,12 +294,8 @@ function PropertyDetails({ property }: { property: Property }) {
   const [guests, setGuests] = React.useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
 
-  const bookingsQuery = useMemoFirebase(
-    () => (firestore && property) ? query(collection(firestore, 'bookings'), where('listingId', '==', property.id), where('status', '==', 'confirmed')) : null,
-    [firestore, property]
-  );
-  const { data: bookings } = useCollection<Booking>(bookingsQuery);
-  
+  const disabledDates = [{ before: new Date() }];
+
   const handleDayClick = (day: Date, modifiers: any) => {
     if (modifiers.disabled) {
       toast({
@@ -310,23 +306,6 @@ function PropertyDetails({ property }: { property: Property }) {
     }
   };
 
-
-  const disabledDates = React.useMemo(() => {
-    const dates: (Date | { from: Date; to: Date })[] = [{ before: new Date() }];
-    if (bookings) {
-      bookings.forEach(booking => {
-        if (booking.checkInDate && booking.checkOutDate) {
-          dates.push({
-            from: booking.checkInDate.toDate(),
-            to: booking.checkOutDate.toDate()
-          });
-        }
-      });
-    }
-    return dates;
-  }, [bookings]);
-
-
   const userFavoritesQuery = useMemoFirebase(
     () => (user && firestore) ? collection(firestore, `users/${user.uid}/favorites`) : null,
     [user, firestore]
@@ -334,12 +313,7 @@ function PropertyDetails({ property }: { property: Property }) {
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property.id]);
   const isOwner = user?.uid === property.ownerId;
-  const userBooking = React.useMemo(() => {
-    if (!user || !bookings) return null;
-    return bookings.find(b => b.guestId === user.uid);
-  }, [user, bookings]);
-
-
+  
   const { subtotal, duration, dayPrice } = React.useMemo(() => {
     if (!date?.from) {
       const today = new Date();
@@ -437,15 +411,6 @@ function PropertyDetails({ property }: { property: Property }) {
         description: "Please select a valid date range for your stay.",
       });
       return;
-    }
-    
-     if (userBooking) {
-        toast({
-            variant: "destructive",
-            title: "Overlapping Reservation",
-            description: "You already have a reservation for these dates.",
-        });
-        return;
     }
 
     const checkin = format(date.from, 'yyyy-MM-dd');
@@ -675,17 +640,9 @@ function PropertyDetails({ property }: { property: Property }) {
                     </PopoverContent>
                   </Popover>
 
-                  {userBooking ? (
-                     <Button className="w-full" asChild>
-                        <Link href={`/messages?bookingId=${userBooking.id}`}>
-                           <MessageSquare className="mr-2 h-4 w-4" /> Contact Host
-                        </Link>
-                     </Button>
-                  ) : (
-                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
+                  <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
                       Reserve
                   </Button>
-                  )}
                    <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
 
                   {duration > 0 && (
