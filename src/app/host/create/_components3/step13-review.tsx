@@ -23,12 +23,7 @@ interface Step13Props {
 async function uploadImage(imageFile: File): Promise<string | null> {
   const formData = new FormData();
   formData.append('image', imageFile);
-  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
-
-  if (!apiKey) {
-    console.error("Image upload failed: API key is missing.");
-    return null;
-  }
+  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9'; // Hardcoded public key
 
   try {
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {

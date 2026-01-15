@@ -129,8 +129,9 @@ export default function EditProfilePage() {
   async function uploadImage(image: File): Promise<string | null> {
     const formData = new FormData();
     formData.append('image', image);
+     const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9'; // Hardcoded public key
     try {
-      const response = await fetch(`https://i.ibb.co/`, { // Changed to keyless endpoint
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
         method: 'POST',
         body: formData,
       });
