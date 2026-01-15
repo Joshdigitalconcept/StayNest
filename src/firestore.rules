@@ -15,55 +15,37 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
-
     // -------------------------------------------------------------------------
     // Collection Rules
     // -------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
-      allow delete: if isOwner(userId) || isAdmin();
-
+      allow read, write: if isOwner(userId);
+      
       match /favorites/{listingId} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    match /roles_admin/{userId} {
-      allow get: if isOwner(userId); // Allow users to check their own admin status without being an admin.
-      allow list: if isAdmin();
-      allow create, update, delete: if false; // Server-side only
-    }
-
     match /listings/{listingId} {
       allow read: if true;
-      allow list: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-      allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
       
       match /reviews/{reviewId} {
-        allow get, list: if true;
+        allow read: if true;
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       }
     }
     
     match /bookings/{bookingId} {
-      allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      allow list: if isAdmin() || 
-                   (isSignedIn() && request.query.filters[0][0].fieldPath == "guestId" && request.query.filters[0][1] == "==" && request.query.filters[0][2] == request.auth.uid) ||
-                   (isSignedIn() && request.query.filters[0][0].fieldPath == "hostId" && request.query.filters[0][1] == "==" && request.query.filters[0][2] == request.auth.uid);
+      allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid);
+      // This rule allows a user to list bookings only if they are querying by their own guestId or hostId.
+      allow list: if isSignedIn() && (request.query.get('guestId') == request.auth.uid || request.query.get('hostId') == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
-      allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid);
+      allow delete: if isSignedIn() && resource.data.guestId == request.auth.uid;
 
        match /messages/{messageId} {
          allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId == request.auth.uid || get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId == request.auth.uid);
