@@ -37,7 +37,7 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      allow get: if isOwner(userId); // Allow users to check their own admin status without being an admin.
+      allow get: if isOwner(userId); // Allow users to check their own admin status.
       allow list: if isAdmin();
       allow create, update, delete: if false; // Server-side only
     }
