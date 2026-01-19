@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -6,8 +7,6 @@ import { doc } from 'firebase/firestore';
 import { Loader2, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Sidebar from './components/sidebar';
-import { cn } from '@/lib/utils';
-
 
 export default function AdminLayout({
   children,
