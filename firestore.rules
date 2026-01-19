@@ -19,18 +19,6 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
-    // Allows a user to check their own bookings via guestId or hostId in the query
-    function isQueryingOwnBookings() {
-      return (request.query.get("guestId") == request.auth.uid || request.query.get("hostId") == request.auth.uid);
-    }
-    
-    // Allows anyone to check for confirmed bookings on a specific listing to disable calendar dates.
-    // This is safe as it doesn't reveal private user info.
-    function isQueryingConfirmedListingBookings() {
-        return request.query.get("status") == "confirmed" && request.query.keys().hasAll(["listingId", "status"]);
-    }
-
-
     // -------------------------------------------------------------------------
     // Collection Rules
     // -------------------------------------------------------------------------
@@ -69,7 +57,9 @@ service cloud.firestore {
     
     match /bookings/{bookingId} {
       allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      allow list: if isAdmin() || (isSignedIn() && isQueryingOwnBookings()) || isQueryingConfirmedListingBookings();
+      // A user can list their own bookings as a guest. Admins can list all bookings.
+      // Host-side reservation listing is handled by a separate, secure query.
+      allow list: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.guestId);
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
