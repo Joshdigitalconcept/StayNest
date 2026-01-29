@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -140,7 +139,7 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
           <div className="md:w-1/2 space-y-2">
             <h3 className="text-2xl font-semibold">{formData.title || 'Your Listing Title'}</h3>
             <p className="text-muted-foreground">{formData.location || 'Your Location'}</p>
-            <p className="font-bold text-xl">${formData.pricePerNight || 0} / night</p>
+            <p className="font-bold text-xl">₦{formData.pricePerNight?.toLocaleString() || 0} / night</p>
           </div>
         </div>
         <Button onClick={handlePublish} className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" disabled={isPublishing}>

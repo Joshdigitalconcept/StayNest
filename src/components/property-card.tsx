@@ -154,7 +154,7 @@ export default function PropertyCard({ property, showAdminControls = false }: Pr
           <h3 className="font-semibold text-lg truncate">{property.title}</h3>
           <p className="text-muted-foreground text-sm truncate">{property.location}</p>
           <div className="mt-2 flex items-baseline">
-            <p className="font-bold text-lg">${property.pricePerNight}</p>
+            <p className="font-bold text-lg">₦{property.pricePerNight?.toLocaleString()}</p>
             <span className="text-muted-foreground text-sm ml-1">/ night</span>
           </div>
         </CardContent>

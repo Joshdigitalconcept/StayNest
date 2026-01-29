@@ -115,7 +115,7 @@ export default function AdminBookingsPage() {
                         <span>{format(booking.checkInDate.toDate(), 'MMM d')} - {format(booking.checkOutDate.toDate(), 'MMM d, yyyy')}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold">${booking.totalPrice}</TableCell>
+                    <TableCell className="font-semibold">₦{booking.totalPrice?.toLocaleString()}</TableCell>
                     <TableCell>{getStatusBadge(booking.status)}</TableCell>
                     <TableCell className="text-sm">
                       {booking.createdAt ? format(booking.createdAt.toDate(), 'MMM d') : 'N/A'}

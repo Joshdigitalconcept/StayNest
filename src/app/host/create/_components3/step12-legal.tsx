@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useEffect } from "react";
 
 interface Step12Props {
   setFormData: (data: any) => void;
@@ -10,6 +11,18 @@ interface Step12Props {
 }
 
 export default function Step12_Legal({ setFormData, formData }: Step12Props) {
+  // Default country to Nigeria
+  useEffect(() => {
+    if (!formData.residentialAddress?.country) {
+      setFormData({
+        residentialAddress: {
+          ...formData.residentialAddress,
+          country: 'Nigeria'
+        }
+      });
+    }
+  }, []);
+
   const handleAddressChange = (key: string, value: string) => {
     setFormData({
       residentialAddress: {
@@ -28,12 +41,16 @@ export default function Step12_Legal({ setFormData, formData }: Step12Props) {
         <div>
           <h3 className="text-xl font-semibold mb-4">What’s your residential address?</h3>
           <div className="space-y-4">
-            <Input placeholder="Country / Region" value={formData.residentialAddress?.country || ''} onChange={(e) => handleAddressChange('country', e.target.value)} />
+            <Input 
+              placeholder="Country" 
+              value={formData.residentialAddress?.country || 'Nigeria'} 
+              onChange={(e) => handleAddressChange('country', e.target.value)} 
+            />
             <Input placeholder="Street address" value={formData.residentialAddress?.street || ''} onChange={(e) => handleAddressChange('street', e.target.value)} />
             <Input placeholder="Apt, floor, bldg (if applicable)" value={formData.residentialAddress?.apt || ''} onChange={(e) => handleAddressChange('apt', e.target.value)} />
             <div className="grid grid-cols-2 gap-4">
               <Input placeholder="City / town / village" value={formData.residentialAddress?.city || ''} onChange={(e) => handleAddressChange('city', e.target.value)} />
-              <Input placeholder="Province / state" value={formData.residentialAddress?.state || ''} onChange={(e) => handleAddressChange('state', e.target.value)} />
+              <Input placeholder="State" value={formData.residentialAddress?.state || ''} onChange={(e) => handleAddressChange('state', e.target.value)} />
             </div>
             <Input placeholder="Postal code (if applicable)" value={formData.residentialAddress?.postalCode || ''} onChange={(e) => handleAddressChange('postalCode', e.target.value)} />
           </div>
@@ -41,7 +58,7 @@ export default function Step12_Legal({ setFormData, formData }: Step12Props) {
 
         <div>
           <h3 className="text-xl font-semibold mb-4">Are you hosting as a business?</h3>
-          <p className="text-sm text-muted-foreground mb-4">This means your business is most likely registered with your state or government.</p>
+          <p className="text-sm text-muted-foreground mb-4">This means your business is most likely registered with the Corporate Affairs Commission (CAC) or government.</p>
           <RadioGroup
             value={formData.hostingAsBusiness}
             onValueChange={(value) => setFormData({ hostingAsBusiness: value })}

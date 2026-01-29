@@ -125,7 +125,7 @@ export default function AdminListingsPage() {
                         <p className="text-xs text-muted-foreground font-mono">{listing.ownerId.slice(0, 8)}...</p>
                       </div>
                     </TableCell>
-                    <TableCell>${listing.pricePerNight}/nt</TableCell>
+                    <TableCell>₦{listing.pricePerNight?.toLocaleString()}/nt</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Badge variant="outline">{listing.rating.toFixed(1)} ★</Badge>

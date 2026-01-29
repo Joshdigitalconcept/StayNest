@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -189,21 +188,21 @@ export default function BookPage() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Price details</h3>
             <div className="flex justify-between text-muted-foreground">
-              <span>${(property.pricePerNight || 0).toFixed(2)} x {duration} nights</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>₦{(property.pricePerNight || 0).toLocaleString()} x {duration} nights</span>
+              <span>₦{subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Cleaning fee</span>
-              <span>${(property.cleaningFee || 0).toFixed(2)}</span>
+              <span>₦{(property.cleaningFee || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>StayNest service fee</span>
-              <span>${(property.serviceFee || 0).toFixed(2)}</span>
+              <span>₦{(property.serviceFee || 0).toLocaleString()}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-bold text-lg">
-              <span>Total (USD)</span>
-              <span>${totalPrice.toFixed(2)}</span>
+              <span>Total (NGN)</span>
+              <span>₦{totalPrice.toLocaleString()}</span>
             </div>
           </div>
 

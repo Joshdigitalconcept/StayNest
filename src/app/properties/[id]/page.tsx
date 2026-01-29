@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import Image from "next/image";
@@ -567,12 +565,12 @@ function PropertyDetails({ property }: { property: Property }) {
                   <CardTitle className="text-2xl">
                      {duration > 0 ? (
                         <>
-                          <span className="font-bold">${totalPrice.toFixed(0)}</span>
+                          <span className="font-bold">₦{totalPrice.toLocaleString()}</span>
                           <span className="ml-1 text-base font-normal text-muted-foreground"> for {duration} night{duration !== 1 ? 's' : ''}</span>
                         </>
                       ) : (
                         <>
-                          <span className="font-bold">${dayPrice.toFixed(0)}</span>
+                          <span className="font-bold">₦{dayPrice.toLocaleString()}</span>
                           <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
                         </>
                       )}
@@ -648,21 +646,21 @@ function PropertyDetails({ property }: { property: Property }) {
                   {duration > 0 && (
                       <div className="space-y-2 text-sm pt-4">
                       <div className="flex justify-between">
-                          <span className="underline">${dayPrice.toFixed(0)} x {duration} nights</span>
-                          <span>${subtotal.toFixed(2)}</span>
+                          <span className="underline">₦{dayPrice.toLocaleString()} x {duration} nights</span>
+                          <span>₦{subtotal.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                           <span className="underline">Cleaning fee</span>
-                          <span>${cleaningFee.toFixed(2)}</span>
+                          <span>₦{cleaningFee.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                           <span className="underline">Service fee</span>
-                          <span>${serviceFee.toFixed(2)}</span>
+                          <span>₦{serviceFee.toLocaleString()}</span>
                       </div>
                       <Separator className="my-2" />
                       <div className="flex justify-between font-bold text-base">
                           <span>Total</span>
-                          <span>${totalPrice.toFixed(2)}</span>
+                          <span>₦{totalPrice.toLocaleString()}</span>
                       </div>
                       </div>
                   )}

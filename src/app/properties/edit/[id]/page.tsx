@@ -198,7 +198,7 @@ export default function EditPropertyPage() {
             <CardHeader>
             <CardTitle className="text-3xl font-headline">Edit Listing</CardTitle>
             <CardDescription>
-                Update the details for your property. Changes will be live immediately.
+                Update the details for your property. Prices are in ₦ (Naira).
             </CardDescription>
             </CardHeader>
             <CardContent>
@@ -261,7 +261,7 @@ export default function EditPropertyPage() {
                         <FormItem>
                             <FormLabel>Location</FormLabel>
                             <FormControl>
-                            <Input placeholder="e.g., Asheville, North Carolina" {...field} disabled={isSubmitting} />
+                            <Input placeholder="e.g., Lekki, Lagos" {...field} disabled={isSubmitting} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -416,12 +416,12 @@ export default function EditPropertyPage() {
 
                 {/* --- PRICING SECTION --- */}
                 <div className="space-y-8">
-                     <h3 className="text-xl font-semibold">Pricing</h3>
+                     <h3 className="text-xl font-semibold">Pricing (₦)</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <FormField control={form.control} name="pricePerNight" render={({ field }) => (<FormItem><FormLabel>Price per night ($)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="weekendPrice" render={({ field }) => (<FormItem><FormLabel>Weekend price ($)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>Optional price for Fri/Sat.</FormDescription><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="cleaningFee" render={({ field }) => (<FormItem><FormLabel>Cleaning Fee ($)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="serviceFee" render={({ field }) => (<FormItem><FormLabel>Service Fee ($)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="pricePerNight" render={({ field }) => (<FormItem><FormLabel>Price per night (₦)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="weekendPrice" render={({ field }) => (<FormItem><FormLabel>Weekend price (₦)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormDescription>Optional price for Fri/Sat.</FormDescription><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="cleaningFee" render={({ field }) => (<FormItem><FormLabel>Cleaning Fee (₦)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="serviceFee" render={({ field }) => (<FormItem><FormLabel>Service Fee (₦)</FormLabel><FormControl><Input type="number" {...field} disabled={isSubmitting} /></FormControl><FormMessage /></FormItem>)} />
                      </div>
                 </div>
 

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -260,7 +259,7 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                   <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
-                                  <span className="font-semibold">${booking.totalPrice}</span>
+                                  <span className="font-semibold">₦{booking.totalPrice?.toLocaleString()}</span>
                                 </div>
                               </div>
                           </Link>
@@ -330,7 +329,7 @@ export default function ProfilePage() {
                                     <p className="text-sm text-muted-foreground">
                                     {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
                                     </p>
-                                    <p className="text-sm">Total: <span className="font-bold">${booking.totalPrice}</span></p>
+                                    <p className="text-sm">Total: <span className="font-bold">₦{booking.totalPrice?.toLocaleString()}</span></p>
                                 </div>
                                 <div className="flex flex-col items-stretch gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                 {booking.status === 'pending' ? (

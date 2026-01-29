@@ -15,11 +15,12 @@ export default function Step3_Location({ setFormData, formData }: Step3Props) {
 
       <Input
         type="text"
-        placeholder="Enter your city, state, or region"
+        placeholder="e.g. Lagos, Abuja, Port Harcourt, or Ibadan"
         value={formData.location || ''}
         onChange={(e) => setFormData({ location: e.target.value })}
         className="text-lg p-6"
       />
+      <p className="text-sm text-muted-foreground mt-4 italic">Currently optimized for stays within Nigeria.</p>
     </div>
   );
 }
