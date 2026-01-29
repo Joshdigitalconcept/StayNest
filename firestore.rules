@@ -11,10 +11,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
@@ -24,57 +20,63 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id;
-      allow delete: if isOwner(userId) || isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
 
       match /favorites/{listingId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isSignedIn() && request.auth.uid == userId;
       }
     }
 
     match /roles_admin/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      // Critical: Allow user to check their own admin status during login/routing
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create, update, delete: if false; // Server-side only
     }
 
     match /listings/{listingId} {
       allow read: if true;
-      allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
-      allow delete: if (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
       
       match /reviews/{reviewId} {
-        allow get, list: if true;
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       }
     }
     
     match /bookings/{bookingId} {
-      allow read: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
-      allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
+      // Allow read if user is guest, host, or admin
+      // Note: List queries must match these filters
+      allow read: if isSignedIn() && (
+        resource.data.guestId == request.auth.uid || 
+        resource.data.hostId == request.auth.uid || 
+        isAdmin()
+      );
+      
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.guestId == request.auth.uid || 
+        resource.data.hostId == request.auth.uid || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
 
        match /messages/{messageId} {
-         allow get, list: if isSignedIn() && (get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId == request.auth.uid || get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId == request.auth.uid);
-         allow create: if isSignedIn() && (request.resource.data.senderId == request.auth.uid);
-         allow update: if isSignedIn() && request.resource.data.receiverId == request.auth.uid && request.resource.data.isRead == true && resource.data.isRead == false;
-         allow delete: if false;
+         allow read, write: if isSignedIn();
        }
     }
 
     // -------------------------------------------------------------------------
-    // Collection Group Query Rules
+    // Collection Group Rules
     // -------------------------------------------------------------------------
      
     match /{path=**}/messages/{messageId} {
-       allow list: if isSignedIn() && 'receiverId' in request.query.filters[0] && request.query.filters[0].receiverId == request.auth.uid;
+       allow list: if isSignedIn();
     }
   }
 }

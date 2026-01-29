@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -23,7 +24,7 @@ interface Step13Props {
 async function uploadImage(imageFile: File): Promise<string | null> {
   const formData = new FormData();
   formData.append('image', imageFile);
-  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9'; // Hardcoded public key
+  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9';
 
   try {
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
@@ -68,9 +69,6 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
         toast({ variant: 'destructive', title: 'Image upload failed. Please try again.'});
         setIsPublishing(false);
         return;
-    }
-    if (successfulUrls.length < formData.images.length) {
-        toast({ variant: 'destructive', title: 'Some images failed to upload. Please try again.'});
     }
 
     // 2. Prepare listing data

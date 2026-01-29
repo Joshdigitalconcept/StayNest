@@ -1,23 +1,24 @@
+
 'use client';
 
+import * as React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
+import { Loader2, Search, Users, ArrowRight, MapPin, Home as HomeIcon, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card } from '@/components/ui/card';
-import { Search, Users, ArrowRight, Loader2, MapPin, Home as HomeIcon, Building } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import PropertyCard from '@/components/property-card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import Link from 'next/link';
-import { Label } from '@/components/ui/label';
-import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, orderBy, limit, doc } from 'firebase/firestore';
-import type { Property } from '@/lib/types';
-import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { propertyTypes } from '@/lib/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
-
+import type { Property } from '@/lib/types';
+import AdminDashboard from './admin/page';
 
 function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSelect: (query: string) => void }) {
     if (listings.length === 0) {
@@ -68,29 +69,13 @@ function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSel
     );
 }
 
-
-export default function Home() {
+function PublicLandingPage() {
   const heroImage = PlaceHolderImages.find(img => img.id === 'hero');
   const firestore = useFirestore();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = React.useState('');
   const [guests, setGuests] = React.useState(2);
-  
-  const { user, isUserLoading } = useUser();
-
-  // Admin Check
-  const adminRoleRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'roles_admin', user.uid) : null),
-    [user, firestore]
-  );
-  const { data: adminRole } = useDoc(adminRoleRef);
-
-  React.useEffect(() => {
-    if (adminRole) {
-      router.push('/admin');
-    }
-  }, [adminRole, router]);
 
   const featuredListingsQuery = useMemoFirebase(
     () => firestore ? query(collection(firestore, 'listings'), orderBy('createdAt', 'desc'), limit(8)) : null,
@@ -126,16 +111,7 @@ export default function Home() {
     if (query) params.append('q', query);
     if (guests > 0) params.append('guests', guests.toString());
     router.push(`/search?${params.toString()}`);
-  }
-  
-  if (isUserLoading || adminRole) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-    );
-  }
-
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -257,4 +233,30 @@ export default function Home() {
       </footer>
     </div>
   );
+}
+
+export default function RootPage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+
+  const adminRoleRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'roles_admin', user.uid) : null),
+    [user, firestore]
+  );
+  const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
+
+  if (isUserLoading || isAdminRoleLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If user is an admin, show the dashboard logic directly at the root
+  if (adminRole) {
+    return <AdminDashboard />;
+  }
+
+  return <PublicLandingPage />;
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -14,9 +15,10 @@ import { collection, query } from 'firebase/firestore';
 export default function AdminDashboard() {
   const firestore = useFirestore();
 
-  const usersQuery = useMemoFirebase(() => query(collection(firestore, 'users')), [firestore]);
-  const listingsQuery = useMemoFirebase(() => query(collection(firestore, 'listings')), [firestore]);
-  const bookingsQuery = useMemoFirebase(() => query(collection(firestore, 'bookings')), [firestore]);
+  // Statistics queries - note: these will only succeed if firestore.rules allow unfiltered list for admins
+  const usersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users')) : null, [firestore]);
+  const listingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'listings')) : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bookings')) : null, [firestore]);
 
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
   const { data: listings, isLoading: listingsLoading } = useCollection(listingsQuery);
@@ -37,7 +39,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard Overview</h1>
+      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map(stat => (
           <Card key={stat.title}>

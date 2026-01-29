@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
-import { useEffect, useState, ReactNode } from 'react';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { collection, query, where, doc, updateDoc, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import PropertyCard from '@/components/property-card';
@@ -30,23 +30,6 @@ const badgeVariants: { [key: string]: 'default' | 'secondary' | 'destructive' } 
   declined: 'destructive',
 };
 
-const ProfileSection = ({ title, value, onEdit, icon }: { title: string, value?: string, onEdit: () => void, icon: ReactNode }) => (
-  <div>
-    <h3 className="text-lg font-semibold">{title}</h3>
-    {value ? (
-      <p className="text-muted-foreground">{value}</p>
-    ) : (
-      <div className="flex items-center justify-between mt-1">
-        <p className="text-sm text-muted-foreground">Tell us about yourself.</p>
-        <Button variant="ghost" size="sm" onClick={onEdit}>
-          <Edit className="h-4 w-4 mr-2" /> Add
-        </Button>
-      </div>
-    )}
-  </div>
-);
-
-
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const searchParams = useSearchParams();
@@ -61,6 +44,8 @@ export default function ProfilePage() {
   );
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userDocRef);
   
+  // Queries for current user data
+  // These queries are filtered by UID to match the simplified firestore.rules
   const userListingsQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'listings'), where('ownerId', '==', user.uid)) : null,
     [user, firestore]
@@ -79,8 +64,6 @@ export default function ProfilePage() {
   const { data: userProperties, isLoading: arePropertiesLoading } = useCollection<Property>(userListingsQuery);
   const { data: myBookings, isLoading: areMyBookingsLoading } = useCollection<Booking>(guestBookingsQuery);
   const { data: hostReservations, isLoading: areHostReservationsLoading } = useCollection<Booking>(hostReservationsQuery);
-
-  const areBookingsLoading = areMyBookingsLoading || areHostReservationsLoading;
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -151,7 +134,6 @@ export default function ProfilePage() {
           return;
         }
         
-        // If no conflict, proceed with confirmation
         await updateDoc(bookingRef, { status });
         const confirmationMessage = `Great news! Your booking for "${listingName}" from ${requestedDates} has been confirmed. I look forward to hosting you!`;
         await sendAutomatedMessage(bookingToUpdate, confirmationMessage);
@@ -162,7 +144,7 @@ export default function ProfilePage() {
         toast({ variant: "destructive", title: "Error", description: "Could not check for booking conflicts."});
         return;
       }
-    } else { // Handle 'declined' status
+    } else {
         await updateDoc(bookingRef, { status });
         const declineMessage = `Hi there, unfortunately I'm unable to accept your request to book "${listingName}" from ${requestedDates} at this time. I hope you can find another suitable stay.`;
         await sendAutomatedMessage(bookingToUpdate, declineMessage);
@@ -170,10 +152,6 @@ export default function ProfilePage() {
     }
   };
   
-  const handleEditRedirect = () => {
-    router.push('/profile/edit');
-  };
-
   const isLoading = isUserLoading || isProfileLoading;
 
   if (isLoading) {
@@ -254,7 +232,7 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
-                  <Button onClick={handleEditRedirect}>Edit details</Button>
+                  <Button asChild><Link href="/profile/edit">Edit details</Link></Button>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -270,11 +248,13 @@ export default function ProfilePage() {
                     myBookings && myBookings.length > 0 ? (
                       <div className="space-y-4">
                         {myBookings.map(booking => (
-                           <Link key={booking.id} href={`/properties/${booking.listing?.id || booking.listingId}`}>
+                           <Link key={booking.id} href={`/properties/${booking.listingId}`}>
                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg hover:bg-muted/50">
-                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
+                                <div className="relative h-32 w-full sm:w-32 rounded-md overflow-hidden bg-muted">
+                                  {booking.listing?.imageUrl && <Image src={booking.listing.imageUrl} alt="" fill className="object-cover"/>}
+                                </div>
                                 <div className="flex-1">
-                                  <h3 className="font-semibold">{booking.listing?.title}</h3>
+                                  <h3 className="font-semibold">{booking.listing?.title || 'Trip'}</h3>
                                   <p className="text-sm text-muted-foreground">{booking.listing?.location}</p>
                                   <p className="text-sm mt-1">{booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}</p>
                                 </div>
@@ -335,15 +315,17 @@ export default function ProfilePage() {
                         <div className="space-y-4">
                         {hostReservations.map(booking => (
                             <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg">
-                                <Image src={booking.listing?.imageUrl || ''} alt={booking.listing?.title || ''} width={128} height={128} className="rounded-md object-cover h-32 w-full sm:w-32"/>
+                                <div className="relative h-32 w-full sm:w-32 rounded-md overflow-hidden bg-muted">
+                                  {booking.listing?.imageUrl && <Image src={booking.listing.imageUrl} alt="" fill className="object-cover"/>}
+                                </div>
                                 <div className="flex-1 space-y-2">
-                                    <h3 className="font-semibold">{booking.listing?.title}</h3>
+                                    <h3 className="font-semibold">{booking.listing?.title || 'Booking'}</h3>
                                     <div className="flex items-center gap-2">
                                         <Avatar className="h-6 w-6">
                                             <AvatarImage src={booking.guest?.photoURL} />
                                             <AvatarFallback>{booking.guest?.name?.charAt(0)}</AvatarFallback>
                                         </Avatar>
-                                        <span className="text-sm font-medium">{booking.guest?.name}</span>
+                                        <span className="text-sm font-medium">{booking.guest?.name || 'Guest'}</span>
                                     </div>
                                     <p className="text-sm text-muted-foreground">
                                     {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
@@ -379,5 +361,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
