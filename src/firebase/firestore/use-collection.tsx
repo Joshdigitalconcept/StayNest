@@ -85,24 +85,12 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+            // Set the specific error from Firestore, not the contextual one, to be caught by boundaries
+            setError(err);
+            setData(null);
+            setIsLoading(false);
 
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        })
-        
-        // Set the specific error from Firestore, not the contextual one, to be caught by boundaries
-        setError(err);
-        setData(null);
-        setIsLoading(false);
-
-        // trigger global error propagation for developer overlay
-        errorEmitter.emit('permission-error', contextualError);
+            console.error(err);
       }
     );
 
