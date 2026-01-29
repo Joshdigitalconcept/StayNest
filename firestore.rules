@@ -56,10 +56,7 @@ service cloud.firestore {
     }
     
     match /bookings/{bookingId} {
-      allow get: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
-      // A user can list their own bookings as a guest. Admins can list all bookings.
-      // Host-side reservation listing is handled by a separate, secure query.
-      allow list: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.guestId);
+      allow read: if isSignedIn() && (resource.data.guestId == request.auth.uid || resource.data.hostId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid || isAdmin());
       allow delete: if isSignedIn() && (resource.data.guestId == request.auth.uid || isAdmin());
