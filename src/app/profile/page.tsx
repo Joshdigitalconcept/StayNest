@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint, Wallet, CheckCircle2, XCircle } from "lucide-react";
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { collection, query, where, doc, updateDoc, getDocs, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -44,7 +45,6 @@ export default function ProfilePage() {
   );
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userDocRef);
   
-  // Queries for current user data
   const userListingsQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'listings'), where('ownerId', '==', user.uid)) : null,
     [user, firestore]
@@ -94,8 +94,13 @@ export default function ProfilePage() {
     };
     try {
       await addDoc(messagesColRef, messageData);
-    } catch (error) {
-      console.error("Failed to send automated message:", error);
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: messagesColRef.path,
+        operation: 'create',
+        requestResourceData: messageData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
     }
   };
 
@@ -119,24 +124,15 @@ export default function ProfilePage() {
           const existingBooking = docSnap.data() as Booking;
           return areIntervalsOverlapping(
             { start: bookingToUpdate.checkInDate.toDate(), end: bookingToUpdate.checkOutDate.toDate() },
-            { start: existingBooking.checkInDate.toDate(), end: existingBooking.checkOutDate.toDate() },
-            { inclusive: false }
+            { start: existingBooking.checkInDate.toDate(), end: existingBooking.checkOutDate.toDate() }
           );
         });
         
         if (conflictingBookingDoc) {
-          const conflictingBooking = conflictingBookingDoc.data() as Booking;
           await updateDoc(bookingRef, { status: 'declined' });
-          
-          const conflictingDates = `${format(conflictingBooking.checkInDate.toDate(), 'MMM d, yyyy')} to ${format(conflictingBooking.checkOutDate.toDate(), 'MMM d, yyyy')}`;
-          const automatedMessage = `Hello, thank you for your booking request for "${listingName}" from ${requestedDates}. Unfortunately, these dates could not be confirmed because they conflict with an existing reservation for ${conflictingDates}. Please feel free to select other dates.`;
-          await sendAutomatedMessage(bookingToUpdate, automatedMessage);
-
-          toast({
-            variant: "destructive",
-            title: "Date Conflict",
-            description: "This request conflicts with a confirmed booking and has been automatically declined.",
-          });
+          const declineMessage = `Hello, your booking request for "${listingName}" was automatically declined because the dates now conflict with another confirmed reservation.`;
+          await sendAutomatedMessage(bookingToUpdate, declineMessage);
+          toast({ variant: "destructive", title: "Date Conflict", description: "Dates already booked." });
           return;
         }
         
@@ -145,16 +141,28 @@ export default function ProfilePage() {
         await sendAutomatedMessage(bookingToUpdate, confirmationMessage);
         toast({ title: "Booking Confirmed", description: "The guest has been notified." });
 
-      } catch (error) {
-        console.error("Error checking for booking conflicts:", error);
-        toast({ variant: "destructive", title: "Error", description: "Could not check for booking conflicts."});
-        return;
+      } catch (error: any) {
+        const permissionError = new FirestorePermissionError({
+          path: bookingRef.path,
+          operation: 'update',
+          requestResourceData: { status },
+        });
+        errorEmitter.emit('permission-error', permissionError);
       }
     } else {
-        await updateDoc(bookingRef, { status });
-        const declineMessage = `Hi there, unfortunately I'm unable to accept your request to book "${listingName}" from ${requestedDates} at this time. I hope you can find another suitable stay.`;
-        await sendAutomatedMessage(bookingToUpdate, declineMessage);
-        toast({ title: "Booking Declined", description: "The guest has been notified." });
+        try {
+          await updateDoc(bookingRef, { status });
+          const declineMessage = `Hi there, unfortunately I'm unable to accept your request to book "${listingName}" from ${requestedDates} at this time.`;
+          await sendAutomatedMessage(bookingToUpdate, declineMessage);
+          toast({ title: "Booking Declined" });
+        } catch (error: any) {
+          const permissionError = new FirestorePermissionError({
+            path: bookingRef.path,
+            operation: 'update',
+            requestResourceData: { status },
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        }
     }
   };
   

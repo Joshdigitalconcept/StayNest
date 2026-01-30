@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -19,22 +20,70 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDoc, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import type { User } from '@/lib/types';
-import { doc } from 'firebase/firestore';
-import { CreditCard, Landmark, Plus, Check } from 'lucide-react';
+import { doc, collection, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { CreditCard, Landmark, Plus, Check, Trash2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export function PaymentsPayoutsSection() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const [hasAddedCard, setHasAddedCard] = useState(false);
+  const { toast } = useToast();
+  const [isAdding, setIsAdding] = useState(false);
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(firestore, 'users', user.uid) : null),
     [user, firestore]
   );
   const { data: userProfile } = useDoc<User>(userProfileRef);
+
+  const paymentMethodsRef = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'payment_methods') : null),
+    [user, firestore]
+  );
+  const { data: paymentMethods, isLoading: isMethodsLoading } = useCollection(paymentMethodsRef);
+
+  const handleAddCard = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || !paymentMethodsRef) return;
+
+    setIsAdding(true);
+    const formData = new FormData(e.currentTarget);
+    const lastFour = formData.get('cardNumber')?.toString().slice(-4) || '4242';
+
+    const cardData = {
+      lastFour,
+      expiry: formData.get('expiry'),
+      type: 'visa',
+      createdAt: serverTimestamp(),
+    };
+
+    try {
+      await addDoc(paymentMethodsRef, cardData);
+      toast({ title: 'Success', description: 'Payment method saved.' });
+    } catch (error: any) {
+      const permissionError = new FirestorePermissionError({
+        path: paymentMethodsRef.path,
+        operation: 'create',
+        requestResourceData: cardData,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleDeleteMethod = async (id: string) => {
+    if (!user || !firestore) return;
+    try {
+      await deleteDoc(doc(firestore, 'users', user.uid, 'payment_methods', id));
+      toast({ title: 'Deleted', description: 'Payment method removed.' });
+    } catch (error: any) {
+      console.error(error);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -44,21 +93,27 @@ export function PaymentsPayoutsSection() {
           <CardDescription>Manage your saved payment methods for bookings.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {hasAddedCard ? (
-             <div className="flex items-center justify-between p-4 border rounded-lg bg-accent/10">
-                <div className="flex items-center gap-4">
+          {isMethodsLoading ? (
+            <Loader2 className="animate-spin h-6 w-6" />
+          ) : paymentMethods && paymentMethods.length > 0 ? (
+            <div className="space-y-3">
+              {paymentMethods.map((method) => (
+                <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg bg-accent/5">
+                  <div className="flex items-center gap-4">
                     <div className="bg-primary/20 p-2 rounded">
-                        <CreditCard className="h-6 w-6 text-primary" />
+                      <CreditCard className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                        <p className="font-semibold">•••• 4242</p>
-                        <p className="text-sm text-muted-foreground">Expires 12/26</p>
+                      <p className="font-semibold">•••• {method.lastFour}</p>
+                      <p className="text-sm text-muted-foreground">Expires {method.expiry}</p>
                     </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteMethod(method.id)}>
+                    <Trash2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
                 </div>
-                <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                    <Check className="h-4 w-4" /> Default
-                </div>
-             </div>
+              ))}
+            </div>
           ) : (
             <p className="text-sm text-muted-foreground mb-4">No payment methods saved.</p>
           )}
@@ -70,31 +125,36 @@ export function PaymentsPayoutsSection() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add Card</DialogTitle>
-                <DialogDescription>
-                  Enter your card details. This is a placeholder and does not process real payments.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="card-number">Card Number</Label>
-                  <Input id="card-number" placeholder="**** **** **** 4242" defaultValue="4242 4242 4242 4242" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleAddCard}>
+                <DialogHeader>
+                  <DialogTitle>Add Card</DialogTitle>
+                  <DialogDescription>
+                    Enter your card details to save for future reservations.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="card-number">Card Number</Label>
+                    <Input id="card-number" name="cardNumber" placeholder="4242 4242 4242 4242" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                        <Label htmlFor="expiry">Expiry</Label>
-                        <Input id="expiry" placeholder="MM/YY" defaultValue="12/26" />
+                      <Label htmlFor="expiry">Expiry</Label>
+                      <Input id="expiry" name="expiry" placeholder="MM/YY" required />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="cvc">CVC</Label>
-                        <Input id="cvc" placeholder="123" defaultValue="123" />
+                      <Label htmlFor="cvc">CVC</Label>
+                      <Input id="cvc" name="cvc" placeholder="123" required />
                     </div>
+                  </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" onClick={() => setHasAddedCard(true)}>Save Card</Button>
-              </DialogFooter>
+                <DialogFooter>
+                  <Button type="submit" disabled={isAdding}>
+                    {isAdding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Card
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </CardContent>

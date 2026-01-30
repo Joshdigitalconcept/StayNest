@@ -1,10 +1,11 @@
+
 'use client';
 
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
 import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { differenceInCalendarDays, format, isValid, parseISO, areIntervalsOverlapping } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +49,7 @@ export default function BookPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [paymentMethod, setPaymentMethod] = React.useState('card_1');
+  const [selectedPaymentId, setSelectedPaymentId] = React.useState<string | null>(null);
 
   // --- Data Fetching ---
   const propertyRef = useMemoFirebase(
@@ -57,11 +58,17 @@ export default function BookPage() {
   );
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
 
-  const userProfileRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'users', user.uid) : null),
+  const paymentMethodsRef = useMemoFirebase(
+    () => (user ? collection(firestore, 'users', user.uid, 'payment_methods') : null),
     [user, firestore]
   );
-  const { data: userProfile } = useDoc<UserType>(userProfileRef);
+  const { data: paymentMethods, isLoading: isMethodsLoading } = useCollection(paymentMethodsRef);
+
+  React.useEffect(() => {
+    if (paymentMethods && paymentMethods.length > 0 && !selectedPaymentId) {
+      setSelectedPaymentId(paymentMethods[0].id);
+    }
+  }, [paymentMethods, selectedPaymentId]);
   
   // --- URL Params ---
   const checkinStr = searchParams.get('checkin');
@@ -102,9 +109,14 @@ export default function BookPage() {
       toast({ variant: 'destructive', title: 'Missing Information', description: 'Cannot complete booking.' });
       return;
     }
+
+    if (!selectedPaymentId) {
+      toast({ variant: 'destructive', title: 'Payment Required', description: 'Please select a payment method.' });
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Final conflict check before adding document
     const bookingsColRef = collection(firestore, 'bookings');
     const existingBookingsQuery = query(
         bookingsColRef,
@@ -116,6 +128,7 @@ export default function BookPage() {
         const snapshot = await getDocs(existingBookingsQuery);
         const hasConflict = snapshot.docs.some(docSnap => {
             const booking = docSnap.data() as Booking;
+            // Use date-fns to check for overlap
             return areIntervalsOverlapping(
                 { start: checkinDate, end: checkoutDate },
                 { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() }
@@ -144,7 +157,7 @@ export default function BookPage() {
           guests: parseInt(guestsStr, 10),
           totalPrice,
           status: bookingStatus,
-          paymentMethodId: paymentMethod,
+          paymentMethodId: selectedPaymentId,
           createdAt: serverTimestamp(),
           listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
           guest: { name: user.displayName || user.email, photoURL: user.photoURL },
@@ -153,7 +166,6 @@ export default function BookPage() {
 
         const newBookingRef = await addDoc(bookingsColRef, bookingData);
         
-        // If approval is needed, notify guest they wait
         toast({
           title: isInstant ? 'Reservation Confirmed!' : 'Request Sent to Host!',
           description: isInstant
@@ -169,14 +181,12 @@ export default function BookPage() {
         requestResourceData: { listingId: property.id },
       });
       errorEmitter.emit('permission-error', permissionError);
-      toast({ variant: 'destructive', title: 'Booking Failed', description: 'Could not submit your reservation. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // --- Loading & Error States ---
-  if (isLoading) {
+  if (isLoading || isMethodsLoading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
   }
   if (!property || !isValidBooking) {
@@ -197,7 +207,6 @@ export default function BookPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
-        {/* Left Column: Details & Payment */}
         <div className="space-y-12">
           {!isInstant && (
             <div className="flex items-start gap-4 p-4 rounded-lg bg-blue-50 border border-blue-100 text-blue-800">
@@ -242,28 +251,32 @@ export default function BookPage() {
               </div>
             </div>
 
-            <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-                <div className="flex items-center gap-4">
-                  <RadioGroupItem value="card_1" id="card_1" />
-                  <Label htmlFor="card_1" className="flex items-center gap-3 cursor-pointer">
-                    <CreditCard className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">•••• 4242</p>
-                      <p className="text-xs text-muted-foreground">Expires 12/26</p>
+            {paymentMethods && paymentMethods.length > 0 ? (
+              <RadioGroup value={selectedPaymentId || ''} onValueChange={setSelectedPaymentId} className="space-y-4">
+                {paymentMethods.map((method) => (
+                  <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
+                    <div className="flex items-center gap-4">
+                      <RadioGroupItem value={method.id} id={method.id} />
+                      <Label htmlFor={method.id} className="flex items-center gap-3 cursor-pointer">
+                        <CreditCard className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">•••• {method.lastFour}</p>
+                          <p className="text-xs text-muted-foreground">Expires {method.expiry}</p>
+                        </div>
+                      </Label>
                     </div>
-                  </Label>
-                </div>
-                {paymentMethod === 'card_1' && <Check className="h-5 w-5 text-primary" />}
+                    {selectedPaymentId === method.id && <Check className="h-5 w-5 text-primary" />}
+                  </div>
+                ))}
+              </RadioGroup>
+            ) : (
+              <div className="p-6 border-2 border-dashed rounded-lg text-center space-y-4">
+                <p className="text-muted-foreground">You don't have any saved payment methods.</p>
+                <Button variant="outline" asChild>
+                  <Link href="/account?section=payments-payouts">Add a Card in Settings</Link>
+                </Button>
               </div>
-
-              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-                <div className="flex items-center gap-4">
-                  <RadioGroupItem value="card_new" id="card_new" />
-                  <Label htmlFor="card_new" className="font-medium cursor-pointer">Add a new credit or debit card</Label>
-                </div>
-              </div>
-            </RadioGroup>
+            )}
           </section>
 
           <Separator />
@@ -284,14 +297,13 @@ export default function BookPage() {
             <Button 
               className="w-full md:w-auto px-12 py-6 text-lg bg-pink-600 hover:bg-pink-700 text-white font-bold" 
               onClick={handleConfirmAndBook}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !selectedPaymentId}
             >
               {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Book' : 'Request to Book')}
             </Button>
           </section>
         </div>
 
-        {/* Right Column: Price Summary Card */}
         <div className="lg:block">
           <Card className="sticky top-24 border-muted shadow-sm">
             <CardContent className="p-6 space-y-6">

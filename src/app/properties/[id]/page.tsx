@@ -194,15 +194,13 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
         toast({ title: "Review submitted!" });
         setRating(0);
         setComment('');
-    } catch (error) {
+    } catch (error: any) {
         const permissionError = new FirestorePermissionError({
             path: reviewColRef.path,
             operation: 'create',
             requestResourceData: reviewData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: "destructive", title: "Error submitting review." });
-        console.error(error);
     } finally {
         setIsSubmitting(false);
     }
@@ -313,6 +311,7 @@ function PropertyDetails({ property }: { property: Property }) {
       confirmedBookings.forEach(booking => {
         const start = booking.checkInDate.toDate();
         const end = booking.checkOutDate.toDate();
+        // Add every single day in the interval to the disabled list
         const interval = eachDayOfInterval({ start, end });
         dates.push(...interval);
       });
@@ -339,7 +338,6 @@ function PropertyDetails({ property }: { property: Property }) {
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property.id]);
   
-  // Check if guest has booked this before
   const pastBookingsQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'bookings'), where('listingId', '==', property.id), where('guestId', '==', user.uid), where('status', '==', 'confirmed'), limit(1)) : null,
     [user, firestore, property.id]
@@ -351,11 +349,7 @@ function PropertyDetails({ property }: { property: Property }) {
   
   const { subtotal, duration, dayPrice } = React.useMemo(() => {
     if (!date?.from) {
-      const today = new Date();
-      const todayOfWeek = getDay(today);
-      const isWeekend = todayOfWeek === 5 || todayOfWeek === 6;
-      const price = isWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
-      return { subtotal: 0, duration: 0, dayPrice: price };
+      return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight };
     }
 
     if (!date.to) {
@@ -392,11 +386,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
   const handleFavoriteToggle = async () => {
     if (!user || !property || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "Please log in",
-        description: "You need to be logged in to favorite a listing.",
-      });
+      toast({ variant: "destructive", title: "Please log in" });
       router.push('/login');
       return;
     }
@@ -414,52 +404,36 @@ function PropertyDetails({ property }: { property: Property }) {
         });
         toast({ title: "Added to favorites!" });
       }
-    } catch (error) {
+    } catch (error: any) {
        const permissionError = new FirestorePermissionError({
           path: favoriteRef.path,
           operation: isFavorited ? 'delete' : 'create',
         });
         errorEmitter.emit('permission-error', permissionError);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-      });
     }
   };
 
   const handleReservation = () => {
     if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "Please log in to reserve a property.",
-      });
+      toast({ variant: "destructive", title: "Authentication Required" });
       router.push('/login');
       return;
     }
 
     if (!property || !date?.from || !date?.to || !duration || duration <= 0) {
-      toast({
-        variant: "destructive",
-        title: "Reservation Error",
-        description: "Please select a valid date range for your stay.",
-      });
+      toast({ variant: "destructive", title: "Please select valid dates." });
       return;
     }
 
-    // Final overlap check before redirect
     const hasConflict = confirmedBookings?.some(booking => {
-        return isWithinInterval(date.from!, { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() }) ||
-               isWithinInterval(date.to!, { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() });
+        return areIntervalsOverlapping(
+          { start: date.from!, end: date.to! },
+          { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() }
+        );
     });
 
     if (hasConflict) {
-        toast({
-            variant: "destructive",
-            title: "Dates Unavailable",
-            description: "Sorry, these dates were just booked by someone else.",
-        });
+        toast({ variant: "destructive", title: "Dates Unavailable", description: "Sorry, these dates were just booked." });
         return;
     }
 
