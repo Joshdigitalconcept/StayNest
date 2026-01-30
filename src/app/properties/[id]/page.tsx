@@ -25,6 +25,7 @@ import {
   Edit,
   ChevronDown,
   MessageSquare,
+  Repeat,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -299,7 +300,7 @@ function PropertyDetails({ property }: { property: Property }) {
       toast({
         variant: "destructive",
         title: "Date Unavailable",
-        description: "This date is already booked and confirmed.",
+        description: "This date is in the past.",
       });
     }
   };
@@ -310,6 +311,15 @@ function PropertyDetails({ property }: { property: Property }) {
   );
   const { data: favorites } = useCollection(userFavoritesQuery);
   const isFavorited = React.useMemo(() => favorites?.some(fav => fav.id === property.id), [favorites, property.id]);
+  
+  // Check if guest has booked this before
+  const pastBookingsQuery = useMemoFirebase(
+    () => (user && firestore) ? query(collection(firestore, 'bookings'), where('listingId', '==', property.id), where('guestId', '==', user.uid), where('status', '==', 'confirmed'), limit(1)) : null,
+    [user, firestore, property.id]
+  );
+  const { data: pastBookings } = useCollection(pastBookingsQuery);
+  const hasBookedBefore = pastBookings && pastBookings.length > 0;
+
   const isOwner = user?.uid === property.ownerId;
   
   const { subtotal, duration, dayPrice } = React.useMemo(() => {
@@ -427,11 +437,11 @@ function PropertyDetails({ property }: { property: Property }) {
       return null;
     }
     const who = property.whoElse.map(id => whoElseOptions.find(o => o.id === id)?.label).join(', ');
-    return <p className="flex items-center gap-2"><Users2 /> You may be sharing the space with: {who}</p>;
+    return <p className="flex items-center gap-2"><Users2 className="h-5 w-5" /> You may be sharing the space with: {who}</p>;
   };
 
   return (
-    <div className="container mx-auto py-8 lg:py-12">
+    <div className="container mx-auto py-8 lg:py-12 px-4">
       <div className="space-y-4 mb-8">
         <div className="flex justify-between items-start">
             <h1 className="text-3xl lg:text-4xl font-bold font-headline">
@@ -463,6 +473,15 @@ function PropertyDetails({ property }: { property: Property }) {
             <MapPin className="w-4 h-4" />
             <span>{property.location}</span>
           </div>
+          {hasBookedBefore && (
+            <>
+              <Separator orientation="vertical" className="h-4" />
+              <div className="flex items-center gap-1 text-green-600 font-medium">
+                <Repeat className="w-4 h-4" />
+                <span>You've stayed here before</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -530,12 +549,12 @@ function PropertyDetails({ property }: { property: Property }) {
           </div>
           
           <div className="border-b pb-6 space-y-4">
-              <p className="flex items-center gap-2"><Home /> {guestSpaceLabel}</p>
+              <p className="flex items-center gap-2 font-medium"><Home className="h-5 w-5" /> {guestSpaceLabel}</p>
               <WhoElseDisplay />
           </div>
 
           <div className="border-b pb-6">
-            <p className="text-foreground/90">{property.description}</p>
+            <p className="text-foreground/90 whitespace-pre-line leading-relaxed">{property.description}</p>
           </div>
 
           <div className="border-b pb-6">
@@ -545,7 +564,7 @@ function PropertyDetails({ property }: { property: Property }) {
                 const Icon = amenityIcons[amenity] || Plus;
                 return (
                   <div key={amenity} className="flex items-center gap-3">
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5 text-muted-foreground" />
                     <span>{amenity}</span>
                   </div>
                 );
@@ -560,7 +579,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
         {!isOwner && (
             <div className="lg:col-span-1">
-            <Card className="sticky top-24 shadow-lg">
+            <Card className="sticky top-24 shadow-lg border-muted">
                 <CardHeader>
                   <CardTitle className="text-2xl">
                      {duration > 0 ? (
@@ -582,15 +601,15 @@ function PropertyDetails({ property }: { property: Property }) {
                     <PopoverTrigger asChild>
                        <Button
                         variant={'outline'}
-                        className="w-full justify-start text-left font-normal h-auto"
+                        className="w-full justify-start text-left font-normal h-auto p-0 overflow-hidden"
                         >
                         <div className="grid grid-cols-2 w-full divide-x">
-                            <div className="p-2">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
+                            <div className="p-3 hover:bg-accent transition-colors">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
                                 <p className="text-sm font-medium">{date?.from ? format(date.from, 'dd/MM/yyyy') : 'Add date'}</p>
                             </div>
-                            <div className="p-2">
-                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
+                            <div className="p-3 hover:bg-accent transition-colors">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
                                 <p className="text-sm font-medium">{date?.to ? format(date.to, 'dd/MM/yyyy') : 'Add date'}</p>
                             </div>
                         </div>
@@ -617,34 +636,37 @@ function PropertyDetails({ property }: { property: Property }) {
                     <PopoverTrigger asChild>
                       <Button
                         variant={'outline'}
-                        className="w-full justify-between text-left font-normal"
+                        className="w-full justify-between text-left font-normal h-auto py-3 px-4"
                         >
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
                           <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
                         </div>
                         <ChevronDown className="h-4 w-4 text-muted-foreground"/>
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-2">
-                       <div className="flex items-center justify-between">
-                          <span className="font-medium">Guests</span>
-                          <div className="flex items-center gap-2">
+                    <PopoverContent className="w-full p-4">
+                       <div className="flex items-center justify-between gap-8">
+                          <div>
+                            <p className="font-bold">Guests</p>
+                            <p className="text-xs text-muted-foreground">Max {property.maxGuests}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
                             <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
-                            <span>{guests}</span>
+                            <span className="w-4 text-center font-medium">{guests}</span>
                             <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
                           </div>
                        </div>
                     </PopoverContent>
                   </Popover>
 
-                  <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
+                  <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
                       Reserve
                   </Button>
-                   <p className="text-center text-sm text-muted-foreground">You won't be charged yet</p>
+                   <p className="text-center text-xs text-muted-foreground">You won't be charged yet</p>
 
                   {duration > 0 && (
-                      <div className="space-y-2 text-sm pt-4">
+                      <div className="space-y-3 text-sm pt-4 border-t">
                       <div className="flex justify-between">
                           <span className="underline">₦{dayPrice.toLocaleString()} x {duration} nights</span>
                           <span>₦{subtotal.toLocaleString()}</span>
@@ -657,8 +679,8 @@ function PropertyDetails({ property }: { property: Property }) {
                           <span className="underline">Service fee</span>
                           <span>₦{serviceFee.toLocaleString()}</span>
                       </div>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between font-bold text-base">
+                      <Separator className="my-1" />
+                      <div className="flex justify-between font-bold text-lg">
                           <span>Total</span>
                           <span>₦{totalPrice.toLocaleString()}</span>
                       </div>

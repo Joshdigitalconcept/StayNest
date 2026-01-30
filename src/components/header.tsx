@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -6,9 +5,9 @@ import * as React from 'react';
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/user-nav";
 import { Logo } from "./logo";
-import { useUser, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import type { User } from '@/lib/types';
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import type { User, Property } from '@/lib/types';
+import { doc, setDoc, serverTimestamp, query, collection, where, limit } from "firebase/firestore";
 import { usePathname } from 'next/navigation';
 
 
@@ -22,6 +21,16 @@ export default function Header() {
     [user, firestore]
   );
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userProfileRef);
+
+  // Check if user has any listings to determine host status if isHost flag is missing
+  const userListingsQuery = useMemoFirebase(
+    () => (user && firestore) ? query(collection(firestore, 'listings'), where('ownerId', '==', user.uid), limit(1)) : null,
+    [user, firestore]
+  );
+  const { data: userListings } = useCollection<Property>(userListingsQuery);
+
+  const hasListings = userListings && userListings.length > 0;
+  const isHost = userProfile?.isHost || hasListings;
 
   React.useEffect(() => {
     if (user && !isProfileLoading && !userProfile) {
@@ -49,7 +58,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
+      <div className="container mx-auto flex h-16 items-center px-4">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Logo className="h-8 w-8" />
@@ -61,12 +70,12 @@ export default function Header() {
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
             {user && (
-                userProfile?.isHost ? (
-                    <Button variant="ghost" asChild>
+                isHost ? (
+                    <Button variant="ghost" asChild className="hidden sm:flex">
                         <Link href="/profile?tab=properties">My Listings</Link>
                     </Button>
                 ) : (
-                    <Button variant="ghost" asChild>
+                    <Button variant="ghost" asChild className="hidden sm:flex">
                         <Link href="/host/create">Become a Host</Link>
                     </Button>
                 )
