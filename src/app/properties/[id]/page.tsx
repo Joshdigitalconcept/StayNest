@@ -27,18 +27,19 @@ import {
   MessageSquare,
   Repeat,
   Calendar as CalendarIcon,
+  Info,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where, limit } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay, areIntervalsOverlapping } from "date-fns";
+import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay, areIntervalsOverlapping, isSameDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -46,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { propertyTypes, guestSpaces, whoElseOptions } from "@/lib/types";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 
 const MAX_RETRIES = 5;
@@ -291,6 +293,7 @@ function PropertyDetails({ property }: { property: Property }) {
   const [date, setDate] = React.useState<DateRange | undefined>(undefined);
   const [guests, setGuests] = React.useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
+  const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
 
   // Fetch all confirmed bookings for this listing to block out the calendar
   const confirmedBookingsQuery = useMemoFirebase(
@@ -320,6 +323,21 @@ function PropertyDetails({ property }: { property: Property }) {
   }, [confirmedBookings]);
 
   const handleDayClick = (day: Date, modifiers: any) => {
+    if (isOwner) {
+        // Find if this day belongs to a booking
+        const booking = confirmedBookings?.find(b => {
+            const start = b.checkInDate.toDate();
+            const end = b.checkOutDate.toDate();
+            return isWithinInterval(day, { start, end });
+        });
+        if (booking) {
+            setSelectedBooking(booking);
+        } else {
+            setSelectedBooking(null);
+        }
+        return;
+    }
+
     if (modifiers.disabled) {
       const isPast = day < startOfDay(new Date());
       toast({
@@ -592,119 +610,200 @@ function PropertyDetails({ property }: { property: Property }) {
           </div>
         </div>
 
-        {!isOwner && (
-            <div className="lg:col-span-1">
-            <Card className="sticky top-24 shadow-lg border-muted">
-                <CardHeader>
-                  <CardTitle className="text-2xl">
-                     {duration > 0 ? (
-                        <>
-                          <span className="font-bold">₦{totalPrice.toLocaleString()}</span>
-                          <span className="ml-1 text-base font-normal text-muted-foreground"> for {duration} night{duration !== 1 ? 's' : ''}</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-bold">₦{dayPrice.toLocaleString()}</span>
-                          <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
-                        </>
-                      )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  
-                 <Popover>
-                    <PopoverTrigger asChild>
-                       <Button
-                        variant={'outline'}
-                        className="w-full justify-start text-left font-normal h-auto p-0 overflow-hidden"
-                        >
-                        <div className="grid grid-cols-2 w-full divide-x">
-                            <div className="p-3 hover:bg-accent transition-colors">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
-                                <p className="text-sm font-medium">{date?.from ? format(date.from, 'dd/MM/yyyy') : 'Add date'}</p>
+        <div className="lg:col-span-1">
+            {isOwner ? (
+                <Card className="sticky top-24 shadow-lg border-primary/20 bg-primary/5">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <CalendarIcon className="h-5 w-5 text-primary" />
+                            Host Calendar View
+                        </CardTitle>
+                        <CardDescription>
+                            Review guest stays and manage availability.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="p-2 border rounded-lg bg-background">
+                            <TooltipProvider>
+                                <Calendar
+                                    mode="single"
+                                    onDayClick={handleDayClick}
+                                    className="p-0"
+                                    modifiers={{
+                                        booked: (day) => confirmedBookings?.some(b => 
+                                            isWithinInterval(day, { 
+                                                start: b.checkInDate.toDate(), 
+                                                end: b.checkOutDate.toDate() 
+                                            })
+                                        ) ?? false
+                                    }}
+                                    modifiersClassNames={{
+                                        booked: "bg-primary/20 text-primary font-bold rounded-full hover:bg-primary/30"
+                                    }}
+                                />
+                            </TooltipProvider>
+                        </div>
+
+                        {selectedBooking ? (
+                            <Card className="border-primary/20 animate-in fade-in slide-in-from-top-2">
+                                <CardContent className="p-4 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-bold text-sm text-primary uppercase">Booking Details</h4>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedBooking(null)}>
+                                            < ChevronDown className="h-4 w-4 rotate-180" />
+                                        </Button>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={selectedBooking.guest?.photoURL} />
+                                            <AvatarFallback>{selectedBooking.guest?.name?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="text-sm font-semibold">{selectedBooking.guest?.name || 'Guest'}</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
+                                                {selectedBooking.guests} Guest{selectedBooking.guests !== 1 ? 's' : ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground">Stay</span>
+                                            <span className="font-medium">
+                                                {format(selectedBooking.checkInDate.toDate(), 'MMM d')} - {format(selectedBooking.checkOutDate.toDate(), 'MMM d, yyyy')}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground">Payout</span>
+                                            <span className="font-bold text-primary">₦{selectedBooking.totalPrice?.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <Button variant="outline" className="w-full text-xs h-8" asChild>
+                                        <Link href="/messages">
+                                            <MessageSquare className="mr-2 h-3 w-3" /> Message Guest
+                                        </Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-center bg-background/50">
+                                <Info className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
+                                <p className="text-sm text-muted-foreground">Click a highlighted date to see guest details.</p>
                             </div>
-                            <div className="p-3 hover:bg-accent transition-colors">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
-                                <p className="text-sm font-medium">{date?.to ? format(date.to, 'dd/MM/yyyy') : 'Add date'}</p>
+                        )}
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card className="sticky top-24 shadow-lg border-muted">
+                    <CardHeader>
+                    <CardTitle className="text-2xl">
+                        {duration > 0 ? (
+                            <>
+                            <span className="font-bold">₦{totalPrice.toLocaleString()}</span>
+                            <span className="ml-1 text-base font-normal text-muted-foreground"> for {duration} night{duration !== 1 ? 's' : ''}</span>
+                            </>
+                        ) : (
+                            <>
+                            <span className="font-bold">₦{dayPrice.toLocaleString()}</span>
+                            <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
+                            </>
+                        )}
+                    </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                    
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={'outline'}
+                            className="w-full justify-start text-left font-normal h-auto p-0 overflow-hidden"
+                            >
+                            <div className="grid grid-cols-2 w-full divide-x">
+                                <div className="p-3 hover:bg-accent transition-colors">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
+                                    <p className="text-sm font-medium">{date?.from ? format(date.from, 'dd/MM/yyyy') : 'Add date'}</p>
+                                </div>
+                                <div className="p-3 hover:bg-accent transition-colors">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
+                                    <p className="text-sm font-medium">{date?.to ? format(date.to, 'dd/MM/yyyy') : 'Add date'}</p>
+                                </div>
+                            </div>
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <TooltipProvider>
+                            <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={1}
+                            disabled={disabledDates}
+                            showOutsideDays={false}
+                            onDayClick={handleDayClick}
+                            />
+                        </TooltipProvider>
+                        </PopoverContent>
+                    </Popover>
+
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            variant={'outline'}
+                            className="w-full justify-between text-left font-normal h-auto py-3 px-4"
+                            >
+                            <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
+                            <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                            </div>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground"/>
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-4">
+                        <div className="flex items-center justify-between gap-8">
+                            <div>
+                                <p className="font-bold">Guests</p>
+                                <p className="text-xs text-muted-foreground">Max {property.maxGuests}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
+                                <span className="w-4 text-center font-medium">{guests}</span>
+                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
                             </div>
                         </div>
-                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <TooltipProvider>
-                        <Calendar
-                          initialFocus
-                          mode="range"
-                          defaultMonth={date?.from}
-                          selected={date}
-                          onSelect={setDate}
-                          numberOfMonths={1}
-                          disabled={disabledDates}
-                          showOutsideDays={false}
-                          onDayClick={handleDayClick}
-                        />
-                      </TooltipProvider>
-                    </PopoverContent>
-                  </Popover>
+                        </PopoverContent>
+                    </Popover>
 
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={'outline'}
-                        className="w-full justify-between text-left font-normal h-auto py-3 px-4"
-                        >
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
-                          <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
+                        {property.bookingSettings === 'instant' ? 'Reserve' : 'Request to Book'}
+                    </Button>
+                    <p className="text-center text-xs text-muted-foreground">You won't be charged yet</p>
+
+                    {duration > 0 && (
+                        <div className="space-y-3 text-sm pt-4 border-t">
+                        <div className="flex justify-between">
+                            <span className="underline">₦{dayPrice.toLocaleString()} x {duration} nights</span>
+                            <span>₦{subtotal.toLocaleString()}</span>
                         </div>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground"/>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-4">
-                       <div className="flex items-center justify-between gap-8">
-                          <div>
-                            <p className="font-bold">Guests</p>
-                            <p className="text-xs text-muted-foreground">Max {property.maxGuests}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
-                            <span className="w-4 text-center font-medium">{guests}</span>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
-                          </div>
-                       </div>
-                    </PopoverContent>
-                  </Popover>
-
-                  <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
-                      {property.bookingSettings === 'instant' ? 'Reserve' : 'Request to Book'}
-                  </Button>
-                   <p className="text-center text-xs text-muted-foreground">You won't be charged yet</p>
-
-                  {duration > 0 && (
-                      <div className="space-y-3 text-sm pt-4 border-t">
-                      <div className="flex justify-between">
-                          <span className="underline">₦{dayPrice.toLocaleString()} x {duration} nights</span>
-                          <span>₦{subtotal.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                          <span className="underline">Cleaning fee</span>
-                          <span>₦{cleaningFee.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                          <span className="underline">Service fee</span>
-                          <span>₦{serviceFee.toLocaleString()}</span>
-                      </div>
-                      <Separator className="my-1" />
-                      <div className="flex justify-between font-bold text-lg">
-                          <span>Total</span>
-                          <span>₦{totalPrice.toLocaleString()}</span>
-                      </div>
-                      </div>
-                  )}
-                </CardContent>
-            </Card>
-            </div>
-        )}
+                        <div className="flex justify-between">
+                            <span className="underline">Cleaning fee</span>
+                            <span>₦{cleaningFee.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="underline">Service fee</span>
+                            <span>₦{serviceFee.toLocaleString()}</span>
+                        </div>
+                        <Separator className="my-1" />
+                        <div className="flex justify-between font-bold text-lg">
+                            <span>Total</span>
+                            <span>₦{totalPrice.toLocaleString()}</span>
+                        </div>
+                        </div>
+                    )}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
       </div>
     </div>
   );
