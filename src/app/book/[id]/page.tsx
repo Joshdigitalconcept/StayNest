@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -59,7 +58,7 @@ export default function BookPage() {
   const { data: property, isLoading } = useDoc<Property>(propertyRef);
 
   const paymentMethodsRef = useMemoFirebase(
-    () => (user ? collection(firestore, 'users', user.uid, 'payment_methods') : null),
+    () => (user && firestore ? collection(firestore, 'users', user.uid, 'payment_methods') : null),
     [user, firestore]
   );
   const { data: paymentMethods, isLoading: isMethodsLoading } = useCollection(paymentMethodsRef);
@@ -128,7 +127,6 @@ export default function BookPage() {
         const snapshot = await getDocs(existingBookingsQuery);
         const hasConflict = snapshot.docs.some(docSnap => {
             const booking = docSnap.data() as Booking;
-            // Use date-fns to check for overlap
             return areIntervalsOverlapping(
                 { start: checkinDate, end: checkoutDate },
                 { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() }
@@ -145,6 +143,7 @@ export default function BookPage() {
             return;
         }
 
+        // CRITICAL: Explicit status check
         const isInstant = property.bookingSettings === 'instant';
         const bookingStatus = isInstant ? 'confirmed' : 'pending';
 

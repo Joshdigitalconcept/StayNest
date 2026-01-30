@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -181,8 +180,8 @@ export default function ProfilePage() {
     );
   }
   
-  // A user is a host if they have the isHost flag OR they have properties listed.
-  const isHost = userProfile.isHost || (userProperties && userProperties.length > 0);
+  // Robust Host Dashboard Check: Show if flag is true OR user has active listings.
+  const isHost = userProfile.isHost === true || (userProperties && userProperties.length > 0);
 
   const profileDetails = [
     { title: "My work", value: userProfile.work, icon: <Briefcase className="w-5 h-5" /> },

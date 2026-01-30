@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useEffect } from "react";
 
 interface Step9Props {
   setFormData: (data: any) => void;
@@ -13,6 +14,16 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
   const bookingSettings = formData.bookingSettings;
   const firstGuestWelcome = formData.firstGuestWelcome;
 
+  // Set default to 'approval' if nothing is selected
+  useEffect(() => {
+    if (!bookingSettings) {
+      setFormData({ bookingSettings: 'approval' });
+    }
+    if (!firstGuestWelcome) {
+      setFormData({ firstGuestWelcome: 'any' });
+    }
+  }, [bookingSettings, firstGuestWelcome, setFormData]);
+
   return (
     <div>
       <h2 className="text-3xl font-bold mb-8">Choose your booking settings</h2>
@@ -21,7 +32,7 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
         <div>
           <h3 className="text-xl font-semibold mb-4">How you'll confirm bookings</h3>
           <RadioGroup
-            value={bookingSettings}
+            value={bookingSettings || 'approval'}
             onValueChange={(value) => setFormData({ bookingSettings: value })}
             className="space-y-4"
           >
@@ -53,7 +64,7 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
         <div>
           <h3 className="text-xl font-semibold mb-4">Who to welcome for your first reservation</h3>
           <RadioGroup
-            value={firstGuestWelcome}
+            value={firstGuestWelcome || 'any'}
             onValueChange={(value) => setFormData({ firstGuestWelcome: value })}
             className="space-y-4"
           >
