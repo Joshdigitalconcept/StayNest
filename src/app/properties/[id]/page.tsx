@@ -100,7 +100,7 @@ export default function PropertyPage() {
   if (!property) {
      return (
       <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin h-12 w-12" />
+        <Loader2 className="animate-spin h-12 w-12 text-primary" />
         <p className="ml-4 text-muted-foreground">Locating listing...</p>
       </div>
     );
@@ -136,7 +136,7 @@ function HostDetails({ property }: { property: Property }) {
         </div>
       </div>
        <Link href={`/users/${property.ownerId}`} className="cursor-pointer">
-        <Avatar className="h-16 w-16">
+        <Avatar className="h-16 w-16 border-2 border-muted hover:border-primary transition-colors">
           {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
           <AvatarFallback className="text-2xl">{hostAvatarFallback}</AvatarFallback>
         </Avatar>
@@ -215,34 +215,34 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
   return (
     <div>
       <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
-        <Star className="w-5 h-5" />
+        <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
         <span>Reviews ({reviews?.length || 0})</span>
       </h3>
       
       {user && (
-        <Card className="mb-8">
+        <Card className="mb-8 border-muted shadow-sm">
             <CardHeader>
-                <CardTitle>Leave a Review</CardTitle>
+                <CardTitle className="text-lg">Leave a Review</CardTitle>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                     <div>
-                        <span className="text-sm font-medium">Rating</span>
+                        <span className="text-sm font-medium text-muted-foreground">How was your stay?</span>
                         <div className="flex items-center gap-1 mt-2">
                             {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                     key={star}
-                                    className={`w-6 h-6 cursor-pointer ${rating >= star ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`}
+                                    className={`w-8 h-8 cursor-pointer transition-colors ${rating >= star ? 'text-amber-500 fill-amber-500' : 'text-muted hover:text-amber-200'}`}
                                     onClick={() => setRating(star)}
                                 />
                             ))}
                         </div>
                     </div>
                      <div>
-                        <label htmlFor="comment" className="text-sm font-medium">Comment</label>
-                        <Textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share your experience..." />
+                        <label htmlFor="comment" className="text-sm font-medium text-muted-foreground">Your Feedback</label>
+                        <Textarea id="comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Share details of your experience..." className="mt-1" />
                     </div>
-                    <Button type="submit" disabled={isSubmitting}>
+                    <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Submit Review
                     </Button>
@@ -251,34 +251,34 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
         </Card>
       )}
 
-      {isLoading && <Loader2 className="animate-spin" />}
+      {isLoading && <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>}
       {!isLoading && reviews && reviews.length > 0 ? (
-        <div className="space-y-6">
+        <div className="space-y-8 mt-8">
           {reviews.map(review => (
-            <div key={review.id} className="flex gap-4">
-                <Avatar>
+            <div key={review.id} className="flex gap-4 group">
+                <Avatar className="h-12 w-12 shrink-0">
                     <AvatarImage src={review.user?.photoURL || ''} alt={review.user?.name || ''} />
                     <AvatarFallback>{review.user?.name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
-                <div>
-                    <div className="flex items-center gap-2">
-                        <span className="font-semibold">{review.user?.name}</span>
+                <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                        <span className="font-bold">{review.user?.name}</span>
                         {review.createdAt && (
-                          <span className="text-xs text-muted-foreground">{format(review.createdAt.toDate(), 'PPP')}</span>
+                          <span className="text-xs text-muted-foreground">{format(review.createdAt.toDate(), 'MMM d, yyyy')}</span>
                         )}
                     </div>
                      <div className="flex items-center gap-0.5 mt-1">
                         {[1, 2, 3, 4, 5].map(star => (
-                           <Star key={star} className={`w-4 h-4 ${review.rating >= star ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
+                           <Star key={star} className={`w-3.5 h-3.5 ${review.rating >= star ? 'text-amber-500 fill-amber-500' : 'text-muted'}`} />
                         ))}
                     </div>
-                    <p className="mt-2 text-sm text-foreground/80">{review.comment}</p>
+                    <p className="mt-3 text-sm text-foreground/90 leading-relaxed italic">"{review.comment}"</p>
                 </div>
             </div>
           ))}
         </div>
       ) : (
-         !isLoading && <p className="text-muted-foreground">Be the first to review this listing!</p>
+         !isLoading && <p className="text-muted-foreground py-8 text-center border rounded-lg border-dashed">No reviews yet. Be the first to share your experience!</p>
       )}
     </div>
   );
@@ -305,7 +305,7 @@ function PropertyDetails({ property }: { property: Property }) {
     ) : null,
     [firestore, property.id]
   );
-  const { data: confirmedBookings } = useCollection<Booking>(confirmedBookingsQuery);
+  const { data: confirmedBookings, isLoading: isBookingsLoading } = useCollection<Booking>(confirmedBookingsQuery);
 
   const disabledDates = React.useMemo(() => {
     const dates: (Date | { before: Date })[] = [{ before: new Date() }];
@@ -460,6 +460,11 @@ function PropertyDetails({ property }: { property: Property }) {
       return;
     }
 
+    if (isBookingsLoading) {
+        toast({ title: "Checking availability...", description: "Please wait a moment." });
+        return;
+    }
+
     const hasConflict = confirmedBookings?.some(booking => {
         return areIntervalsOverlapping(
           { start: date.from!, end: date.to! },
@@ -468,7 +473,7 @@ function PropertyDetails({ property }: { property: Property }) {
     });
 
     if (hasConflict) {
-        toast({ variant: "destructive", title: "Dates Unavailable", description: "Sorry, these dates were just booked." });
+        toast({ variant: "destructive", title: "Dates No Longer Available", description: "Sorry, these dates were just confirmed by another guest." });
         return;
     }
 
@@ -488,48 +493,48 @@ function PropertyDetails({ property }: { property: Property }) {
       return null;
     }
     const who = property.whoElse.map(id => whoElseOptions.find(o => o.id === id)?.label).join(', ');
-    return <p className="flex items-center gap-2"><Users2 className="h-5 w-5" /> You may be sharing the space with: {who}</p>;
+    return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Users2 className="h-4 w-4" /> Shared with: {who}</p>;
   };
 
   return (
     <div className="container mx-auto py-8 lg:py-12 px-4">
       <div className="space-y-4 mb-8">
-        <div className="flex justify-between items-start">
-            <h1 className="text-3xl lg:text-4xl font-bold font-headline">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+            <h1 className="text-3xl lg:text-4xl font-bold font-headline leading-tight">
             {property.title}
             </h1>
-            <div className="flex gap-2">
+            <div className="flex gap-2 shrink-0">
                 {isOwner ? (
-                  <Button variant="outline" asChild>
+                  <Button variant="outline" asChild size="sm">
                     <Link href={`/properties/edit/${property.id}`}>
-                      <Edit className="mr-2 h-5 w-5" />
+                      <Edit className="mr-2 h-4 w-4" />
                       Edit Listing
                     </Link>
                   </Button>
                 ) : (
-                  <Button variant="outline" onClick={handleFavoriteToggle}>
-                    <Heart className={`mr-2 h-5 w-5 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+                  <Button variant="outline" onClick={handleFavoriteToggle} size="sm">
+                    <Heart className={`mr-2 h-4 w-4 ${isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
                     {isFavorited ? 'Favorited' : 'Favorite'}
                   </Button>
                 )}
             </div>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-            <span className="font-semibold text-foreground">{ratingDisplay}</span>
+            <span className="font-bold text-foreground">{ratingDisplay}</span>
           </div>
           <Separator orientation="vertical" className="h-4" />
           <div className="flex items-center gap-1">
             <MapPin className="w-4 h-4" />
-            <span>{property.location}</span>
+            <span className="font-medium text-foreground">{property.location}</span>
           </div>
           {hasBookedBefore && (
             <>
               <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-1 text-green-600 font-medium">
+              <div className="flex items-center gap-1 text-green-600 font-bold">
                 <Repeat className="w-4 h-4" />
-                <span>You've stayed here before</span>
+                <span>Returning Guest</span>
               </div>
             </>
           )}
@@ -537,22 +542,22 @@ function PropertyDetails({ property }: { property: Property }) {
       </div>
 
        <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => !open && setSelectedImageIndex(null)}>
-         <Carousel className="w-full mb-8">
-          <CarouselContent>
+         <Carousel className="w-full mb-8 group">
+          <CarouselContent className="-ml-2 md:-ml-4">
             {images.map((url, index) => (
-              <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+              <CarouselItem key={index} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
                  <DialogTrigger asChild onClick={() => setSelectedImageIndex(index)}>
-                 <div className="relative aspect-video group cursor-pointer">
+                 <div className="relative aspect-[4/3] cursor-pointer overflow-hidden rounded-xl border border-muted bg-muted shadow-sm transition-transform hover:scale-[1.02]">
                     <Image
                       src={url}
                       alt={`${property.title} image ${index + 1}`}
                       fill
-                      className="object-cover rounded-lg"
+                      className="object-cover"
                       priority={index === 0}
                     />
                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="bg-black/50 text-white p-2 rounded-full">
-                           <Expand className="w-5 h-5" />
+                        <div className="bg-black/60 text-white p-3 rounded-full backdrop-blur-sm">
+                           <Expand className="w-6 h-6" />
                         </div>
                     </div>
                  </div>
@@ -560,13 +565,13 @@ function PropertyDetails({ property }: { property: Property }) {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
-          <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+          <CarouselPrevious className="left-4 bg-background/80 hover:bg-background border-none opacity-0 group-hover:opacity-100 transition-opacity" />
+          <CarouselNext className="right-4 bg-background/80 hover:bg-background border-none opacity-0 group-hover:opacity-100 transition-opacity" />
         </Carousel>
-        <DialogContent className="max-w-4xl p-0 border-0">
+        <DialogContent className="max-w-5xl p-0 border-0 bg-black/95">
           <DialogHeader>
             <DialogTitle className="sr-only">
-              Full-size view of {property.title}
+              Gallery view of {property.title}
             </DialogTitle>
           </DialogHeader>
           {selectedImageIndex !== null && (
@@ -574,7 +579,7 @@ function PropertyDetails({ property }: { property: Property }) {
                 <CarouselContent>
                     {images.map((url, index) => (
                         <CarouselItem key={index}>
-                            <div className="relative w-full h-[80vh]">
+                            <div className="relative w-full h-[85vh] flex items-center justify-center p-4">
                                 <Image
                                     src={url}
                                     alt={`${property.title} image ${index + 1}`}
@@ -585,63 +590,83 @@ function PropertyDetails({ property }: { property: Property }) {
                         </CarouselItem>
                     ))}
                 </CarouselContent>
-                <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2" />
-                <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2" />
+                <CarouselPrevious className="left-8 scale-150" />
+                <CarouselNext className="right-8 scale-150" />
             </Carousel>
           )}
         </DialogContent>
       </Dialog>
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-        <div className="lg:col-span-2 space-y-8">
-          <div className="border-b pb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-10">
+          <div className="border-b border-muted pb-8">
             <HostDetails property={property} />
           </div>
           
-          <div className="border-b pb-6 space-y-4">
-              <p className="flex items-center gap-2 font-medium"><Home className="h-5 w-5" /> {guestSpaceLabel}</p>
-              <WhoElseDisplay />
+          <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                  <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                    <Home className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="font-bold text-lg">{guestSpaceLabel}</h3>
+                      <p className="text-muted-foreground text-sm">Guests have access to the defined space as per listing details.</p>
+                      <div className="mt-2">
+                        <WhoElseDisplay />
+                      </div>
+                  </div>
+              </div>
+              <div className="flex items-start gap-4">
+                  <div className="bg-accent/10 p-3 rounded-lg text-accent">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <div>
+                      <h3 className="font-bold text-lg">Unique Features</h3>
+                      <p className="text-muted-foreground text-sm">This property stands out for its specific architecture and hospitality style.</p>
+                  </div>
+              </div>
           </div>
 
-          <div className="border-b pb-6">
-            <p className="text-foreground/90 whitespace-pre-line leading-relaxed">{property.description}</p>
+          <div className="border-b border-muted pb-8">
+            <h3 className="text-2xl font-bold mb-4 font-headline">Description</h3>
+            <p className="text-foreground/80 whitespace-pre-line leading-relaxed text-lg">{property.description}</p>
           </div>
 
-          <div className="border-b pb-6">
-            <h3 className="text-xl font-semibold mb-4">What this place offers</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="border-b border-muted pb-8">
+            <h3 className="text-2xl font-bold mb-6 font-headline">What this place offers</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-12">
               {property.amenities && property.amenities.map((amenity) => {
                 const Icon = amenityIcons[amenity] || Plus;
                 return (
-                  <div key={amenity} className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 text-muted-foreground" />
-                    <span>{amenity}</span>
+                  <div key={amenity} className="flex items-center gap-4 group">
+                    <div className="text-muted-foreground group-hover:text-primary transition-colors">
+                        <Icon className="w-6 h-6" />
+                    </div>
+                    <span className="text-base font-medium">{amenity}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="border-b pb-6">
+          <div className="pb-8">
             <ReviewsSection propertyId={property.id} property={property} />
           </div>
         </div>
 
         <div className="lg:col-span-1">
             {isOwner ? (
-                <Card className="sticky top-24 shadow-lg border-primary/20 bg-primary/5">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <CalendarIcon className="h-5 w-5 text-primary" />
-                            Host Calendar View
+                <Card className="sticky top-24 shadow-xl border-primary/30 bg-primary/5 backdrop-blur-sm overflow-hidden">
+                    <div className="bg-primary px-6 py-4 text-primary-foreground">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <CalendarIcon className="h-5 w-5" />
+                            Hosting Dashboard
                         </CardTitle>
-                        <CardDescription>
-                            Review guest stays and manage availability.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="p-2 border rounded-lg bg-background">
+                        <p className="text-xs opacity-90 mt-1">Review stays and track occupancy.</p>
+                    </div>
+                    <CardContent className="space-y-6 pt-6">
+                        <div className="p-3 border rounded-xl bg-background shadow-inner">
                             <TooltipProvider>
                                 <Calendar
                                     mode="single"
@@ -656,177 +681,196 @@ function PropertyDetails({ property }: { property: Property }) {
                                         ) ?? false
                                     }}
                                     modifiersClassNames={{
-                                        booked: "bg-primary/20 text-primary font-bold rounded-full hover:bg-primary/30"
+                                        booked: "bg-primary text-primary-foreground font-black rounded-full hover:scale-110 transition-transform"
                                     }}
                                 />
                             </TooltipProvider>
                         </div>
 
                         {selectedBooking ? (
-                            <Card className="border-primary/20 animate-in fade-in slide-in-from-top-2">
-                                <CardContent className="p-4 space-y-4">
+                            <Card className="border-primary/20 bg-background animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <CardContent className="p-5 space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="font-bold text-sm text-primary uppercase">Booking Details</h4>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedBooking(null)}>
-                                            < ChevronDown className="h-4 w-4 rotate-180" />
+                                        <h4 className="font-black text-xs text-primary uppercase tracking-widest">Guest Check-In</h4>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 rounded-full" onClick={() => setSelectedBooking(null)}>
+                                            <XCircle className="h-5 w-5 text-muted-foreground" />
                                         </Button>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-10 w-10">
+                                    <div className="flex items-center gap-4">
+                                        <Avatar className="h-12 w-12 border-2 border-primary/20">
                                             <AvatarImage src={selectedBooking.guest?.photoURL} />
-                                            <AvatarFallback>{selectedBooking.guest?.name?.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback className="bg-muted text-lg">{selectedBooking.guest?.name?.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <p className="text-sm font-semibold">{selectedBooking.guest?.name || 'Guest'}</p>
-                                            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-                                                {selectedBooking.guests} Guest{selectedBooking.guests !== 1 ? 's' : ''}
+                                            <p className="font-bold text-base">{selectedBooking.guest?.name || 'Guest'}</p>
+                                            <p className="text-xs text-muted-foreground font-bold flex items-center gap-1">
+                                                <Users className="h-3 w-3" />
+                                                {selectedBooking.guests} Traveler{selectedBooking.guests !== 1 ? 's' : ''}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-muted-foreground">Stay</span>
-                                            <span className="font-medium">
-                                                {format(selectedBooking.checkInDate.toDate(), 'MMM d')} - {format(selectedBooking.checkOutDate.toDate(), 'MMM d, yyyy')}
+                                    <Separator className="bg-muted/50" />
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Stay Duration</span>
+                                            <span className="font-bold">
+                                                {format(selectedBooking.checkInDate.toDate(), 'MMM d')} - {format(selectedBooking.checkOutDate.toDate(), 'MMM d')}
                                             </span>
                                         </div>
-                                        <div className="flex justify-between text-xs">
-                                            <span className="text-muted-foreground">Payout</span>
-                                            <span className="font-bold text-primary">₦{selectedBooking.totalPrice?.toLocaleString()}</span>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Net Payout</span>
+                                            <span className="font-black text-primary text-lg">₦{selectedBooking.totalPrice?.toLocaleString()}</span>
                                         </div>
                                     </div>
-                                    <Button variant="outline" className="w-full text-xs h-8" asChild>
+                                    <Button className="w-full font-bold shadow-md" asChild>
                                         <Link href="/messages">
-                                            <MessageSquare className="mr-2 h-3 w-3" /> Message Guest
+                                            <MessageSquare className="mr-2 h-4 w-4" /> Message Guest
                                         </Link>
                                     </Button>
                                 </CardContent>
                             </Card>
                         ) : (
-                            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg text-center bg-background/50">
-                                <Info className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
-                                <p className="text-sm text-muted-foreground">Click a highlighted date to see guest details.</p>
+                            <div className="flex flex-col items-center justify-center p-10 border-2 border-dashed rounded-2xl text-center bg-background/40">
+                                <Info className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                                <p className="text-sm font-medium text-muted-foreground leading-relaxed">
+                                    Tap a <span className="text-primary font-bold">highlighted date</span> to view specific reservation details.
+                                </p>
                             </div>
                         )}
                     </CardContent>
                 </Card>
             ) : (
-                <Card className="sticky top-24 shadow-lg border-muted">
-                    <CardHeader>
-                    <CardTitle className="text-2xl">
+                <Card className="sticky top-24 shadow-2xl border-muted overflow-hidden">
+                    <CardHeader className="bg-muted/30 pb-6 border-b">
+                    <CardTitle className="text-3xl flex items-baseline gap-1">
                         {duration > 0 ? (
                             <>
-                            <span className="font-bold">₦{totalPrice.toLocaleString()}</span>
-                            <span className="ml-1 text-base font-normal text-muted-foreground"> for {duration} night{duration !== 1 ? 's' : ''}</span>
+                            <span className="font-black text-primary">₦{totalPrice.toLocaleString()}</span>
+                            <span className="text-sm font-bold text-muted-foreground uppercase tracking-tight">Total</span>
                             </>
                         ) : (
                             <>
-                            <span className="font-bold">₦{dayPrice.toLocaleString()}</span>
-                            <span className="ml-1 text-base font-normal text-muted-foreground">/ night</span>
+                            <span className="font-black text-primary">₦{dayPrice.toLocaleString()}</span>
+                            <span className="text-sm font-bold text-muted-foreground uppercase tracking-tight">/ night</span>
                             </>
                         )}
                     </CardTitle>
+                    <div className="flex items-center gap-1 text-xs font-bold text-amber-600 mt-1">
+                        <Tag className="h-3 w-3" />
+                        <span>Best Price Guaranteed</span>
+                    </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6 pt-6">
                     
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            variant={'outline'}
-                            className="w-full justify-start text-left font-normal h-auto p-0 overflow-hidden"
-                            >
-                            <div className="grid grid-cols-2 w-full divide-x">
-                                <div className="p-3 hover:bg-accent transition-colors">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Check-in</p>
-                                    <p className="text-sm font-medium">{date?.from ? format(date.from, 'dd/MM/yyyy') : 'Add date'}</p>
+                    <div className="space-y-4">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={'outline'}
+                                className="w-full h-auto p-0 rounded-xl border-2 hover:border-primary transition-all overflow-hidden focus:ring-primary"
+                                >
+                                <div className="grid grid-cols-2 w-full divide-x-2">
+                                    <div className="p-4 text-left hover:bg-muted/50 transition-colors">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Check-in</p>
+                                        <p className="text-sm font-bold">{date?.from ? format(date.from, 'dd MMM yyyy') : 'Add date'}</p>
+                                    </div>
+                                    <div className="p-4 text-left hover:bg-muted/50 transition-colors">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Checkout</p>
+                                        <p className="text-sm font-bold">{date?.to ? format(date.to, 'dd MMM yyyy') : 'Add date'}</p>
+                                    </div>
                                 </div>
-                                <div className="p-3 hover:bg-accent transition-colors">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Checkout</p>
-                                    <p className="text-sm font-medium">{date?.to ? format(date.to, 'dd/MM/yyyy') : 'Add date'}</p>
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 shadow-2xl rounded-2xl border-none" align="center">
+                            <TooltipProvider>
+                                <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={date?.from}
+                                selected={date}
+                                onSelect={setDate}
+                                numberOfMonths={1}
+                                disabled={disabledDates}
+                                showOutsideDays={false}
+                                onDayClick={handleDayClick}
+                                />
+                            </TooltipProvider>
+                            </PopoverContent>
+                        </Popover>
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <Button
+                                variant={'outline'}
+                                className="w-full justify-between text-left h-auto py-4 px-5 rounded-xl border-2 hover:border-primary transition-all"
+                                >
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Travelers</p>
+                                    <p className="text-sm font-bold">{guests} guest{guests !== 1 ? 's' : ''}</p>
+                                </div>
+                                <ChevronDown className="h-5 w-5 text-primary opacity-50"/>
+                            </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-5 rounded-xl shadow-xl border-muted">
+                            <div className="flex items-center justify-between gap-8">
+                                <div>
+                                    <p className="font-black text-base">Guests</p>
+                                    <p className="text-xs text-muted-foreground font-bold">Max capacity: {property.maxGuests}</p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-2" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
+                                    <span className="w-4 text-center font-black text-lg">{guests}</span>
+                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-2" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
                                 </div>
                             </div>
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                        <TooltipProvider>
-                            <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={date?.from}
-                            selected={date}
-                            onSelect={setDate}
-                            numberOfMonths={1}
-                            disabled={disabledDates}
-                            showOutsideDays={false}
-                            onDayClick={handleDayClick}
-                            />
-                        </TooltipProvider>
-                        </PopoverContent>
-                    </Popover>
+                            </PopoverContent>
+                        </Popover>
+                    </div>
 
-                    <Popover>
-                        <PopoverTrigger asChild>
-                        <Button
-                            variant={'outline'}
-                            className="w-full justify-between text-left font-normal h-auto py-3 px-4"
-                            >
-                            <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Guests</p>
-                            <p className="text-sm font-medium">{guests} guest{guests !== 1 ? 's' : ''}</p>
-                            </div>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground"/>
-                        </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-4">
-                        <div className="flex items-center justify-between gap-8">
-                            <div>
-                                <p className="font-bold">Guests</p>
-                                <p className="text-xs text-muted-foreground">Max {property.maxGuests}</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.max(1, g - 1))} disabled={guests <= 1}>-</Button>
-                                <span className="w-4 text-center font-medium">{guests}</span>
-                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={() => setGuests(g => Math.min(property.maxGuests, g + 1))} disabled={guests >= property.maxGuests}>+</Button>
-                            </div>
-                        </div>
-                        </PopoverContent>
-                    </Popover>
-
-                    <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
-                        {property.bookingSettings === 'instant' ? 'Reserve' : 'Request to Book'}
+                    <Button 
+                        className="w-full bg-accent hover:bg-accent/90 text-white font-black py-7 text-xl rounded-xl shadow-lg shadow-accent/20 transition-all active:scale-[0.98]" 
+                        size="lg" 
+                        onClick={handleReservation} 
+                        disabled={!date?.from || !date?.to || duration <= 0 || isBookingsLoading}
+                    >
+                        {isBookingsLoading ? <Loader2 className="animate-spin" /> : property.bookingSettings === 'instant' ? 'Reserve Now' : 'Request Stay'}
                     </Button>
-                    <p className="text-center text-xs text-muted-foreground">You won't be charged yet</p>
+                    <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {property.bookingSettings === 'instant' ? "Instant Confirmation" : "Host approval required"}
+                    </p>
 
                     {duration > 0 && (
-                        <div className="space-y-3 text-sm pt-4 border-t">
-                        <div className="flex justify-between">
-                            <span className="underline">₦{dayPrice.toLocaleString()} x {duration} nights</span>
-                            <span>₦{subtotal.toLocaleString()}</span>
-                        </div>
-                        
-                        {discountAmount > 0 && (
-                            <div className="flex justify-between text-green-600 font-semibold">
-                                <div className="flex items-center gap-1">
-                                    <Tag className="h-3 w-3" />
-                                    <span>{discountLabel}</span>
+                        <div className="space-y-4 pt-6 border-t-2 border-dashed">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm font-medium">
+                                    <span className="text-muted-foreground underline underline-offset-4 decoration-muted">₦{dayPrice.toLocaleString()} x {duration} nights</span>
+                                    <span className="font-bold">₦{subtotal.toLocaleString()}</span>
                                 </div>
-                                <span>-₦{discountAmount.toLocaleString()}</span>
-                            </div>
-                        )}
+                                
+                                {discountAmount > 0 && (
+                                    <div className="flex justify-between text-sm font-bold text-green-600 bg-green-50 dark:bg-green-950/30 p-2 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                            <Tag className="h-4 w-4" />
+                                            <span>{discountLabel}</span>
+                                        </div>
+                                        <span>-₦{discountAmount.toLocaleString()}</span>
+                                    </div>
+                                )}
 
-                        <div className="flex justify-between">
-                            <span className="underline">Cleaning fee</span>
-                            <span>₦{cleaningFee.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="underline">Service fee</span>
-                            <span>₦{serviceFee.toLocaleString()}</span>
-                        </div>
-                        <Separator className="my-1" />
-                        <div className="flex justify-between font-bold text-lg">
-                            <span>Total</span>
-                            <span>₦{totalPrice.toLocaleString()}</span>
-                        </div>
+                                <div className="flex justify-between text-sm font-medium">
+                                    <span className="text-muted-foreground underline underline-offset-4 decoration-muted">Cleaning fee</span>
+                                    <span className="font-bold">₦{cleaningFee.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm font-medium">
+                                    <span className="text-muted-foreground underline underline-offset-4 decoration-muted">StayNest fee</span>
+                                    <span className="font-bold">₦{serviceFee.toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <Separator className="bg-muted/50" />
+                            <div className="flex justify-between items-center pt-2">
+                                <span className="font-black text-xl font-headline">Grand Total</span>
+                                <span className="font-black text-2xl text-primary font-headline">₦{totalPrice.toLocaleString()}</span>
+                            </div>
                         </div>
                     )}
                     </CardContent>

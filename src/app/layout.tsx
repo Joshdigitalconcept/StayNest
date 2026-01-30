@@ -36,7 +36,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <FirebaseClientProvider>
-            <React.Suspense fallback={<div>Loading...</div>}>
+            <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
               <EmailVerificationBanner />
               <AppBody>
                 {children}
