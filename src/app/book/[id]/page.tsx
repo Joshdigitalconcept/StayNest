@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -12,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle, Tag } from 'lucide-react';
 import type { Property, User as UserType, Booking } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -73,21 +72,21 @@ export default function BookPage() {
   const checkoutStr = searchParams.get('checkout');
   const guestsStr = searchParams.get('guests');
 
-  const { checkinDate, checkoutDate, duration, subtotal, totalPrice, isValidBooking } = React.useMemo(() => {
+  const { checkinDate, checkoutDate, duration, subtotal, totalPrice, discountAmount, discountLabel, isValidBooking } = React.useMemo(() => {
     if (!checkinStr || !checkoutStr || !guestsStr || !property) {
-      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: null, checkoutDate: null };
+      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, discountAmount: 0, discountLabel: null, checkinDate: null, checkoutDate: null };
     }
     
     const cIn = parseISO(checkinStr);
     const cOut = parseISO(checkoutStr);
 
     if (!isValid(cIn) || !isValid(cOut) || !guestsStr) {
-      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: null, checkoutDate: null };
+      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, discountAmount: 0, discountLabel: null, checkinDate: null, checkoutDate: null };
     }
 
     const dur = differenceInCalendarDays(cOut, cIn);
     if (dur <= 0) {
-      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: cIn, checkoutDate: cOut };
+      return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, discountAmount: 0, discountLabel: null, checkinDate: cIn, checkoutDate: cOut };
     }
 
     const price = property.pricePerNight || 0;
@@ -95,9 +94,35 @@ export default function BookPage() {
     const service = property.serviceFee || 0;
 
     const sub = price * dur;
-    const total = sub + cleaning + service;
     
-    return { isValidBooking: true, checkinDate: cIn, checkoutDate: cOut, duration: dur, subtotal: sub, totalPrice: total };
+    // Apply Discounts logic
+    let appliedDiscount = 0;
+    let label = null;
+
+    if (property.monthlyDiscount && dur >= 28) {
+        appliedDiscount = 0.10;
+        label = "Monthly Stay Discount";
+    } else if (property.weeklyDiscount && dur >= 7) {
+        appliedDiscount = 0.05;
+        label = "Weekly Stay Discount";
+    } else if (property.newListingPromotion && (property.reviewCount || 0) < 3) {
+        appliedDiscount = 0.20;
+        label = "New Listing Promotion";
+    }
+
+    const savings = Math.round(sub * appliedDiscount);
+    const total = (sub - savings) + cleaning + service;
+    
+    return { 
+        isValidBooking: true, 
+        checkinDate: cIn, 
+        checkoutDate: cOut, 
+        duration: dur, 
+        subtotal: sub, 
+        discountAmount: savings,
+        discountLabel: label,
+        totalPrice: total 
+    };
   }, [checkinStr, checkoutStr, guestsStr, property]);
 
   const sendAutomatedMessage = async (bookingId: string, hostId: string, guestId: string, listingId: string, text: string) => {
@@ -143,7 +168,6 @@ export default function BookPage() {
             );
         });
 
-        // Determine status based strictly on host choice (default to approval if missing)
         const isInstant = property.bookingSettings === 'instant';
 
         if (hasConflict) {
@@ -381,6 +405,17 @@ export default function BookPage() {
                     <span className="underline">₦{(property.pricePerNight || 0).toLocaleString()} x {duration} nights</span>
                     <span>₦{subtotal.toLocaleString()}</span>
                   </div>
+                  
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600 text-sm font-semibold">
+                        <div className="flex items-center gap-1">
+                            <Tag className="h-3 w-3" />
+                            <span>{discountLabel}</span>
+                        </div>
+                        <span>-₦{discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-muted-foreground text-sm">
                     <span className="underline">Cleaning fee</span>
                     <span>₦{(property.cleaningFee || 0).toLocaleString()}</span>

@@ -28,6 +28,7 @@ import {
   Repeat,
   Calendar as CalendarIcon,
   Info,
+  Tag,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -364,23 +365,23 @@ function PropertyDetails({ property }: { property: Property }) {
 
   const isOwner = user?.uid === property.ownerId;
   
-  const { subtotal, duration, dayPrice } = React.useMemo(() => {
+  const { subtotal, duration, dayPrice, discountAmount, discountLabel } = React.useMemo(() => {
     if (!date?.from) {
-      return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight };
+      return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight, discountAmount: 0, discountLabel: null };
     }
 
     if (!date.to) {
        const fromDayOfWeek = getDay(date.from);
        const isWeekend = fromDayOfWeek === 5 || fromDayOfWeek === 6;
        const price = isWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
-       return { subtotal: 0, duration: 0, dayPrice: price };
+       return { subtotal: 0, duration: 0, dayPrice: price, discountAmount: 0, discountLabel: null };
     }
     
     const days = eachDayOfInterval({ start: date.from, end: date.to });
     const bookingDuration = differenceInCalendarDays(date.to, date.from);
     
     if (bookingDuration <= 0) {
-      return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight };
+      return { subtotal: 0, duration: 0, dayPrice: property.pricePerNight, discountAmount: 0, discountLabel: null };
     }
 
     const sub = days.slice(0, -1).reduce((acc, day) => {
@@ -394,12 +395,29 @@ function PropertyDetails({ property }: { property: Property }) {
     const isFromWeekend = fromDayOfWeek === 5 || fromDayOfWeek === 6;
     const price = isFromWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
 
-    return { subtotal: sub, duration: bookingDuration, dayPrice: price };
-  }, [date, property.pricePerNight, property.weekendPrice]);
+    // Apply Discounts logic
+    let appliedDiscount = 0;
+    let label = null;
+
+    if (property.monthlyDiscount && bookingDuration >= 28) {
+        appliedDiscount = 0.10;
+        label = "Monthly Stay Discount";
+    } else if (property.weeklyDiscount && bookingDuration >= 7) {
+        appliedDiscount = 0.05;
+        label = "Weekly Stay Discount";
+    } else if (property.newListingPromotion && (property.reviewCount || 0) < 3) {
+        appliedDiscount = 0.20;
+        label = "New Listing Promotion";
+    }
+
+    const savings = Math.round(sub * appliedDiscount);
+
+    return { subtotal: sub, duration: bookingDuration, dayPrice: price, discountAmount: savings, discountLabel: label };
+  }, [date, property.pricePerNight, property.weekendPrice, property.monthlyDiscount, property.weeklyDiscount, property.newListingPromotion, property.reviewCount]);
 
   const cleaningFee = property?.cleaningFee || 0;
   const serviceFee = property?.serviceFee || 0;
-  const totalPrice = subtotal + cleaningFee + serviceFee;
+  const totalPrice = (subtotal - discountAmount) + cleaningFee + serviceFee;
 
   const handleFavoriteToggle = async () => {
     if (!user || !property || !firestore) {
@@ -785,6 +803,17 @@ function PropertyDetails({ property }: { property: Property }) {
                             <span className="underline">₦{dayPrice.toLocaleString()} x {duration} nights</span>
                             <span>₦{subtotal.toLocaleString()}</span>
                         </div>
+                        
+                        {discountAmount > 0 && (
+                            <div className="flex justify-between text-green-600 font-semibold">
+                                <div className="flex items-center gap-1">
+                                    <Tag className="h-3 w-3" />
+                                    <span>{discountLabel}</span>
+                                </div>
+                                <span>-₦{discountAmount.toLocaleString()}</span>
+                            </div>
+                        )}
+
                         <div className="flex justify-between">
                             <span className="underline">Cleaning fee</span>
                             <span>₦{cleaningFee.toLocaleString()}</span>
