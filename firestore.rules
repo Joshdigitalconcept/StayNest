@@ -20,10 +20,16 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Relaxed get rule: allow any signed-in user to see a profile.
+      // This is necessary for guests to see host details and build trust.
+      allow get: if isSignedIn();
+      // Only admins can see the full list of all users.
       allow list: if isAdmin();
+      // Users can only create their own profile document.
       allow create: if isSignedIn() && request.auth.uid == userId;
+      // Users can update their own profile, and admins can update any.
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Only admins can delete user accounts.
       allow delete: if isAdmin();
 
       match /favorites/{listingId} {
@@ -32,33 +38,37 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      // Critical: Allow user to check their own admin status during login/routing
+      // Allow user to check their own admin status during login/routing, and admins to check others.
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
     }
 
     match /listings/{listingId} {
+      // Listings are public for viewing.
       allow read: if true;
-      allow create: if isSignedIn();
+      // Any signed-in user can create a listing (though UI restricts to host flow).
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      // Only the owner or an admin can update/delete a listing.
       allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
       
       match /reviews/{reviewId} {
         allow read: if true;
-        allow create: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       }
     }
     
     match /bookings/{bookingId} {
-      // Allow read if user is guest, host, or admin
-      // Note: List queries must match these filters
+      // Allow read if user is guest, host, or admin.
       allow read: if isSignedIn() && (
         resource.data.guestId == request.auth.uid || 
         resource.data.hostId == request.auth.uid || 
         isAdmin()
       );
       
-      allow create: if isSignedIn();
+      // Guests create bookings.
+      allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
+      // Both parties (and admins) can update booking status.
       allow update: if isSignedIn() && (
         resource.data.guestId == request.auth.uid || 
         resource.data.hostId == request.auth.uid || 
@@ -67,7 +77,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
        match /messages/{messageId} {
-         allow read, write: if isSignedIn();
+         // Messaging requires being part of the booking.
+         allow read, write: if isSignedIn() && (
+           get(/databases/$(database)/documents/bookings/$(bookingId)).data.guestId == request.auth.uid || 
+           get(/databases/$(database)/documents/bookings/$(bookingId)).data.hostId == request.auth.uid ||
+           isAdmin()
+         );
        }
     }
 
