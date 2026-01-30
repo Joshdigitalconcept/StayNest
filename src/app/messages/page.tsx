@@ -38,11 +38,11 @@ function ConversationList({
 }) {
     if (conversations.length === 0) {
         return (
-            <div className="flex flex-col h-full overflow-y-auto">
+            <div className="flex flex-col h-full">
                  <h1 className="text-2xl font-bold font-headline p-4 border-b sticky top-0 bg-background z-10">
                     Messages
                 </h1>
-                <div className="p-8 text-center">
+                <div className="p-8 text-center flex-1 overflow-y-auto">
                     <p className="text-muted-foreground text-sm">No conversations yet.</p>
                 </div>
             </div>
@@ -50,35 +50,37 @@ function ConversationList({
     }
 
     return (
-        <div className="flex flex-col h-full overflow-y-auto">
+        <div className="flex flex-col h-full overflow-hidden">
             <h1 className="text-2xl font-bold font-headline p-4 border-b sticky top-0 bg-background z-10">
                 Messages
             </h1>
-            <div className="flex flex-col">
-                {conversations.map((convo) => (
-                    <div
-                        key={convo.id}
-                        className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-accent/50 border-b transition-colors ${convo.id === activeConvoId ? "bg-accent/80" : ""}`}
-                        onClick={() => onSelect(convo)}
-                    >
-                        <Avatar className="h-12 w-12 flex-shrink-0">
-                            <AvatarImage src={convo.otherParty.photoURL} alt={convo.otherParty.name} />
-                            <AvatarFallback>{convo.otherParty.name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-center gap-2">
-                                <h3 className="font-semibold truncate text-sm">{convo.otherParty.name}</h3>
-                                {convo.unreadCount > 0 && (
-                                    <Badge variant="destructive" className="h-5 min-w-[20px] p-1 flex items-center justify-center text-[10px]">{convo.unreadCount}</Badge>
-                                )}
+            <div className="flex-1 overflow-y-auto">
+                <div className="flex flex-col">
+                    {conversations.map((convo) => (
+                        <div
+                            key={convo.id}
+                            className={`flex items-center gap-4 p-4 cursor-pointer hover:bg-accent/50 border-b transition-colors ${convo.id === activeConvoId ? "bg-accent/80" : ""}`}
+                            onClick={() => onSelect(convo)}
+                        >
+                            <Avatar className="h-12 w-12 flex-shrink-0">
+                                <AvatarImage src={convo.otherParty.photoURL} alt={convo.otherParty.name} />
+                                <AvatarFallback>{convo.otherParty.name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center gap-2">
+                                    <h3 className="font-semibold truncate text-sm">{convo.otherParty.name}</h3>
+                                    {convo.unreadCount > 0 && (
+                                        <Badge variant="destructive" className="h-5 min-w-[20px] p-1 flex items-center justify-center text-[10px]">{convo.unreadCount}</Badge>
+                                    )}
+                                </div>
+                                <p className="text-xs text-primary font-medium truncate">{convo.listingTitle}</p>
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                  {convo.lastMessage || 'No messages yet'}
+                                </p>
                             </div>
-                            <p className="text-xs text-primary font-medium truncate">{convo.listingTitle}</p>
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {convo.lastMessage || 'No messages yet'}
-                            </p>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -324,11 +326,11 @@ export default function MessagesPage() {
     }
 
     return (
-        <div className="container mx-auto py-8 px-4 h-[calc(100vh-100px)]">
+        <div className="container mx-auto py-4 md:py-8 px-4 h-[calc(100vh-80px)] md:h-[calc(100vh-100px)]">
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-full border rounded-2xl shadow-xl overflow-hidden bg-background">
                 {/* LIST VIEW */}
                 <div className={cn(
-                    "md:block border-r",
+                    "md:block border-r h-full overflow-hidden",
                     activeConvoId ? "hidden" : "block"
                 )}>
                     <ConversationList 
@@ -340,7 +342,7 @@ export default function MessagesPage() {
                 
                 {/* CHAT VIEW */}
                 <div className={cn(
-                    "md:block md:col-span-2 lg:col-span-3",
+                    "md:block md:col-span-2 lg:col-span-3 h-full overflow-hidden",
                     activeConvoId ? "block" : "hidden"
                 )}>
                     <ChatWindow 
