@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -25,6 +24,11 @@ export function UserNav() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -35,8 +39,8 @@ export function UserNav() {
     router.push('/');
   };
 
-  if (isUserLoading) {
-    return <Loader2 className="animate-spin" />;
+  if (!mounted || isUserLoading) {
+    return <Loader2 className="animate-spin h-5 w-5" />;
   }
 
   if (!user) {

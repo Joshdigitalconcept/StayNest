@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -238,6 +237,11 @@ function PublicLandingPage() {
 export default function RootPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const adminRoleRef = useMemoFirebase(
     () => (user ? doc(firestore, 'roles_admin', user.uid) : null),
@@ -245,7 +249,7 @@ export default function RootPage() {
   );
   const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
 
-  if (isUserLoading || isAdminRoleLoading) {
+  if (!mounted || isUserLoading || isAdminRoleLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

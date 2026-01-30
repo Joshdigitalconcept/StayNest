@@ -14,7 +14,11 @@ import { usePathname } from 'next/navigation';
 export default function Header() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const pathname = usePathname();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(firestore, 'users', user.uid) : null),
@@ -69,7 +73,7 @@ export default function Header() {
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
-            {user && (
+            {mounted && user && (
                 isHost ? (
                     <Button variant="ghost" asChild className="hidden sm:flex">
                         <Link href="/profile?tab=properties">My Listings</Link>

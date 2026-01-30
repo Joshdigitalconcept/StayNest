@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -13,6 +12,11 @@ export function EmailVerificationBanner() {
   const auth = useAuth();
   const { toast } = useToast();
   const [isSending, setIsSending] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleResendVerification = async () => {
     if (!user) return;
@@ -35,11 +39,12 @@ export function EmailVerificationBanner() {
   };
 
   // Don't show the banner if:
-  // 1. The user state is still loading.
-  // 2. There is no user logged in.
-  // 3. The user's email has been verified.
-  // 4. The user signed in with a provider other than email/password (e.g., Google).
-  if (isUserLoading || !user || user.emailVerified || user.providerData.some(p => p.providerId !== 'password')) {
+  // 1. Not mounted yet (prevent hydration error)
+  // 2. The user state is still loading.
+  // 3. There is no user logged in.
+  // 4. The user's email has been verified.
+  // 5. The user signed in with a provider other than email/password (e.g., Google).
+  if (!mounted || isUserLoading || !user || user.emailVerified || user.providerData.some(p => p.providerId !== 'password')) {
     return null;
   }
 
