@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from "next/image";
@@ -39,7 +38,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, Firestore
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where, limit } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay } from "date-fns";
+import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay, areIntervalsOverlapping } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
