@@ -1,18 +1,19 @@
+
 'use client';
 
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
+import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
+import { differenceInCalendarDays, format, isValid, parseISO, areIntervalsOverlapping } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Star, CreditCard, ChevronRight, Check } from 'lucide-react';
-import type { Property, User as UserType } from '@/lib/types';
+import type { Property, User as UserType, Booking } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
@@ -104,40 +105,65 @@ export default function BookPage() {
     }
     setIsSubmitting(true);
     
-    const bookingStatus = property.bookingSettings === 'instant' ? 'confirmed' : 'pending';
-
-    const bookingData = {
-      guestId: user.uid,
-      hostId: property.ownerId,
-      listingId: property.id,
-      checkInDate: Timestamp.fromDate(checkinDate),
-      checkOutDate: Timestamp.fromDate(checkoutDate),
-      guests: parseInt(guestsStr, 10),
-      totalPrice,
-      status: bookingStatus,
-      paymentMethodId: paymentMethod,
-      createdAt: serverTimestamp(),
-      listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
-      guest: { name: user.displayName || user.email, photoURL: user.photoURL },
-      host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
-    };
-
+    // Final conflict check before adding document
     const bookingsColRef = collection(firestore, 'bookings');
-    
+    const existingBookingsQuery = query(
+        bookingsColRef,
+        where('listingId', '==', property.id),
+        where('status', '==', 'confirmed')
+    );
+
     try {
-      await addDoc(bookingsColRef, bookingData);
-      toast({
-        title: 'Reservation Submitted!',
-        description: bookingStatus === 'confirmed'
-          ? 'Your booking is confirmed. Enjoy your trip!'
-          : 'Your request has been sent to the host for approval.',
-      });
-      router.push('/profile?tab=bookings');
+        const snapshot = await getDocs(existingBookingsQuery);
+        const hasConflict = snapshot.docs.some(docSnap => {
+            const booking = docSnap.data() as Booking;
+            return areIntervalsOverlapping(
+                { start: checkinDate, end: checkoutDate },
+                { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() }
+            );
+        });
+
+        if (hasConflict) {
+            toast({
+                variant: 'destructive',
+                title: 'Dates No Longer Available',
+                description: 'Someone just booked these dates. Please try another range.'
+            });
+            router.push(`/properties/${property.id}`);
+            return;
+        }
+
+        const bookingStatus = property.bookingSettings === 'instant' ? 'confirmed' : 'pending';
+
+        const bookingData = {
+          guestId: user.uid,
+          hostId: property.ownerId,
+          listingId: property.id,
+          checkInDate: Timestamp.fromDate(checkinDate),
+          checkOutDate: Timestamp.fromDate(checkoutDate),
+          guests: parseInt(guestsStr, 10),
+          totalPrice,
+          status: bookingStatus,
+          paymentMethodId: paymentMethod,
+          createdAt: serverTimestamp(),
+          listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
+          guest: { name: user.displayName || user.email, photoURL: user.photoURL },
+          host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
+        };
+
+        await addDoc(bookingsColRef, bookingData);
+        toast({
+          title: bookingStatus === 'confirmed' ? 'Reservation Confirmed!' : 'Request Sent!',
+          description: bookingStatus === 'confirmed'
+            ? 'Your booking is confirmed. Enjoy your trip!'
+            : 'Your request has been sent to the host for approval.',
+        });
+        router.push('/profile?tab=bookings');
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
         path: bookingsColRef.path,
         operation: 'create',
-        requestResourceData: bookingData,
+        requestResourceData: { listingId: property.id },
       });
       errorEmitter.emit('permission-error', permissionError);
       toast({ variant: 'destructive', title: 'Booking Failed', description: 'Could not submit your reservation. Please try again.' });
@@ -154,6 +180,8 @@ export default function BookPage() {
     return <InvalidBookingState />;
   }
 
+  const isInstant = property.bookingSettings === 'instant';
+
   return (
     <div className="container mx-auto py-12 max-w-5xl px-4 md:px-6">
       <div className="flex items-center gap-4 mb-8">
@@ -162,7 +190,7 @@ export default function BookPage() {
             <ChevronRight className="h-6 w-6 rotate-180" />
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold font-headline">Confirm and pay</h1>
+        <h1 className="text-3xl font-bold font-headline">{isInstant ? 'Confirm and pay' : 'Request to book'}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
@@ -245,7 +273,7 @@ export default function BookPage() {
               onClick={handleConfirmAndBook}
               disabled={isSubmitting}
             >
-              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : 'Confirm and Book'}
+              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Book' : 'Request to Book')}
             </Button>
           </section>
         </div>

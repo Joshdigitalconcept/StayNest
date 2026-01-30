@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -11,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint } from "lucide-react";
+import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint, TrendingUp, Wallet } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -44,7 +45,6 @@ export default function ProfilePage() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserType>(userDocRef);
   
   // Queries for current user data
-  // These queries are filtered by UID to match the simplified firestore.rules
   const userListingsQuery = useMemoFirebase(
     () => (user && firestore) ? query(collection(firestore, 'listings'), where('ownerId', '==', user.uid)) : null,
     [user, firestore]
@@ -70,6 +70,13 @@ export default function ProfilePage() {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  const totalEarnings = React.useMemo(() => {
+    if (!hostReservations) return 0;
+    return hostReservations
+      .filter(b => b.status === 'confirmed')
+      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  }, [hostReservations]);
 
   const sendAutomatedMessage = async (booking: Booking, customText: string) => {
     if (!firestore || !user) return;
@@ -128,7 +135,7 @@ export default function ProfilePage() {
           toast({
             variant: "destructive",
             title: "Date Conflict",
-            description: "This request conflicts with a confirmed booking and has been automatically declined. The guest has been notified with a detailed message.",
+            description: "This request conflicts with a confirmed booking and has been automatically declined.",
           });
           return;
         }
@@ -195,12 +202,25 @@ export default function ProfilePage() {
               <CardTitle className="text-2xl">{userProfile.firstName} {userProfile.lastName}</CardTitle>
               <CardDescription>Joined in {user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : ''}</CardDescription>
             </CardHeader>
-            <CardContent className="text-center">
-               <Button variant="outline" asChild>
+            <CardContent className="space-y-4">
+               <Button variant="outline" className="w-full" asChild>
                 <Link href="/profile/edit">
                   <Edit className="mr-2 h-4 w-4" /> Edit Profile
                 </Link>
               </Button>
+              {userProfile.isHost && (
+                <Card className="bg-primary/10 border-none shadow-none">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="bg-primary/20 p-2 rounded-full">
+                      <Wallet className="h-5 w-5 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold uppercase">Total Earnings</p>
+                      <p className="text-lg font-bold">₦{totalEarnings.toLocaleString()}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -338,7 +358,14 @@ export default function ProfilePage() {
                                     <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking, 'declined')}>Decline</Button>
                                     </>
                                 ) : (
-                                    <Badge variant={badgeVariants[booking.status]} className="self-center sm:self-end">{booking.status}</Badge>
+                                    <div className="flex flex-col items-end gap-2">
+                                        <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
+                                        {booking.status === 'confirmed' && (
+                                            <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                                <Wallet className="h-3 w-3" /> PAID
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
                                 </div>
                             </div>

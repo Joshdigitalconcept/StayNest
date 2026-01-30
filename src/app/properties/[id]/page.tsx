@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from "next/image";
@@ -26,6 +27,7 @@ import {
   ChevronDown,
   MessageSquare,
   Repeat,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,7 +39,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, Firestore
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where, limit } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { differenceInCalendarDays, format, eachDayOfInterval, getDay } from "date-fns";
+import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -293,14 +295,39 @@ function PropertyDetails({ property }: { property: Property }) {
   const [guests, setGuests] = React.useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
 
-  const disabledDates = [{ before: new Date() }];
+  // Fetch all confirmed bookings for this listing to block out the calendar
+  const confirmedBookingsQuery = useMemoFirebase(
+    () => firestore ? query(
+      collection(firestore, 'bookings'),
+      where('listingId', '==', property.id),
+      where('status', '==', 'confirmed')
+    ) : null,
+    [firestore, property.id]
+  );
+  const { data: confirmedBookings } = useCollection<Booking>(confirmedBookingsQuery);
+
+  const disabledDates = React.useMemo(() => {
+    const dates: (Date | { before: Date })[] = [{ before: new Date() }];
+    
+    if (confirmedBookings) {
+      confirmedBookings.forEach(booking => {
+        const start = booking.checkInDate.toDate();
+        const end = booking.checkOutDate.toDate();
+        const interval = eachDayOfInterval({ start, end });
+        dates.push(...interval);
+      });
+    }
+    
+    return dates;
+  }, [confirmedBookings]);
 
   const handleDayClick = (day: Date, modifiers: any) => {
     if (modifiers.disabled) {
+      const isPast = day < startOfDay(new Date());
       toast({
         variant: "destructive",
-        title: "Date Unavailable",
-        description: "This date is in the past.",
+        title: isPast ? "Date Unavailable" : "Already Booked",
+        description: isPast ? "This date is in the past." : "These dates are already reserved by another guest.",
       });
     }
   };
@@ -419,6 +446,21 @@ function PropertyDetails({ property }: { property: Property }) {
         description: "Please select a valid date range for your stay.",
       });
       return;
+    }
+
+    // Final overlap check before redirect
+    const hasConflict = confirmedBookings?.some(booking => {
+        return isWithinInterval(date.from!, { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() }) ||
+               isWithinInterval(date.to!, { start: booking.checkInDate.toDate(), end: booking.checkOutDate.toDate() });
+    });
+
+    if (hasConflict) {
+        toast({
+            variant: "destructive",
+            title: "Dates Unavailable",
+            description: "Sorry, these dates were just booked by someone else.",
+        });
+        return;
     }
 
     const checkin = format(date.from, 'yyyy-MM-dd');
@@ -661,7 +703,7 @@ function PropertyDetails({ property }: { property: Property }) {
                   </Popover>
 
                   <Button className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold" size="lg" onClick={handleReservation} disabled={!date?.from || !date?.to || duration <= 0}>
-                      Reserve
+                      {property.bookingSettings === 'instant' ? 'Reserve' : 'Request to Book'}
                   </Button>
                    <p className="text-center text-xs text-muted-foreground">You won't be charged yet</p>
 
