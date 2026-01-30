@@ -5,7 +5,7 @@ import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
 import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, collectionGroup } from 'firebase/firestore';
-import { Loader2, SendHorizonal, CheckCheck, Check, MessageSquare } from 'lucide-react';
+import { Loader2, SendHorizonal, CheckCheck, Check, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import type { Booking, Message } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 interface Conversation {
     id: string; // Composite ID: listingId + otherPartyId
@@ -37,7 +38,7 @@ function ConversationList({
 }) {
     if (conversations.length === 0) {
         return (
-            <div className="md:col-span-1 lg:col-span-1 border-r overflow-y-auto">
+            <div className="flex flex-col h-full overflow-y-auto">
                  <h1 className="text-2xl font-bold font-headline p-4 border-b sticky top-0 bg-background z-10">
                     Messages
                 </h1>
@@ -49,7 +50,7 @@ function ConversationList({
     }
 
     return (
-        <div className="md:col-span-1 lg:col-span-1 border-r overflow-y-auto h-full">
+        <div className="flex flex-col h-full overflow-y-auto">
             <h1 className="text-2xl font-bold font-headline p-4 border-b sticky top-0 bg-background z-10">
                 Messages
             </h1>
@@ -83,7 +84,7 @@ function ConversationList({
     );
 }
 
-function ChatWindow({ activeConvo }: { activeConvo: Conversation | null }) {
+function ChatWindow({ activeConvo, onBack }: { activeConvo: Conversation | null, onBack?: () => void }) {
     const { user } = useUser();
     const firestore = useFirestore();
     const [newMessage, setNewMessage] = React.useState('');
@@ -151,7 +152,7 @@ function ChatWindow({ activeConvo }: { activeConvo: Conversation | null }) {
     
     if (!activeConvo) {
         return (
-            <div className="md:col-span-2 lg:col-span-3 flex flex-col h-full items-center justify-center text-muted-foreground bg-accent/5">
+            <div className="flex flex-col h-full items-center justify-center text-muted-foreground bg-accent/5">
                 <MessageSquare className="h-12 w-12 mb-4 opacity-20" />
                 <p>Select a conversation to start messaging.</p>
             </div>
@@ -159,25 +160,30 @@ function ChatWindow({ activeConvo }: { activeConvo: Conversation | null }) {
     }
 
     return (
-        <div className="md:col-span-2 lg:col-span-3 flex flex-col h-full bg-background overflow-hidden">
+        <div className="flex flex-col h-full bg-background overflow-hidden">
             <div className="p-4 border-b flex items-center justify-between bg-background/95 backdrop-blur sticky top-0 z-10">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4">
+                    {onBack && (
+                        <Button variant="ghost" size="icon" className="md:hidden" onClick={onBack}>
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                    )}
                     <Link href={`/users/${activeConvo.otherPartyId}`}>
-                        <Avatar className="hover:opacity-80 transition-opacity">
+                        <Avatar className="h-8 w-8 md:h-10 md:w-10 hover:opacity-80 transition-opacity">
                             <AvatarImage src={activeConvo.otherParty.photoURL} alt={activeConvo.otherParty.name} />
                             <AvatarFallback>{activeConvo.otherParty.name?.charAt(0)}</AvatarFallback>
                         </Avatar>
                     </Link>
-                    <div>
+                    <div className="min-w-0">
                         <Link href={`/users/${activeConvo.otherPartyId}`} className="hover:underline">
-                            <h2 className="text-sm font-bold leading-tight">{activeConvo.otherParty.name}</h2>
+                            <h2 className="text-sm font-bold leading-tight truncate">{activeConvo.otherParty.name}</h2>
                         </Link>
                         <Link href={`/properties/${activeConvo.listingId}`} className="hover:underline">
-                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{activeConvo.listingTitle}</p>
+                            <p className="text-[10px] md:text-xs text-muted-foreground truncate max-w-[150px] md:max-w-[200px]">{activeConvo.listingTitle}</p>
                         </Link>
                     </div>
                 </div>
-                <Button variant="ghost" size="sm" asChild>
+                <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
                     <Link href={`/properties/${activeConvo.listingId}`}>View Listing</Link>
                 </Button>
             </div>
@@ -308,12 +314,6 @@ export default function MessagesPage() {
     const activeConvo = React.useMemo(() => {
         return activeConvoId ? conversationsMap.get(activeConvoId) : null;
     }, [conversationsMap, activeConvoId]);
-
-    React.useEffect(() => {
-        if (!activeConvoId && sortedConversations.length > 0) {
-            setActiveConvoId(sortedConversations[0].id);
-        }
-    }, [sortedConversations, activeConvoId]);
     
     if (isUserLoading) {
         return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>
@@ -326,12 +326,28 @@ export default function MessagesPage() {
     return (
         <div className="container mx-auto py-8 px-4 h-[calc(100vh-100px)]">
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-full border rounded-2xl shadow-xl overflow-hidden bg-background">
-                <ConversationList 
-                    conversations={sortedConversations} 
-                    activeConvoId={activeConvoId} 
-                    onSelect={(c) => setActiveConvoId(c.id)} 
-                />
-                <ChatWindow activeConvo={activeConvo || null} />
+                {/* LIST VIEW */}
+                <div className={cn(
+                    "md:block border-r",
+                    activeConvoId ? "hidden" : "block"
+                )}>
+                    <ConversationList 
+                        conversations={sortedConversations} 
+                        activeConvoId={activeConvoId} 
+                        onSelect={(c) => setActiveConvoId(c.id)} 
+                    />
+                </div>
+                
+                {/* CHAT VIEW */}
+                <div className={cn(
+                    "md:block md:col-span-2 lg:col-span-3",
+                    activeConvoId ? "block" : "hidden"
+                )}>
+                    <ChatWindow 
+                        activeConvo={activeConvo || null} 
+                        onBack={() => setActiveConvoId(null)}
+                    />
+                </div>
             </div>
         </div>
     );
