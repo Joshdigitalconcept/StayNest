@@ -181,20 +181,23 @@ export default function ProfilePage() {
     );
   }
   
+  // A user is a host if they have the isHost flag OR they have properties listed.
+  const isHost = userProfile.isHost || (userProperties && userProperties.length > 0);
+
   const profileDetails = [
-    { title: "My work", value: userProfile.work, icon: <Briefcase /> },
-    { title: "Where I live", value: userProfile.live, icon: <Home /> },
-    { title: "Languages I speak", value: userProfile.languages, icon: <Languages /> },
-    { title: "Where I went to school", value: userProfile.school, icon: <GraduationCap /> },
-    { title: "Decade I was born", value: userProfile.born, icon: <Users /> },
-    { title: "My biography title would be", value: userProfile.biographyTitle, icon: <BookOpen /> },
-    { title: "I'm obsessed with", value: userProfile.obsessedWith, icon: <Star /> },
-    { title: "My fun fact", value: userProfile.funFact, icon: <Smile /> },
-    { title: "My most useless skill", value: userProfile.uselessSkill, icon: <Plane /> },
-    { title: "My favorite song in high school", value: userProfile.favoriteSong, icon: <Music /> },
-    { title: "I spend too much time", value: userProfile.spendTooMuchTime, icon: <Clock /> },
-    { title: "My pets", value: userProfile.pets, icon: <PawPrint /> },
-    { title: "Where I've always wanted to go", value: userProfile.travelGoal, icon: <Map /> },
+    { title: "My work", value: userProfile.work, icon: <Briefcase className="w-5 h-5" /> },
+    { title: "Where I live", value: userProfile.live, icon: <Home className="w-5 h-5" /> },
+    { title: "Languages I speak", value: userProfile.languages, icon: <Languages className="w-5 h-5" /> },
+    { title: "Where I went to school", value: userProfile.school, icon: <GraduationCap className="w-5 h-5" /> },
+    { title: "Decade I was born", value: userProfile.born, icon: <Users className="w-5 h-5" /> },
+    { title: "My biography title would be", value: userProfile.biographyTitle, icon: <BookOpen className="w-5 h-5" /> },
+    { title: "I'm obsessed with", value: userProfile.obsessedWith, icon: <Star className="w-5 h-5" /> },
+    { title: "My fun fact", value: userProfile.funFact, icon: <Smile className="w-5 h-5" /> },
+    { title: "My most useless skill", value: userProfile.uselessSkill, icon: <Plane className="w-5 h-5" /> },
+    { title: "My favorite song in high school", value: userProfile.favoriteSong, icon: <Music className="w-5 h-5" /> },
+    { title: "I spend too much time", value: userProfile.spendTooMuchTime, icon: <Clock className="w-5 h-5" /> },
+    { title: "My pets", value: userProfile.pets, icon: <PawPrint className="w-5 h-5" /> },
+    { title: "Where I've always wanted to go", value: userProfile.travelGoal, icon: <Map className="w-5 h-5" /> },
   ];
 
   return (
@@ -220,7 +223,7 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            {userProfile.isHost && (
+            {isHost && (
               <Card className="bg-primary/10 border-primary/20 shadow-md">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2 text-primary font-bold">
