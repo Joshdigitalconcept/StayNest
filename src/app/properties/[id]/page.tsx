@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from "@/firebase";
-import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where } from "firebase/firestore";
+import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where, limit } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
 import { differenceInCalendarDays, format, eachDayOfInterval, getDay } from "date-fns";
