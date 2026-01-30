@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -5,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
-import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
+import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { differenceInCalendarDays, format, isValid, parseISO, areIntervalsOverlapping } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,6 @@ export default function BookPage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = React.useState<string | null>(null);
 
-  // --- Data Fetching ---
   const propertyRef = useMemoFirebase(
     () => (firestore && id) ? doc(firestore, 'listings', id) : null,
     [firestore, id]
@@ -69,12 +69,10 @@ export default function BookPage() {
     }
   }, [paymentMethods, selectedPaymentId]);
   
-  // --- URL Params ---
   const checkinStr = searchParams.get('checkin');
   const checkoutStr = searchParams.get('checkout');
   const guestsStr = searchParams.get('guests');
 
-  // --- Derived State ---
   const { checkinDate, checkoutDate, duration, subtotal, totalPrice, isValidBooking } = React.useMemo(() => {
     if (!checkinStr || !checkoutStr || !guestsStr || !property) {
       return { isValidBooking: false, duration: 0, subtotal: 0, totalPrice: 0, checkinDate: null, checkoutDate: null };
@@ -102,7 +100,19 @@ export default function BookPage() {
     return { isValidBooking: true, checkinDate: cIn, checkoutDate: cOut, duration: dur, subtotal: sub, totalPrice: total };
   }, [checkinStr, checkoutStr, guestsStr, property]);
 
-  // --- Event Handlers ---
+  const sendAutomatedMessage = async (bookingId: string, hostId: string, guestId: string, listingId: string, text: string) => {
+    const messagesColRef = collection(firestore, `bookings/${bookingId}/messages`);
+    await addDoc(messagesColRef, {
+        bookingId,
+        senderId: hostId,
+        receiverId: guestId,
+        listingId,
+        text,
+        createdAt: serverTimestamp(),
+        isRead: false
+    });
+  };
+
   const handleConfirmAndBook = async () => {
     if (!user || !property || !checkinDate || !checkoutDate || !guestsStr) {
       toast({ variant: 'destructive', title: 'Missing Information', description: 'Cannot complete booking.' });
@@ -133,18 +143,46 @@ export default function BookPage() {
             );
         });
 
+        const isInstant = property.bookingSettings === 'instant';
+
         if (hasConflict) {
+            // If it was an instant booking attempt that failed due to a race condition conflict
+            if (isInstant) {
+                // We create a DECLINED booking to show the history and send a message
+                const failedBookingData = {
+                    guestId: user.uid,
+                    hostId: property.ownerId,
+                    listingId: property.id,
+                    checkInDate: Timestamp.fromDate(checkinDate),
+                    checkOutDate: Timestamp.fromDate(checkoutDate),
+                    guests: parseInt(guestsStr, 10),
+                    totalPrice,
+                    status: 'declined',
+                    paymentMethodId: selectedPaymentId,
+                    createdAt: serverTimestamp(),
+                    listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
+                    guest: { name: user.displayName || user.email, photoURL: user.photoURL },
+                    host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
+                };
+                const failedDoc = await addDoc(bookingsColRef, failedBookingData);
+                await sendAutomatedMessage(
+                    failedDoc.id, 
+                    property.ownerId, 
+                    user.uid, 
+                    property.id, 
+                    `System Alert: Your instant booking request for "${property.title}" failed because these dates were just confirmed by another guest. Your payment method has not been charged.`
+                );
+            }
+
             toast({
                 variant: 'destructive',
                 title: 'Dates No Longer Available',
-                description: 'Someone just booked these dates. Please try another range.'
+                description: 'Someone just booked these dates. This request has been declined automatically.'
             });
             router.push(`/properties/${property.id}`);
             return;
         }
 
-        // CRITICAL: Explicit status check
-        const isInstant = property.bookingSettings === 'instant';
         const bookingStatus = isInstant ? 'confirmed' : 'pending';
 
         const bookingData = {
@@ -165,6 +203,16 @@ export default function BookPage() {
 
         const newBookingRef = await addDoc(bookingsColRef, bookingData);
         
+        if (isInstant) {
+            await sendAutomatedMessage(
+                newBookingRef.id, 
+                property.ownerId, 
+                user.uid, 
+                property.id, 
+                `Hello! Your instant booking for "${property.title}" has been confirmed. I'll be in touch with check-in details soon.`
+            );
+        }
+
         toast({
           title: isInstant ? 'Reservation Confirmed!' : 'Request Sent to Host!',
           description: isInstant
@@ -174,19 +222,18 @@ export default function BookPage() {
         
         router.push('/profile?tab=bookings');
     } catch (error: any) {
-      const permissionError = new FirestorePermissionError({
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: bookingsColRef.path,
         operation: 'create',
         requestResourceData: { listingId: property.id },
-      });
-      errorEmitter.emit('permission-error', permissionError);
+      }));
     } finally {
       setIsSubmitting(false);
     }
   };
   
   if (isLoading || isMethodsLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;
+    return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12 text-primary" /></div>;
   }
   if (!property || !isValidBooking) {
     return <InvalidBookingState />;
@@ -221,7 +268,7 @@ export default function BookPage() {
             <h2 className="text-2xl font-semibold">Your trip</h2>
             <div className="flex justify-between items-start">
               <div>
-                <p className="font-bold">Dates</p>
+                <p className="font-bold text-sm">Dates</p>
                 <p className="text-muted-foreground">{checkinDate ? format(checkinDate, 'MMM d') : ''} – {checkoutDate ? format(checkoutDate, 'd, yyyy') : ''}</p>
               </div>
               <Button variant="link" className="underline" asChild>
@@ -230,7 +277,7 @@ export default function BookPage() {
             </div>
             <div className="flex justify-between items-start">
               <div>
-                <p className="font-bold">Guests</p>
+                <p className="font-bold text-sm">Guests</p>
                 <p className="text-muted-foreground">{guestsStr} guest{parseInt(guestsStr || '1', 10) > 1 ? 's' : ''}</p>
               </div>
               <Button variant="link" className="underline" asChild>
@@ -294,7 +341,7 @@ export default function BookPage() {
               By selecting the button below, I agree to the <span className="underline cursor-pointer">Host's House Rules</span>, <span className="underline cursor-pointer">StayNest's Ground Rules for Guests</span>, and that StayNest can charge my payment method if I'm responsible for damage.
             </p>
             <Button 
-              className="w-full md:w-auto px-12 py-6 text-lg bg-pink-600 hover:bg-pink-700 text-white font-bold" 
+              className="w-full md:w-auto px-12 py-6 text-lg bg-pink-600 hover:bg-pink-700 text-white font-bold shadow-lg" 
               onClick={handleConfirmAndBook}
               disabled={isSubmitting || !selectedPaymentId}
             >
@@ -304,7 +351,7 @@ export default function BookPage() {
         </div>
 
         <div className="lg:block">
-          <Card className="sticky top-24 border-muted shadow-sm">
+          <Card className="sticky top-24 border-muted shadow-lg">
             <CardContent className="p-6 space-y-6">
               <div className="flex gap-4">
                 <div className="relative h-24 w-32 rounded-lg overflow-hidden flex-shrink-0">
@@ -312,8 +359,8 @@ export default function BookPage() {
                 </div>
                 <div className="flex flex-col justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">{property.propertyType}</p>
-                    <h3 className="font-semibold line-clamp-2">{property.title}</h3>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{property.propertyType}</p>
+                    <h3 className="font-semibold line-clamp-2 text-sm">{property.title}</h3>
                   </div>
                   <div className="flex items-center gap-1 text-xs">
                     <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
@@ -328,15 +375,15 @@ export default function BookPage() {
               <div className="space-y-4">
                 <h3 className="text-xl font-semibold">Price details</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between text-muted-foreground">
+                  <div className="flex justify-between text-muted-foreground text-sm">
                     <span className="underline">₦{(property.pricePerNight || 0).toLocaleString()} x {duration} nights</span>
                     <span>₦{subtotal.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-muted-foreground">
+                  <div className="flex justify-between text-muted-foreground text-sm">
                     <span className="underline">Cleaning fee</span>
                     <span>₦{(property.cleaningFee || 0).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-muted-foreground">
+                  <div className="flex justify-between text-muted-foreground text-sm">
                     <span className="underline">StayNest service fee</span>
                     <span>₦{(property.serviceFee || 0).toLocaleString()}</span>
                   </div>

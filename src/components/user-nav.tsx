@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,14 +15,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Home, MessageSquare, User, LogOut, Loader2, Heart, Settings, BellRing } from 'lucide-react';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { collectionGroup, query, where } from 'firebase/firestore';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const [mounted, setMounted] = React.useState(false);
@@ -29,6 +32,18 @@ export function UserNav() {
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Listen for unread messages across all bookings for the badge
+  const unreadMessagesQuery = useMemoFirebase(
+    () => (user && firestore) ? query(
+        collectionGroup(firestore, 'messages'),
+        where('receiverId', '==', user.uid),
+        where('isRead', '==', false)
+    ) : null,
+    [user, firestore]
+  );
+  const { data: unreadMessages } = useCollection(unreadMessagesQuery);
+  const unreadCount = unreadMessages?.length || 0;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -59,11 +74,19 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-primary/20 hover:ring-primary/50 transition-all">
           <Avatar className="h-9 w-9">
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white text-[8px] text-white font-bold items-center justify-center">
+                    {unreadCount}
+                </span>
+            </span>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -95,6 +118,9 @@ export function UserNav() {
                  <MessageSquare className="mr-2 h-4 w-4" />
                 <span>Messages</span>
               </div>
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="h-4 px-1 text-[10px]">{unreadCount}</Badge>
+              )}
             </Link>
           </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -119,7 +145,7 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
