@@ -452,13 +452,58 @@ export default function EditPropertyPage() {
                             </FormItem>
                         )}
                     />
-                    <div className="space-y-2">
-                        <FormLabel>Discounts</FormLabel>
-                        <FormDescription>Offer discounts to attract more guests.</FormDescription>
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                            <FormField control={form.control} name="newListingPromotion" render={({ field }) => (<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>New Listing Promotion (20%)</FormLabel></div></FormItem>)} />
-                            <FormField control={form.control} name="weeklyDiscount" render={({ field }) => (<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Weekly Discount (5%)</FormLabel></div></FormItem>)} />
-                            <FormField control={form.control} name="monthlyDiscount" render={({ field }) => (<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Monthly Discount (10%)</FormLabel></div></FormItem>)} />
+                    <div className="space-y-4">
+                        <FormLabel className="text-lg">Promotions & Discounts</FormLabel>
+                        <FormDescription>Manage how your discounts are applied to guest stays.</FormDescription>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <FormField 
+                                control={form.control} 
+                                name="newListingPromotion" 
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-accent/5">
+                                        <FormControl>
+                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel className="font-bold">New Listing Promotion (20%)</FormLabel>
+                                            <p className="text-xs text-muted-foreground">Offer 20% off your first 3 bookings to get reviews faster.</p>
+                                        </div>
+                                    </FormItem>
+                                )} 
+                            />
+                            
+                            <FormField 
+                                control={form.control} 
+                                name="weeklyDiscount" 
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                        <FormControl>
+                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel className="font-bold">Weekly Discount (5%)</FormLabel>
+                                            <p className="text-xs text-muted-foreground">Automatically applied for stays of 7 nights or more.</p>
+                                        </div>
+                                    </FormItem>
+                                )} 
+                            />
+                            
+                            <FormField 
+                                control={form.control} 
+                                name="monthlyDiscount" 
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                        <FormControl>
+                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel className="font-bold">Monthly Discount (10%)</FormLabel>
+                                            <p className="text-xs text-muted-foreground">Automatically applied for stays of 28 nights or more.</p>
+                                        </div>
+                                    </FormItem>
+                                )} 
+                            />
                         </div>
                     </div>
                  </div>
