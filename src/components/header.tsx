@@ -8,7 +8,7 @@ import { Logo } from "./logo";
 import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import type { User, Property } from '@/lib/types';
 import { doc, setDoc, serverTimestamp, query, collection, where, limit } from "firebase/firestore";
-import { usePathname } from 'next/navigation';
+import { ModeToggle } from "./mode-toggle";
 
 
 export default function Header() {
@@ -66,13 +66,14 @@ export default function Header() {
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Logo className="h-8 w-8" />
-            <span className="font-bold sm:inline-block font-headline text-lg">
+            <span className="font-bold sm:inline-block font-headline text-lg text-foreground">
               StayNest
             </span>
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="flex items-center space-x-2">
+            <ModeToggle />
             {mounted && user && (
                 isHost ? (
                     <Button variant="ghost" asChild className="hidden sm:flex">

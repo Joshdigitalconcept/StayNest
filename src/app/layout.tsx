@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import { PT_Sans } from 'next/font/google';
 import './globals.css';
@@ -8,7 +7,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import React from 'react';
 import AppBody from './app-body';
 import { EmailVerificationBanner } from '@/components/email-verification-banner';
-
+import { ThemeProvider } from '@/components/theme-provider';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -30,15 +29,22 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn('min-h-screen bg-background font-body antialiased', ptSans.variable)} suppressHydrationWarning>
-        <FirebaseClientProvider>
-           <React.Suspense fallback={<div>Loading...</div>}>
-             <EmailVerificationBanner />
-             <AppBody>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <FirebaseClientProvider>
+            <React.Suspense fallback={<div>Loading...</div>}>
+              <EmailVerificationBanner />
+              <AppBody>
                 {children}
-             </AppBody>
+              </AppBody>
             </React.Suspense>
-          <Toaster />
-        </FirebaseClientProvider>
+            <Toaster />
+          </FirebaseClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
