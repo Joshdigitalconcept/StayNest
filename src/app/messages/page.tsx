@@ -203,7 +203,7 @@ function ChatWindow({ activeConvo }: { activeConvo: Conversation | null }) {
                                         {msg.createdAt ? formatDistanceToNowStrict(msg.createdAt.toDate()) : '...'}
                                     </p>
                                     {isSender && (
-                                        msg.isRead ? <CheckCheck className="h-3 w-3 text-blue-300" /> : <Check className="h-3 w-3 opacity-50" />
+                                        msg.isRead ? <CheckCheck className="h-3 w-3 text-green-500" /> : <Check className="h-3 w-3 opacity-50" />
                                     )}
                                 </div>
                             </div>
