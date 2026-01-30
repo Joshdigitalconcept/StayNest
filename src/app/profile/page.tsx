@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint, TrendingUp, Wallet } from "lucide-react";
+import { Edit, Loader2, BookOpen, Briefcase, GraduationCap, Home, Languages, Map, Plane, Smile, Star, Users, Music, Clock, PawPrint, Wallet, CheckCircle2, XCircle } from "lucide-react";
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -193,36 +193,52 @@ export default function ProfilePage() {
     <div className="container mx-auto py-8">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
-          <Card>
-            <CardHeader className="items-center text-center">
-              <Avatar className="h-24 w-24 mb-4">
-                {userProfile.profilePictureUrl && <AvatarImage src={userProfile.profilePictureUrl} alt="User Avatar" />}
-                <AvatarFallback className="text-3xl">{userProfile.firstName?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <CardTitle className="text-2xl">{userProfile.firstName} {userProfile.lastName}</CardTitle>
-              <CardDescription>Joined in {user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : ''}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               <Button variant="outline" className="w-full" asChild>
-                <Link href="/profile/edit">
-                  <Edit className="mr-2 h-4 w-4" /> Edit Profile
-                </Link>
-              </Button>
-              {userProfile.isHost && (
-                <Card className="bg-primary/10 border-none shadow-none">
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className="bg-primary/20 p-2 rounded-full">
-                      <Wallet className="h-5 w-5 text-primary-foreground" />
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="items-center text-center">
+                <Avatar className="h-24 w-24 mb-4">
+                  {userProfile.profilePictureUrl && <AvatarImage src={userProfile.profilePictureUrl} alt="User Avatar" />}
+                  <AvatarFallback className="text-3xl">{userProfile.firstName?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <CardTitle className="text-2xl">{userProfile.firstName} {userProfile.lastName}</CardTitle>
+                <CardDescription>Joined in {user.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : ''}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <Button variant="outline" className="w-full" asChild>
+                  <Link href="/profile/edit">
+                    <Edit className="mr-2 h-4 w-4" /> Edit Profile
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {userProfile.isHost && (
+              <Card className="bg-primary/10 border-primary/20 shadow-md">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2 text-primary font-bold">
+                    <Wallet className="h-5 w-5" />
+                    <span className="text-sm uppercase tracking-wider">Host Dashboard</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground font-medium">Total Payouts Confirmed</p>
+                    <p className="text-3xl font-black text-primary">₦{totalEarnings.toLocaleString()}</p>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-primary/10">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Properties</span>
+                      <span className="font-bold">{userProperties?.length || 0}</span>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground font-semibold uppercase">Total Earnings</p>
-                      <p className="text-lg font-bold">₦{totalEarnings.toLocaleString()}</p>
+                    <div className="flex justify-between items-center text-xs mt-2">
+                      <span className="text-muted-foreground">Confirmed Stays</span>
+                      <span className="font-bold">{hostReservations?.filter(r => r.status === 'confirmed').length || 0}</span>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
         <div className="lg:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -230,7 +246,14 @@ export default function ProfilePage() {
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="bookings">My Bookings</TabsTrigger>
               <TabsTrigger value="properties">My Properties</TabsTrigger>
-              <TabsTrigger value="reservations">Reservations</TabsTrigger>
+              <TabsTrigger value="reservations" className="relative">
+                Reservations
+                {hostReservations && hostReservations.filter(r => r.status === 'pending').length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
+                    {hostReservations.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="profile">
@@ -268,7 +291,7 @@ export default function ProfilePage() {
                       <div className="space-y-4">
                         {myBookings.map(booking => (
                            <Link key={booking.id} href={`/properties/${booking.listingId}`}>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg hover:bg-muted/50">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg hover:bg-muted/50 transition-colors">
                                 <div className="relative h-32 w-full sm:w-32 rounded-md overflow-hidden bg-muted">
                                   {booking.listing?.imageUrl && <Image src={booking.listing.imageUrl} alt="" fill className="object-cover"/>}
                                 </div>
@@ -279,7 +302,8 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                   <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
-                                  <span className="font-semibold">₦{booking.totalPrice?.toLocaleString()}</span>
+                                  <span className="font-bold text-lg text-primary">₦{booking.totalPrice?.toLocaleString()}</span>
+                                  {booking.status === 'confirmed' && <p className="text-[10px] text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> RESERVED & PAID</p>}
                                 </div>
                               </div>
                           </Link>
@@ -326,43 +350,47 @@ export default function ProfilePage() {
                 <Card>
                 <CardHeader>
                     <CardTitle>Guest Reservations</CardTitle>
-                    <CardDescription>Approve or decline requests from guests for your properties.</CardDescription>
+                    <CardDescription>Review and manage booking requests from potential guests.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {areHostReservationsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div> :
                     hostReservations && hostReservations.length > 0 ? (
                         <div className="space-y-4">
                         {hostReservations.map(booking => (
-                            <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg">
+                            <div key={booking.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border p-4 rounded-lg bg-background shadow-sm">
                                 <div className="relative h-32 w-full sm:w-32 rounded-md overflow-hidden bg-muted">
                                   {booking.listing?.imageUrl && <Image src={booking.listing.imageUrl} alt="" fill className="object-cover"/>}
                                 </div>
                                 <div className="flex-1 space-y-2">
-                                    <h3 className="font-semibold">{booking.listing?.title || 'Booking'}</h3>
+                                    <h3 className="font-semibold text-lg">{booking.listing?.title || 'Booking'}</h3>
                                     <div className="flex items-center gap-2">
-                                        <Avatar className="h-6 w-6">
+                                        <Avatar className="h-8 w-8">
                                             <AvatarImage src={booking.guest?.photoURL} />
                                             <AvatarFallback>{booking.guest?.name?.charAt(0)}</AvatarFallback>
                                         </Avatar>
-                                        <span className="text-sm font-medium">{booking.guest?.name || 'Guest'}</span>
+                                        <span className="text-sm font-semibold">{booking.guest?.name || 'Guest'}</span>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-muted-foreground font-medium">
                                     {booking.checkInDate ? format(booking.checkInDate.toDate(), 'PPP') : ''} - {booking.checkOutDate ? format(booking.checkOutDate.toDate(), 'PPP') : ''}
                                     </p>
-                                    <p className="text-sm">Total: <span className="font-bold">₦{booking.totalPrice?.toLocaleString()}</span></p>
+                                    <p className="text-sm">Payout: <span className="font-bold text-primary">₦{booking.totalPrice?.toLocaleString()}</span></p>
                                 </div>
                                 <div className="flex flex-col items-stretch gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                 {booking.status === 'pending' ? (
                                     <>
-                                    <Button size="sm" onClick={() => handleBookingStatusUpdate(booking, 'confirmed')}>Approve</Button>
-                                    <Button size="sm" variant="outline" onClick={() => handleBookingStatusUpdate(booking, 'declined')}>Decline</Button>
+                                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleBookingStatusUpdate(booking, 'confirmed')}>
+                                      <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => handleBookingStatusUpdate(booking, 'declined')}>
+                                      <XCircle className="mr-2 h-4 w-4" /> Decline
+                                    </Button>
                                     </>
                                 ) : (
                                     <div className="flex flex-col items-end gap-2">
                                         <Badge variant={badgeVariants[booking.status]}>{booking.status}</Badge>
                                         {booking.status === 'confirmed' && (
-                                            <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-                                                <Wallet className="h-3 w-3" /> PAID
+                                            <p className="text-[10px] text-green-600 font-bold flex items-center gap-1 bg-green-100 px-2 py-1 rounded">
+                                                <Wallet className="h-3 w-3" /> REVENUE CONFIRMED
                                             </p>
                                         )}
                                     </div>
@@ -372,9 +400,9 @@ export default function ProfilePage() {
                         ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12">
-                        <h3 className="text-lg font-semibold text-muted-foreground">No pending reservations.</h3>
-                        <p className="text-sm text-muted-foreground">You will be notified when a guest requests to book one of your properties.</p>
+                        <div className="text-center py-16 border-2 border-dashed rounded-lg">
+                        <h3 className="text-lg font-semibold text-muted-foreground">No reservations yet.</h3>
+                        <p className="text-sm text-muted-foreground">When guests book your places, they'll appear here for your review.</p>
                         </div>
                     )
                     }

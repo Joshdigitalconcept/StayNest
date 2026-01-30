@@ -1,18 +1,17 @@
-
 'use client';
 
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
+import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { differenceInCalendarDays, format, isValid, parseISO, areIntervalsOverlapping } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Star, CreditCard, ChevronRight, Check } from 'lucide-react';
+import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle } from 'lucide-react';
 import type { Property, User as UserType, Booking } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -133,7 +132,8 @@ export default function BookPage() {
             return;
         }
 
-        const bookingStatus = property.bookingSettings === 'instant' ? 'confirmed' : 'pending';
+        const isInstant = property.bookingSettings === 'instant';
+        const bookingStatus = isInstant ? 'confirmed' : 'pending';
 
         const bookingData = {
           guestId: user.uid,
@@ -151,13 +151,16 @@ export default function BookPage() {
           host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
         };
 
-        await addDoc(bookingsColRef, bookingData);
+        const newBookingRef = await addDoc(bookingsColRef, bookingData);
+        
+        // If approval is needed, notify guest they wait
         toast({
-          title: bookingStatus === 'confirmed' ? 'Reservation Confirmed!' : 'Request Sent!',
-          description: bookingStatus === 'confirmed'
+          title: isInstant ? 'Reservation Confirmed!' : 'Request Sent to Host!',
+          description: isInstant
             ? 'Your booking is confirmed. Enjoy your trip!'
-            : 'Your request has been sent to the host for approval.',
+            : 'The host will review your request shortly.',
         });
+        
         router.push('/profile?tab=bookings');
     } catch (error: any) {
       const permissionError = new FirestorePermissionError({
@@ -196,6 +199,16 @@ export default function BookPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24">
         {/* Left Column: Details & Payment */}
         <div className="space-y-12">
+          {!isInstant && (
+            <div className="flex items-start gap-4 p-4 rounded-lg bg-blue-50 border border-blue-100 text-blue-800">
+              <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Your reservation won't be confirmed yet</p>
+                <p className="text-sm">The host has 24 hours to accept or decline your request. You won't be charged until they approve.</p>
+              </div>
+            </div>
+          )}
+
           <section className="space-y-6">
             <h2 className="text-2xl font-semibold">Your trip</h2>
             <div className="flex justify-between items-start">
@@ -318,7 +331,7 @@ export default function BookPage() {
                   </div>
                 </div>
                 <Separator />
-                <div className="flex justify-between font-bold text-lg">
+                <div className="flex justify-between font-bold text-lg text-primary">
                   <span>Total (NGN)</span>
                   <span>₦{totalPrice.toLocaleString()}</span>
                 </div>
