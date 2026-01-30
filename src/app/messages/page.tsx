@@ -5,7 +5,7 @@ import * as React from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUser, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
 import { collection, query, where, orderBy, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, Unsubscribe, limit, collectionGroup } from 'firebase/firestore';
-import { Loader2, SendHorizonal, CheckCheck, Check } from 'lucide-react';
+import { Loader2, SendHorizonal, CheckCheck, Check, MessageSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,17 +37,19 @@ function ConversationList({
 }) {
     if (conversations.length === 0) {
         return (
-            <div className="md:col-span-1 lg:col-span-1 border-r p-4">
-                 <h1 className="text-2xl font-bold font-headline p-4 border-b -m-4 mb-4">
+            <div className="md:col-span-1 lg:col-span-1 border-r overflow-y-auto">
+                 <h1 className="text-2xl font-bold font-headline p-4 border-b sticky top-0 bg-background z-10">
                     Messages
                 </h1>
-                <p className="text-center text-muted-foreground mt-8 text-sm">No conversations yet.</p>
+                <div className="p-8 text-center">
+                    <p className="text-muted-foreground text-sm">No conversations yet.</p>
+                </div>
             </div>
         )
     }
 
     return (
-        <div className="md:col-span-1 lg:col-span-1 border-r overflow-y-auto">
+        <div className="md:col-span-1 lg:col-span-1 border-r overflow-y-auto h-full">
             <h1 className="text-2xl font-bold font-headline p-4 border-b sticky top-0 bg-background z-10">
                 Messages
             </h1>
@@ -157,7 +159,7 @@ function ChatWindow({ activeConvo }: { activeConvo: Conversation | null }) {
     }
 
     return (
-        <div className="md:col-span-2 lg:col-span-3 flex flex-col h-full bg-background">
+        <div className="md:col-span-2 lg:col-span-3 flex flex-col h-full bg-background overflow-hidden">
             <div className="p-4 border-b flex items-center justify-between bg-background/95 backdrop-blur sticky top-0 z-10">
                 <div className="flex items-center gap-4">
                     <Link href={`/users/${activeConvo.otherPartyId}`}>
@@ -228,12 +230,9 @@ function ChatWindow({ activeConvo }: { activeConvo: Conversation | null }) {
     );
 }
 
-import { MessageSquare } from 'lucide-react';
-
 export default function MessagesPage() {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
-    const searchParams = useSearchParams();
     const [activeConvoId, setActiveConvoId] = React.useState<string | null>(null);
     const [conversationsMap, setConversationsMap] = React.useState<Map<string, Conversation>>(new Map());
     
@@ -257,8 +256,6 @@ export default function MessagesPage() {
           const otherParty = user.uid === booking.guestId ? booking.host! : booking.guest!;
           const convoId = `${booking.listingId}_${otherPartyId}`;
 
-          // Live listener for messages across this conversation group (via collection group or listing-filtered booking sub-collections)
-          // For simplicity, we query the messages subcollection of the SPECIFIC booking to build the grouping
           const lastMsgQuery = query(collection(firestore, `bookings/${booking.id}/messages`), orderBy('createdAt', 'desc'), limit(1));
           const unreadQuery = query(collection(firestore, `bookings/${booking.id}/messages`), where('receiverId', '==', user.uid), where('isRead', '==', false));
 
@@ -268,7 +265,6 @@ export default function MessagesPage() {
                   const newMap = new Map(prev);
                   const existing = newMap.get(convoId);
                   
-                  // Only update if this booking's message is newer or we don't have one
                   const isNewer = !existing || (msgData?.createdAt?.toMillis() || 0) > (existing.lastMessageTimestamp || 0);
                   
                   if (isNewer) {
@@ -293,9 +289,6 @@ export default function MessagesPage() {
                   const newMap = new Map(prev);
                   const existing = newMap.get(convoId);
                   if (existing) {
-                      // Note: This logic is slightly flawed as it only counts unread for THIS booking
-                      // We'd ideally sum all unreads for all bookings in this convo group
-                      // but for MVP, we'll just update the map
                       newMap.set(convoId, { ...existing, unreadCount: snap.size });
                   }
                   return newMap;
@@ -316,7 +309,6 @@ export default function MessagesPage() {
         return activeConvoId ? conversationsMap.get(activeConvoId) : null;
     }, [conversationsMap, activeConvoId]);
 
-    // Initial selection
     React.useEffect(() => {
         if (!activeConvoId && sortedConversations.length > 0) {
             setActiveConvoId(sortedConversations[0].id);
@@ -332,8 +324,8 @@ export default function MessagesPage() {
     }
 
     return (
-        <div className="container mx-auto py-8 px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-[calc(100vh-180px)] border rounded-2xl shadow-xl overflow-hidden bg-background">
+        <div className="container mx-auto py-8 px-4 h-[calc(100vh-100px)]">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 h-full border rounded-2xl shadow-xl overflow-hidden bg-background">
                 <ConversationList 
                     conversations={sortedConversations} 
                     activeConvoId={activeConvoId} 
