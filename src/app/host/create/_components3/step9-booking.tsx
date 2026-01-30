@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card } from "@/components/ui/card";
@@ -14,7 +15,7 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
   const bookingSettings = formData.bookingSettings;
   const firstGuestWelcome = formData.firstGuestWelcome;
 
-  // Set default to 'approval' if nothing is selected
+  // Set default to 'approval' if nothing is selected to ensure Request to Book is the baseline
   useEffect(() => {
     if (!bookingSettings) {
       setFormData({ bookingSettings: 'approval' });
@@ -37,23 +38,23 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
             className="space-y-4"
           >
              <Label htmlFor="instant" className="block">
-                <Card className={`p-6 cursor-pointer hover:border-primary ${bookingSettings === 'instant' ? 'border-primary ring-2 ring-primary' : ''}`}>
+                <Card className={`p-6 cursor-pointer hover:border-primary transition-all ${bookingSettings === 'instant' ? 'border-primary ring-2 ring-primary shadow-md' : 'border-muted'}`}>
                     <div className="flex items-start space-x-4">
                         <RadioGroupItem value="instant" id="instant" className="mt-1"/>
                         <div>
                             <p className="font-semibold">Use Instant Book</p>
-                            <p className="text-sm text-muted-foreground">Guests can book automatically.</p>
+                            <p className="text-sm text-muted-foreground">Guests can book automatically. Best for maximizing occupancy.</p>
                         </div>
                     </div>
                 </Card>
             </Label>
              <Label htmlFor="approval" className="block">
-                <Card className={`p-6 cursor-pointer hover:border-primary ${bookingSettings === 'approval' ? 'border-primary ring-2 ring-primary' : ''}`}>
+                <Card className={`p-6 cursor-pointer hover:border-primary transition-all ${bookingSettings === 'approval' ? 'border-primary ring-2 ring-primary shadow-md' : 'border-muted'}`}>
                     <div className="flex items-start space-x-4">
                         <RadioGroupItem value="approval" id="approval" className="mt-1" />
                          <div>
                             <p className="font-semibold">Approve or decline requests</p>
-                            <p className="text-sm text-muted-foreground">Guests must ask if they can book.</p>
+                            <p className="text-sm text-muted-foreground">Guests must ask if they can book. Best for screening guests.</p>
                         </div>
                     </div>
                 </Card>
@@ -69,7 +70,7 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
             className="space-y-4"
           >
              <Label htmlFor="any" className="block">
-                <Card className={`p-6 cursor-pointer hover:border-primary ${firstGuestWelcome === 'any' ? 'border-primary ring-2 ring-primary' : ''}`}>
+                <Card className={`p-6 cursor-pointer hover:border-primary transition-all ${firstGuestWelcome === 'any' ? 'border-primary ring-2 ring-primary' : 'border-muted'}`}>
                     <div className="flex items-start space-x-4">
                         <RadioGroupItem value="any" id="any" className="mt-1"/>
                         <div>
@@ -80,7 +81,7 @@ export default function Step9_Booking({ setFormData, formData }: Step9Props) {
                 </Card>
             </Label>
              <Label htmlFor="experienced" className="block">
-                <Card className={`p-6 cursor-pointer hover:border-primary ${firstGuestWelcome === 'experienced' ? 'border-primary ring-2 ring-primary' : ''}`}>
+                <Card className={`p-6 cursor-pointer hover:border-primary transition-all ${firstGuestWelcome === 'experienced' ? 'border-primary ring-2 ring-primary' : 'border-muted'}`}>
                     <div className="flex items-start space-x-4">
                         <RadioGroupItem value="experienced" id="experienced" className="mt-1"/>
                         <div>

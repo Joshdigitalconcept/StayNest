@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound, useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
-import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { differenceInCalendarDays, format, isValid, parseISO, areIntervalsOverlapping } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -143,12 +143,11 @@ export default function BookPage() {
             );
         });
 
+        // Determine status based strictly on host choice (default to approval if missing)
         const isInstant = property.bookingSettings === 'instant';
 
         if (hasConflict) {
-            // If it was an instant booking attempt that failed due to a race condition conflict
             if (isInstant) {
-                // We create a DECLINED booking to show the history and send a message
                 const failedBookingData = {
                     guestId: user.uid,
                     hostId: property.ownerId,
@@ -170,14 +169,14 @@ export default function BookPage() {
                     property.ownerId, 
                     user.uid, 
                     property.id, 
-                    `System Alert: Your instant booking request for "${property.title}" failed because these dates were just confirmed by another guest. Your payment method has not been charged.`
+                    `System Alert: Your instant booking attempt for "${property.title}" failed because these dates were just confirmed by another guest. Your payment method was not charged.`
                 );
             }
 
             toast({
                 variant: 'destructive',
                 title: 'Dates No Longer Available',
-                description: 'Someone just booked these dates. This request has been declined automatically.'
+                description: 'Someone just booked these dates. Please try different dates.'
             });
             router.push(`/properties/${property.id}`);
             return;
@@ -347,6 +346,9 @@ export default function BookPage() {
             >
               {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Book' : 'Request to Book')}
             </Button>
+            <p className="text-center text-[10px] text-muted-foreground">
+                {isInstant ? "Your payment will be processed immediately upon confirmation." : "You won't be charged until the host accepts your request."}
+            </p>
           </section>
         </div>
 
