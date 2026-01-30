@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -20,6 +19,7 @@ import { signOut } from 'firebase/auth';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { collectionGroup, query, where } from 'firebase/firestore';
+import { Badge } from '@/components/ui/badge';
 
 export function UserNav() {
   const { user, isUserLoading } = useUser();
