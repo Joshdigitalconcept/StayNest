@@ -18,7 +18,7 @@ import { useUser, useAuth, useFirestore, useCollection, useMemoFirebase } from '
 import { signOut } from 'firebase/auth';
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { collectionGroup, query, where } from 'firebase/firestore';
+import { collection, collectionGroup, query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 
 export function UserNav() {
@@ -44,6 +44,20 @@ export function UserNav() {
   );
   const { data: unreadMessages } = useCollection(unreadMessagesQuery);
   const unreadCount = unreadMessages?.length || 0;
+
+  // Listen for pending reservations where user is the host
+  const pendingReservationsQuery = useMemoFirebase(
+    () => (user && firestore) ? query(
+        collection(firestore, 'bookings'),
+        where('hostId', '==', user.uid),
+        where('status', '==', 'pending')
+    ) : null,
+    [user, firestore]
+  );
+  const { data: pendingReservations } = useCollection(pendingReservationsQuery);
+  const pendingCount = pendingReservations?.length || 0;
+
+  const totalNotifications = unreadCount + pendingCount;
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -79,11 +93,11 @@ export function UserNav() {
             {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || 'User avatar'} />}
             <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
           </Avatar>
-          {unreadCount > 0 && (
+          {totalNotifications > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white text-[8px] text-white font-bold items-center justify-center">
-                    {unreadCount}
+                    {totalNotifications}
                 </span>
             </span>
           )}
@@ -129,6 +143,9 @@ export function UserNav() {
                         <BellRing className="mr-2 h-4 w-4" />
                         <span>Reservations</span>
                     </div>
+                    {pendingCount > 0 && (
+                        <Badge variant="destructive" className="h-4 px-1 text-[10px]">{pendingCount}</Badge>
+                    )}
                 </Link>
             </DropdownMenuItem>
           <DropdownMenuItem asChild>

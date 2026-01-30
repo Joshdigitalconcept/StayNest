@@ -37,6 +37,9 @@ function Calendar({
       }
     }
 
+    // Apply specific logic for the 'booked' modifier if present
+    const isBooked = modifiers.booked;
+
     const dayElement = (
       <div
         className={cn(
@@ -47,6 +50,8 @@ function Calendar({
           modifiers.selected && !isDisabled && "bg-primary text-primary-foreground",
           // Range middle
           modifiers.range_middle && "bg-accent text-accent-foreground rounded-none",
+          // Booked modifier - ensuring it's centered and styled
+          isBooked && "bg-primary text-primary-foreground rounded-full",
           // Hover only on enabled dates
           !isDisabled && "hover:bg-accent hover:text-accent-foreground cursor-pointer",
           // Today

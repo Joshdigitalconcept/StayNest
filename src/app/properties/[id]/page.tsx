@@ -29,6 +29,7 @@ import {
   Calendar as CalendarIcon,
   Info,
   Tag,
+  XCircle,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -666,7 +667,7 @@ function PropertyDetails({ property }: { property: Property }) {
                         <p className="text-xs opacity-90 mt-1">Review stays and track occupancy.</p>
                     </div>
                     <CardContent className="space-y-6 pt-6">
-                        <div className="p-3 border rounded-xl bg-background shadow-inner">
+                        <div className="p-3 border rounded-xl bg-background shadow-inner flex justify-center">
                             <TooltipProvider>
                                 <Calendar
                                     mode="single"
@@ -679,9 +680,6 @@ function PropertyDetails({ property }: { property: Property }) {
                                                 end: b.checkOutDate.toDate() 
                                             })
                                         ) ?? false
-                                    }}
-                                    modifiersClassNames={{
-                                        booked: "bg-primary text-primary-foreground font-black rounded-full hover:scale-110 transition-transform"
                                     }}
                                 />
                             </TooltipProvider>
