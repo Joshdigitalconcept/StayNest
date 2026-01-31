@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -74,8 +75,6 @@ export default function AdminUserProfilePage() {
     if (!isUserLoading && !user && !error && retryCount < MAX_RETRIES) {
       const timer = setTimeout(() => {
         setRetryCount(prev => prev + 1);
-        // This is a bit of a hack to force the useDoc hook to re-evaluate.
-        // In a real app, you might have a more direct way to re-trigger a fetch.
         const recheck = async () => {
           if (userDocRef) {
             await getDoc(userDocRef);
@@ -124,8 +123,14 @@ export default function AdminUserProfilePage() {
 
     try {
         if (makeAdmin) {
-            await setDoc(adminRoleRef, { grantedAt: serverTimestamp(), by: adminUser?.email });
-            setAdminRole({ grantedAt: new Date() });
+            // Include critical fields like email and name for consistency in Settings list
+            await setDoc(adminRoleRef, { 
+              grantedAt: serverTimestamp(), 
+              by: adminUser?.email || 'Admin',
+              email: user.email,
+              name: `${user.firstName} ${user.lastName}`.trim()
+            });
+            setAdminRole({ grantedAt: new Date(), email: user.email, name: `${user.firstName} ${user.lastName}` });
             toast({ title: 'Success!', description: `${user.firstName} is now an administrator.` });
         } else {
             await deleteDoc(adminRoleRef);
@@ -148,13 +153,11 @@ export default function AdminUserProfilePage() {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin" /></div>;
   }
   
-  // After all retries, if user is still not found, then show 404.
   if (!isLoading && !user && retryCount >= MAX_RETRIES) {
     notFound();
   }
 
   if (!user) {
-    // This state is shown during the retry attempts.
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin" />
@@ -170,7 +173,6 @@ export default function AdminUserProfilePage() {
       </Button>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - User Profile Card */}
         <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardHeader className="items-center text-center">
@@ -191,7 +193,6 @@ export default function AdminUserProfilePage() {
           </Card>
         </div>
 
-        {/* Right Column - Management Cards */}
         <div className="lg:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
@@ -201,22 +202,22 @@ export default function AdminUserProfilePage() {
                 <CardContent className="space-y-4">
                     <div className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                            <Label htmlFor="is-guest" className="text-base flex items-center gap-2"><UserIcon /> Is Guest</Label>
+                            <Label htmlFor="is-guest" className="text-base flex items-center gap-2"><UserIcon className="h-4 w-4" /> Is Guest</Label>
                             <p className="text-sm text-muted-foreground">All users are guests by default.</p>
                         </div>
                         <Check className="h-6 w-6 text-green-500" />
                     </div>
                      <div className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                            <Label htmlFor="is-host" className="text-base flex items-center gap-2"><Building /> Is Host</Label>
+                            <Label htmlFor="is-host" className="text-base flex items-center gap-2"><Building className="h-4 w-4" /> Is Host</Label>
                             <p className="text-sm text-muted-foreground">Hosts can create and manage listings.</p>
                         </div>
                         <Switch id="is-host" checked={user.isHost} onCheckedChange={handleHostToggle} />
                     </div>
                      <div className="flex items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                            <Label htmlFor="is-admin" className="text-base flex items-center gap-2"><Shield /> Is Admin</Label>
-                            <p className="text-sm text-muted-foreground">Admins have access to this management panel.</p>
+                            <Label htmlFor="is-admin" className="text-base flex items-center gap-2"><Shield className="h-4 w-4" /> Is Admin</Label>
+                            <p className="text-sm text-muted-foreground">Admins have access to the management panel.</p>
                         </div>
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -242,7 +243,6 @@ export default function AdminUserProfilePage() {
                     </div>
                 </CardContent>
             </Card>
-             {/* Placeholder for other management sections */}
         </div>
       </div>
     </div>

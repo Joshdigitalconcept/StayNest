@@ -13,22 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Shield, Settings, Key, UserPlus, Loader2, Trash2, Search } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
-import { collection, query, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
+import { Shield, Settings, Key, UserPlus, Loader2, Trash2, Search, Mail } from 'lucide-react';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
+import { collection, query, doc, setDoc, deleteDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function AdminSettingsPage() {
   const firestore = useFirestore();
@@ -70,27 +67,44 @@ export default function AdminSettingsPage() {
   };
 
   const handleAddAdminByEmail = async () => {
-    if (!searchEmail.trim() || !firestore) return;
+    const email = searchEmail.trim();
+    if (!email || !firestore) return;
+    
     setIsAddingAdmin(true);
     try {
+      // Search for user in the users collection
       const usersRef = collection(firestore, 'users');
-      const q = query(usersRef, where('email', '==', searchEmail.trim()), limit(1));
+      const q = query(usersRef, where('email', '==', email), limit(1));
       const snap = await getDocs(q);
       
       if (snap.empty) {
-        toast({ variant: 'destructive', title: "User Not Found", description: "No user found with that email address." });
+        toast({ 
+          variant: 'destructive', 
+          title: "User Not Found", 
+          description: `No profile exists for ${email}. Note: users must log in at least once to create a profile. Search is case-sensitive.` 
+        });
       } else {
         const targetUser = snap.docs[0];
+        const userData = targetUser.data();
+        
+        // Add to roles_admin collection
         await setDoc(doc(firestore, 'roles_admin', targetUser.id), {
           grantedAt: serverTimestamp(),
-          by: currentUser?.email,
-          email: targetUser.data().email
+          by: currentUser?.email || 'System',
+          email: userData.email || email,
+          name: `${userData.firstName} ${userData.lastName}`.trim()
         });
-        toast({ title: "Admin Added", description: `${targetUser.data().email} is now an administrator.` });
+        
+        toast({ title: "Admin Added", description: `${email} is now an administrator.` });
         setSearchEmail('');
       }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: "Operation Failed", description: error.message });
+      console.error("Add admin error:", error);
+      toast({ 
+        variant: 'destructive', 
+        title: "Operation Failed", 
+        description: error.message || "Failed to grant admin privileges." 
+      });
     } finally {
       setIsAddingAdmin(false);
     }
@@ -118,13 +132,16 @@ export default function AdminSettingsPage() {
                 <CardDescription>Users with full access to the admin panel.</CardDescription>
               </div>
               <div className="flex gap-2 w-full md:w-auto">
-                <Input 
-                  placeholder="Admin Email..." 
-                  value={searchEmail} 
-                  onChange={(e) => setSearchEmail(e.target.value)} 
-                  className="max-w-[250px]"
-                />
-                <Button onClick={handleAddAdminByEmail} disabled={isAddingAdmin}>
+                <div className="relative">
+                  <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="User Email (case-sensitive)..." 
+                    value={searchEmail} 
+                    onChange={(e) => setSearchEmail(e.target.value)} 
+                    className="max-w-[250px] pl-9"
+                  />
+                </div>
+                <Button onClick={handleAddAdminByEmail} disabled={isAddingAdmin || !searchEmail}>
                   {isAddingAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
                   Add Admin
                 </Button>
@@ -132,24 +149,35 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent>
               {isAdminsLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
+                <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
+              ) : !admins || admins.length === 0 ? (
+                <div className="text-center py-12 border rounded-lg border-dashed">
+                  <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
+                  <p className="text-muted-foreground">No administrators found in the system.</p>
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Admin Email</TableHead>
+                      <TableHead>Administrator</TableHead>
                       <TableHead>User ID</TableHead>
                       <TableHead>Granted At</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {admins?.map(admin => (
+                    {admins.map(admin => (
                       <TableRow key={admin.id}>
-                        <TableCell className="font-medium">{admin.email || 'Legacy Admin'}</TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{admin.id}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold">{admin.name || 'Admin User'}</span>
+                            <span className="text-xs text-muted-foreground">{admin.email || 'Legacy Profile'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-[10px] text-muted-foreground">{admin.id}</TableCell>
                         <TableCell className="text-xs">
                           {admin.grantedAt ? format(admin.grantedAt.toDate(), 'PPP') : 'N/A'}
+                          {admin.by && <p className="text-[10px] text-muted-foreground italic">by {admin.by}</p>}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button 
@@ -157,6 +185,7 @@ export default function AdminSettingsPage() {
                             variant="ghost" 
                             className="text-destructive hover:bg-destructive/10"
                             onClick={() => handleRevokeAdmin(admin.id)}
+                            disabled={admin.id === currentUser?.uid}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Revoke
@@ -179,7 +208,7 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {isConfigLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="animate-spin h-6 w-6" /></div>
+                <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
               ) : (
                 <>
                   <div className="flex items-center justify-between space-x-2 border-b pb-4">
