@@ -84,13 +84,19 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (err: FirestoreError) => {
+      async (err: FirestoreError) => {
+            const contextualError = new FirestorePermissionError({
+              operation: 'list',
+              path: (memoizedTargetRefOrQuery as any).path || 'collectionGroup',
+            });
+
             // Set the specific error from Firestore, not the contextual one, to be caught by boundaries
-            setError(err);
+            setError(contextualError);
             setData(null);
             setIsLoading(false);
 
-            console.error(err);
+            // Emit the error with the global error emitter for Next.js overlay debugging
+            errorEmitter.emit('permission-error', contextualError);
       }
     );
 
