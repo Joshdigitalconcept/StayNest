@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -23,6 +22,7 @@ import Step12_Legal from './_components3/step12-legal';
 import Step13_Review from './_components3/step13-review';
 import { doc } from 'firebase/firestore';
 import type { User as UserType } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 
 const steps = [
@@ -51,6 +51,7 @@ export default function CreateListingPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
+  const { toast } = useToast();
   
   const userDocRef = useMemoFirebase(
     () => (user && firestore) ? doc(firestore, 'users', user.uid) : null,
@@ -78,6 +79,17 @@ export default function CreateListingPage() {
   } = useHostOnboarding(steps.length, initialDraft);
   
   const isLoading = isUserLoading || isProfileLoading;
+
+  React.useEffect(() => {
+    if (!isLoading && user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
+        toast({
+            variant: 'destructive',
+            title: 'Email Verification Required',
+            description: 'You must verify your email address to host a listing. Check your inbox or spam folder.',
+        });
+        router.push('/profile');
+    }
+  }, [isLoading, user, router, toast]);
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-12 w-12" /></div>;

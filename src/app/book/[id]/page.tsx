@@ -144,6 +144,16 @@ export default function BookPage() {
       return;
     }
 
+    // Email verification check
+    if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
+        toast({
+            variant: 'destructive',
+            title: 'Email Verification Required',
+            description: 'Please verify your email address before booking. Check your inbox or spam folder.',
+        });
+        return;
+    }
+
     if (!selectedPaymentId) {
       toast({ variant: 'destructive', title: 'Payment Required', description: 'Please select a payment method.' });
       return;
