@@ -17,7 +17,6 @@ import PropertyCard from '@/components/property-card';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { propertyTypes } from '@/lib/types';
 import type { Property } from '@/lib/types';
-import AdminDashboard from './admin/page';
 
 function SearchSuggestions({ listings, onSelect }: { listings: Property[]; onSelect: (query: string) => void }) {
     if (listings.length === 0) {
@@ -237,6 +236,7 @@ function PublicLandingPage() {
 export default function RootPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const router = useRouter();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -249,6 +249,13 @@ export default function RootPage() {
   );
   const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRoleRef);
 
+  // Use a proper redirect for admins to ensure the AdminLayout (with sidebar) is applied
+  React.useEffect(() => {
+    if (mounted && !isUserLoading && !isAdminRoleLoading && adminRole) {
+      router.push('/admin');
+    }
+  }, [mounted, isUserLoading, isAdminRoleLoading, adminRole, router]);
+
   if (!mounted || isUserLoading || isAdminRoleLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -257,9 +264,13 @@ export default function RootPage() {
     );
   }
 
-  // If user is an admin, show the dashboard logic directly at the root
+  // Show a loading state if we're waiting for the redirect to happen
   if (adminRole) {
-    return <AdminDashboard />;
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return <PublicLandingPage />;
