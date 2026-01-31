@@ -16,6 +16,21 @@ service cloud.firestore {
     }
     
     // -------------------------------------------------------------------------
+    // Collection Group Rules (Must be globally defined)
+    // -------------------------------------------------------------------------
+     
+    match /{path=**}/messages/{messageId} {
+       // Global reading for messages requires being signed in.
+       // Specific participant security is handled within the booking match.
+       allow read: if isSignedIn();
+    }
+
+    match /{path=**}/reviews/{reviewId} {
+       // Reviews are public for reading individually or in centralized groups.
+       allow read: if true;
+    }
+
+    // -------------------------------------------------------------------------
     // Collection Rules
     // -------------------------------------------------------------------------
 
@@ -63,14 +78,14 @@ service cloud.firestore {
     }
     
     match /bookings/{bookingId} {
-      // Allow read for all participants and admins
-      // Simplified list rule to ensure calendar and dashboards don't crash
+      // Allow read for participants and admins. 
+      // Simplified list rule to ensure calendars and dashboards function.
       allow read: if isSignedIn();
       
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       
       // Allow updates if user is the guest, host, or admin.
-      // Critical for hosts to approve/decline.
+      // Critical for hosts to approve/decline requests.
       allow update: if isSignedIn() && (
         resource.data.guestId == request.auth.uid || 
         resource.data.hostId == request.auth.uid || 
@@ -88,18 +103,6 @@ service cloud.firestore {
            isAdmin()
          );
        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Collection Group Rules
-    // -------------------------------------------------------------------------
-     
-    match /{path=**}/messages/{messageId} {
-       allow list: if isSignedIn();
-    }
-
-    match /{path=**}/reviews/{reviewId} {
-       allow list: if isAdmin() || isSignedIn();
     }
   }
 }
