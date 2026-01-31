@@ -85,9 +85,14 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       async (err: FirestoreError) => {
+            // Attempt to extract path for better debugging
+            const queryPath = (memoizedTargetRefOrQuery as any)._query?.path?.canonicalString?.() 
+              || (memoizedTargetRefOrQuery as any).path 
+              || 'collectionGroup';
+
             const contextualError = new FirestorePermissionError({
               operation: 'list',
-              path: (memoizedTargetRefOrQuery as any).path || 'collectionGroup',
+              path: queryPath,
             });
 
             // Set the specific error from Firestore, not the contextual one, to be caught by boundaries
