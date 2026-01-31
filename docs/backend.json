@@ -50,69 +50,6 @@
           "type": "string",
           "description": "Timestamp indicating when the user account was last updated.",
           "format": "date-time"
-        },
-        "favorites": {
-          "type": "array",
-          "description": "A list of listing IDs that the user has favorited.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "work": {
-          "type": "string",
-          "description": "The user's occupation."
-        },
-        "school": {
-          "type": "string",
-          "description": "The school or university the user attended."
-        },
-        "live": {
-          "type": "string",
-          "description": "The city or area where the user lives."
-        },
-        "about": {
-          "type": "string",
-          "description": "A short biography or introduction from the user."
-        },
-        "languages": {
-          "type": "string",
-          "description": "Languages the user speaks."
-        },
-        "born": {
-          "type": "string",
-          "description": "The decade the user was born in."
-        },
-        "obsessedWith": {
-          "type": "string",
-          "description": "Something the user is obsessed with."
-        },
-        "uselessSkill": {
-          "type": "string",
-          "description": "A fun, useless skill the user has."
-        },
-        "biographyTitle": {
-          "type": "string",
-          "description": "A creative title for the user's life story."
-        },
-        "favoriteSong": {
-          "type": "string",
-          "description": "The user's favorite song from high school."
-        },
-        "spendTooMuchTime": {
-          "type": "string",
-          "description": "Something the user spends a lot of time doing."
-        },
-        "funFact": {
-          "type": "string",
-          "description": "A fun fact about the user."
-        },
-        "pets": {
-          "type": "string",
-          "description": "Information about the user's pets."
-        },
-        "travelGoal": {
-          "type": "string",
-          "description": "A place the user has always wanted to travel to."
         }
       },
       "required": [
@@ -122,137 +59,6 @@
         "isGuest",
         "createdAt",
         "updatedAt"
-      ]
-    },
-    "listing": {
-      "title": "Listing",
-      "description": "Represents a property listing on the StayNest platform.",
-      "type": "object",
-      "properties": {
-        "ownerId": {
-          "type": "string",
-          "description": "The UID of the user who owns this listing."
-        },
-        "title": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "location": {
-          "type": "string"
-        },
-        "pricePerNight": {
-          "type": "number"
-        },
-        "cleaningFee": {
-          "type": "number",
-          "description": "A flat fee for cleaning the property after a stay."
-        },
-        "serviceFee": {
-          "type": "number",
-          "description": "A fee for using the StayNest platform."
-        },
-        "maxGuests": {
-          "type": "number"
-        },
-        "bedrooms": {
-          "type": "number"
-        },
-        "bathrooms": {
-          "type": "number"
-        },
-        "amenities": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "imageUrl": {
-          "type": "string",
-          "format": "uri",
-          "description": "The primary image URL for the listing."
-        },
-        "imageUrls": {
-          "type": "array",
-          "description": "A list of image URLs for the listing carousel.",
-          "items": {
-            "type": "string",
-            "format": "uri"
-          }
-        },
-        "bookingSettings": {
-          "type": "string",
-          "enum": ["instant", "approval"]
-        }
-      },
-      "required": [
-        "ownerId",
-        "title",
-        "description",
-        "location",
-        "pricePerNight",
-        "maxGuests",
-        "imageUrl",
-        "imageUrls",
-        "cleaningFee",
-        "serviceFee"
-      ]
-    },
-    "booking": {
-      "title": "Booking",
-      "description": "Represents a booking made by a guest for a listing.",
-      "type": "object",
-      "properties": {
-        "listingId": {
-          "type": "string",
-          "description": "The ID of the booked listing."
-        },
-        "guestId": {
-          "type": "string",
-          "description": "The UID of the guest who made the booking."
-        },
-        "hostId": {
-          "type": "string",
-          "description": "The UID of the host who owns the listing."
-        },
-        "checkInDate": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "checkOutDate": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "totalPrice": {
-          "type": "number"
-        },
-        "guests": {
-          "type": "number"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "pending",
-            "confirmed",
-            "declined"
-          ]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "listingId",
-        "guestId",
-        "hostId",
-        "checkInDate",
-        "checkOutDate",
-        "totalPrice",
-        "guests",
-        "status",
-        "createdAt"
       ]
     },
     "PlatformConfig": {
@@ -325,6 +131,19 @@
             "$ref": "#/backend/entities/Ticket"
           },
           "description": "Stores dispute and support tickets."
+        }
+      },
+      {
+        "path": "/content/{docId}",
+        "definition": {
+          "entityName": "PlatformConfig",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" }
+            }
+          },
+          "description": "Stores dynamic platform content like TOS and Privacy Policy."
         }
       }
     ]
