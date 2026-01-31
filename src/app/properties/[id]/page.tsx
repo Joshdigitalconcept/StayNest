@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { notFound, useParams, useRouter } from "next/navigation";
+import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import * as React from 'react';
 import {
   Star,
@@ -41,7 +41,7 @@ import { useDoc, useFirestore, useMemoFirebase, useUser, errorEmitter, Firestore
 import { doc, addDoc, collection, serverTimestamp, Timestamp, deleteDoc, setDoc, getDoc, query, orderBy, where, limit } from "firebase/firestore";
 import type { Property, Review, Booking } from "@/lib/types";
 import { DateRange } from "react-day-picker";
-import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay, areIntervalsOverlapping, isSameDay } from "date-fns";
+import { differenceInCalendarDays, format, eachDayOfInterval, getDay, isWithinInterval, startOfDay, areIntervalsOverlapping, isSameDay, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -289,6 +289,7 @@ function ReviewsSection({ propertyId, property }: { propertyId: string; property
 function PropertyDetails({ property }: { property: Property }) {
   const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -296,6 +297,23 @@ function PropertyDetails({ property }: { property: Property }) {
   const [guests, setGuests] = React.useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = React.useState<number | null>(null);
   const [selectedBooking, setSelectedBooking] = React.useState<Booking | null>(null);
+
+  // Initialize from search params if returning from checkout
+  React.useEffect(() => {
+    const cin = searchParams.get('checkin');
+    const cout = searchParams.get('checkout');
+    const g = searchParams.get('guests');
+    if (cin && cout) {
+      try {
+        setDate({ from: parseISO(cin), to: parseISO(cout) });
+      } catch (e) {
+        console.error("Failed to parse dates from URL", e);
+      }
+    }
+    if (g) {
+      setGuests(parseInt(g, 10));
+    }
+  }, [searchParams]);
 
   // Fetch all confirmed bookings for this listing to block out the calendar
   const confirmedBookingsQuery = useMemoFirebase(
@@ -315,7 +333,6 @@ function PropertyDetails({ property }: { property: Property }) {
       confirmedBookings.forEach(booking => {
         const start = booking.checkInDate.toDate();
         const end = booking.checkOutDate.toDate();
-        // Add every single day in the interval to the disabled list
         const interval = eachDayOfInterval({ start, end });
         dates.push(...interval);
       });
@@ -326,7 +343,6 @@ function PropertyDetails({ property }: { property: Property }) {
 
   const handleDayClick = (day: Date, modifiers: any) => {
     if (isOwner) {
-        // Find if this day belongs to a booking
         const booking = confirmedBookings?.find(b => {
             const start = b.checkInDate.toDate();
             const end = b.checkOutDate.toDate();
@@ -392,11 +408,6 @@ function PropertyDetails({ property }: { property: Property }) {
       return acc + price;
     }, 0);
 
-    const fromDayOfWeek = getDay(date.from);
-    const isFromWeekend = fromDayOfWeek === 5 || fromDayOfWeek === 6;
-    const price = isFromWeekend && property.weekendPrice > 0 ? property.weekendPrice : property.pricePerNight;
-
-    // Apply Discounts logic
     let appliedDiscount = 0;
     let label = null;
 
@@ -413,7 +424,7 @@ function PropertyDetails({ property }: { property: Property }) {
 
     const savings = Math.round(sub * appliedDiscount);
 
-    return { subtotal: sub, duration: bookingDuration, dayPrice: price, discountAmount: savings, discountLabel: label };
+    return { subtotal: sub, duration: bookingDuration, dayPrice: property.pricePerNight, discountAmount: savings, discountLabel: label };
   }, [date, property.pricePerNight, property.weekendPrice, property.monthlyDiscount, property.weeklyDiscount, property.newListingPromotion, property.reviewCount]);
 
   const cleaningFee = property?.cleaningFee || 0;

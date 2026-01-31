@@ -9,12 +9,22 @@ import { doc, addDoc, collection, serverTimestamp, Timestamp, query, where, getD
 import { differenceInCalendarDays, format, isValid, parseISO, areIntervalsOverlapping } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle, Tag } from 'lucide-react';
+import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle, Tag, Plus } from 'lucide-react';
 import type { Property, User as UserType, Booking } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 function InvalidBookingState() {
   const params = useParams();
@@ -38,6 +48,14 @@ function InvalidBookingState() {
   )
 }
 
+function PaymentIcon({ brand }: { brand: 'VISA' | 'MC' }) {
+  return (
+    <div className={brand === 'VISA' ? "bg-blue-800 text-white px-2 py-0.5 rounded text-[10px] font-black italic tracking-tighter" : "bg-orange-600 text-white px-2 py-0.5 rounded text-[10px] font-black italic tracking-tighter"}>
+      {brand}
+    </div>
+  );
+}
+
 export default function BookPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -48,7 +66,9 @@ export default function BookPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isAddingCard, setIsAddingCard] = React.useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = React.useState<string | null>(null);
+  const [addCardDialogOpen, setAddCardDialogOpen] = React.useState(false);
 
   const propertyRef = useMemoFirebase(
     () => (firestore && id) ? doc(firestore, 'listings', id) : null,
@@ -95,7 +115,6 @@ export default function BookPage() {
 
     const sub = price * dur;
     
-    // Apply Discounts logic
     let appliedDiscount = 0;
     let label = null;
 
@@ -125,6 +144,34 @@ export default function BookPage() {
     };
   }, [checkinStr, checkoutStr, guestsStr, property]);
 
+  const handleAddCard = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!user || !paymentMethodsRef) return;
+
+    setIsAddingCard(true);
+    const formData = new FormData(e.currentTarget);
+    const cardNumber = formData.get('cardNumber')?.toString() || '';
+    const lastFour = cardNumber.slice(-4) || '4242';
+
+    const cardData = {
+      lastFour,
+      expiry: formData.get('expiry'),
+      type: 'visa',
+      createdAt: serverTimestamp(),
+    };
+
+    try {
+      const docRef = await addDoc(paymentMethodsRef, cardData);
+      setSelectedPaymentId(docRef.id);
+      setAddCardDialogOpen(false);
+      toast({ title: 'Success', description: 'Payment method saved.' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not save card.' });
+    } finally {
+      setIsAddingCard(false);
+    }
+  };
+
   const sendAutomatedMessage = async (bookingId: string, hostId: string, guestId: string, listingId: string, text: string) => {
     const messagesColRef = collection(firestore, `bookings/${bookingId}/messages`);
     await addDoc(messagesColRef, {
@@ -144,7 +191,6 @@ export default function BookPage() {
       return;
     }
 
-    // Email verification check
     if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password')) {
         toast({
             variant: 'destructive',
@@ -181,38 +227,12 @@ export default function BookPage() {
         const isInstant = property.bookingSettings === 'instant';
 
         if (hasConflict) {
-            if (isInstant) {
-                const failedBookingData = {
-                    guestId: user.uid,
-                    hostId: property.ownerId,
-                    listingId: property.id,
-                    checkInDate: Timestamp.fromDate(checkinDate),
-                    checkOutDate: Timestamp.fromDate(checkoutDate),
-                    guests: parseInt(guestsStr, 10),
-                    totalPrice,
-                    status: 'declined',
-                    paymentMethodId: selectedPaymentId,
-                    createdAt: serverTimestamp(),
-                    listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
-                    guest: { name: user.displayName || user.email, photoURL: user.photoURL },
-                    host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
-                };
-                const failedDoc = await addDoc(bookingsColRef, failedBookingData);
-                await sendAutomatedMessage(
-                    failedDoc.id, 
-                    property.ownerId, 
-                    user.uid, 
-                    property.id, 
-                    `System Alert: Your instant booking attempt for "${property.title}" failed because these dates were just confirmed by another guest. Your payment method was not charged.`
-                );
-            }
-
             toast({
                 variant: 'destructive',
                 title: 'Dates No Longer Available',
                 description: 'Someone just booked these dates. Please try different dates.'
             });
-            router.push(`/properties/${property.id}`);
+            router.back();
             return;
         }
 
@@ -277,10 +297,8 @@ export default function BookPage() {
   return (
     <div className="container mx-auto py-12 max-w-5xl px-4 md:px-6">
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/properties/${id}`}>
-            <ChevronRight className="h-6 w-6 rotate-180" />
-          </Link>
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ChevronRight className="h-6 w-6 rotate-180" />
         </Button>
         <h1 className="text-3xl font-bold font-headline">{isInstant ? 'Confirm and pay' : 'Request to book'}</h1>
       </div>
@@ -304,18 +322,14 @@ export default function BookPage() {
                 <p className="font-bold text-sm">Dates</p>
                 <p className="text-muted-foreground">{checkinDate ? format(checkinDate, 'MMM d') : ''} – {checkoutDate ? format(checkoutDate, 'd, yyyy') : ''}</p>
               </div>
-              <Button variant="link" className="underline" asChild>
-                <Link href={`/properties/${id}`}>Edit</Link>
-              </Button>
+              <Button variant="link" className="underline" onClick={() => router.back()}>Edit</Button>
             </div>
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-sm">Guests</p>
                 <p className="text-muted-foreground">{guestsStr} guest{parseInt(guestsStr || '1', 10) > 1 ? 's' : ''}</p>
               </div>
-              <Button variant="link" className="underline" asChild>
-                <Link href={`/properties/${id}`}>Edit</Link>
-              </Button>
+              <Button variant="link" className="underline" onClick={() => router.back()}>Edit</Button>
             </div>
           </section>
 
@@ -325,35 +339,111 @@ export default function BookPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">Pay with</h2>
               <div className="flex gap-2">
-                <Image src="https://placehold.co/40x25?text=VISA" alt="Visa" width={40} height={25} className="border rounded" />
-                <Image src="https://placehold.co/40x25?text=MC" alt="Mastercard" width={40} height={25} className="border rounded" />
+                <PaymentIcon brand="VISA" />
+                <PaymentIcon brand="MC" />
               </div>
             </div>
 
             {paymentMethods && paymentMethods.length > 0 ? (
-              <RadioGroup value={selectedPaymentId || ''} onValueChange={setSelectedPaymentId} className="space-y-4">
-                {paymentMethods.map((method) => (
-                  <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-                    <div className="flex items-center gap-4">
-                      <RadioGroupItem value={method.id} id={method.id} />
-                      <Label htmlFor={method.id} className="flex items-center gap-3 cursor-pointer">
-                        <CreditCard className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">•••• {method.lastFour}</p>
-                          <p className="text-xs text-muted-foreground">Expires {method.expiry}</p>
-                        </div>
-                      </Label>
+              <div className="space-y-4">
+                <RadioGroup value={selectedPaymentId || ''} onValueChange={setSelectedPaymentId} className="space-y-4">
+                  {paymentMethods.map((method) => (
+                    <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
+                      <div className="flex items-center gap-4">
+                        <RadioGroupItem value={method.id} id={method.id} />
+                        <Label htmlFor={method.id} className="flex items-center gap-3 cursor-pointer">
+                          <CreditCard className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">•••• {method.lastFour}</p>
+                            <p className="text-xs text-muted-foreground">Expires {method.expiry}</p>
+                          </div>
+                        </Label>
+                      </div>
+                      {selectedPaymentId === method.id && <Check className="h-5 w-5 text-primary" />}
                     </div>
-                    {selectedPaymentId === method.id && <Check className="h-5 w-5 text-primary" />}
-                  </div>
-                ))}
-              </RadioGroup>
+                  ))}
+                </RadioGroup>
+                
+                <Dialog open={addCardDialogOpen} onOpenChange={setAddCardDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Add another card
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <form onSubmit={handleAddCard}>
+                      <DialogHeader>
+                        <DialogTitle>Add Card</DialogTitle>
+                        <DialogDescription>
+                          Enter your card details to save for future reservations.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="card-number">Card Number</Label>
+                          <Input id="card-number" name="cardNumber" placeholder="4242 4242 4242 4242" required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="expiry">Expiry</Label>
+                            <Input id="expiry" name="expiry" placeholder="MM/YY" required />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="cvc">CVC</Label>
+                            <Input id="cvc" name="cvc" placeholder="123" required />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit" disabled={isAddingCard}>
+                          {isAddingCard && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Save Card
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             ) : (
               <div className="p-6 border-2 border-dashed rounded-lg text-center space-y-4">
                 <p className="text-muted-foreground">You don't have any saved payment methods.</p>
-                <Button variant="outline" asChild>
-                  <Link href="/account?section=payments-payouts">Add a Card in Settings</Link>
-                </Button>
+                <Dialog open={addCardDialogOpen} onOpenChange={setAddCardDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">Add a Payment Method</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <form onSubmit={handleAddCard}>
+                      <DialogHeader>
+                        <DialogTitle>Add Card</DialogTitle>
+                        <DialogDescription>
+                          Enter your card details to save for future reservations.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="card-number">Card Number</Label>
+                          <Input id="card-number" name="cardNumber" placeholder="4242 4242 4242 4242" required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="expiry">Expiry</Label>
+                            <Input id="expiry" name="expiry" placeholder="MM/YY" required />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="cvc">CVC</Label>
+                            <Input id="cvc" name="cvc" placeholder="123" required />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit" disabled={isAddingCard}>
+                          {isAddingCard && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Save Card
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
           </section>
