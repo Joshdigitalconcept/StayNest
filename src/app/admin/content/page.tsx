@@ -20,7 +20,8 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 // Rich text editor dynamic import to prevent hydration issues
 // Switched to react-quill-new for React 19 compatibility
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
-import 'react-quill-new/dist/quill.snow.css';
+// Import CSS from the base quill package to ensure build resolution
+import 'quill/dist/quill.snow.css';
 
 const quillModules = {
   toolbar: [
@@ -107,6 +108,10 @@ export default function AdminContentPage() {
         .quill-editor .ql-container {
           border-bottom-left-radius: 0.5rem;
           border-bottom-right-radius: 0.5rem;
+        }
+        /* Ensure the editor background is always white regardless of theme */
+        .quill-editor .ql-editor.ql-blank::before {
+          color: rgba(0,0,0,0.6) !important;
         }
       `}</style>
 
