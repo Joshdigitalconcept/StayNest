@@ -50,6 +50,7 @@ export interface Booking {
   guests: number;
   status: 'pending' | 'confirmed' | 'declined';
   createdAt: Timestamp;
+  paymentReference?: string; // Track the transaction ID
   // Denormalized data for easier display
   listing?: {
     id: string; // Add the id here
@@ -176,5 +177,3 @@ export const whoElseOptions = [
     { id: 'roommates', label: 'Roommates' },
     { id: 'other_guests', label: 'Other guests' },
 ];
-
-    

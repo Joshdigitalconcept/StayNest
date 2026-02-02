@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -11,10 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle, Tag, Plus } from 'lucide-react';
+import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle, Tag, Plus, ShieldCheck } from 'lucide-react';
 import type { Property, User as UserType, Booking } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { usePaystackPayment } from 'react-paystack';
 import {
   Dialog,
   DialogContent,
@@ -144,6 +146,16 @@ export default function BookPage() {
     };
   }, [checkinStr, checkoutStr, guestsStr, property]);
 
+  const paystackConfig = {
+    reference: (new Date()).getTime().toString(),
+    email: user?.email || '',
+    amount: totalPrice * 100, // Paystack amount is in Kobo
+    publicKey: 'pk_test_YOUR_PAYSTACK_KEY', // Replace with your real test key
+    currency: 'NGN',
+  };
+
+  const initializePayment = usePaystackPayment(paystackConfig);
+
   const handleAddCard = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !paymentMethodsRef) return;
@@ -172,17 +184,61 @@ export default function BookPage() {
     }
   };
 
-  const sendAutomatedMessage = async (bookingId: string, hostId: string, guestId: string, listingId: string, text: string) => {
-    const messagesColRef = collection(firestore, `bookings/${bookingId}/messages`);
-    await addDoc(messagesColRef, {
-        bookingId,
-        senderId: hostId,
-        receiverId: guestId,
-        listingId,
-        text,
-        createdAt: serverTimestamp(),
-        isRead: false
-    });
+  const saveBookingToFirestore = async (paymentRef?: string) => {
+    if (!user || !property || !checkinDate || !checkoutDate || !guestsStr) return;
+
+    const bookingsColRef = collection(firestore, 'bookings');
+    const isInstant = property.bookingSettings === 'instant';
+    const bookingStatus = isInstant ? 'confirmed' : 'pending';
+
+    const bookingData = {
+      guestId: user.uid,
+      hostId: property.ownerId,
+      listingId: property.id,
+      checkInDate: Timestamp.fromDate(checkinDate),
+      checkOutDate: Timestamp.fromDate(checkoutDate),
+      guests: parseInt(guestsStr, 10),
+      totalPrice,
+      status: bookingStatus,
+      paymentMethodId: selectedPaymentId,
+      paymentReference: paymentRef || null,
+      createdAt: serverTimestamp(),
+      listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
+      guest: { name: user.displayName || user.email, photoURL: user.photoURL },
+      host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
+    };
+
+    try {
+        const newBookingRef = await addDoc(bookingsColRef, bookingData);
+        
+        if (isInstant) {
+            const messagesColRef = collection(firestore, `bookings/${newBookingRef.id}/messages`);
+            await addDoc(messagesColRef, {
+                bookingId: newBookingRef.id,
+                senderId: property.ownerId,
+                receiverId: user.uid,
+                listingId: property.id,
+                text: `Hello! Your instant booking for "${property.title}" has been confirmed. I'll be in touch with check-in details soon.`,
+                createdAt: serverTimestamp(),
+                isRead: false
+            });
+        }
+
+        toast({
+          title: isInstant ? 'Reservation Confirmed!' : 'Request Sent to Host!',
+          description: isInstant
+            ? 'Your booking is confirmed. Enjoy your trip!'
+            : 'The host will review your request shortly.',
+        });
+        
+        router.push('/profile?tab=bookings');
+    } catch (error: any) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: bookingsColRef.path,
+        operation: 'create',
+        requestResourceData: { listingId: property.id },
+      }));
+    }
   };
 
   const handleConfirmAndBook = async () => {
@@ -195,7 +251,7 @@ export default function BookPage() {
         toast({
             variant: 'destructive',
             title: 'Email Verification Required',
-            description: 'Please verify your email address before booking. Check your inbox or spam folder.',
+            description: 'Please verify your email address before booking.',
         });
         return;
     }
@@ -207,6 +263,7 @@ export default function BookPage() {
 
     setIsSubmitting(true);
     
+    // Check for double-booking conflicts before launching payment
     const bookingsColRef = collection(firestore, 'bookings');
     const existingBookingsQuery = query(
         bookingsColRef,
@@ -224,63 +281,31 @@ export default function BookPage() {
             );
         });
 
-        const isInstant = property.bookingSettings === 'instant';
-
         if (hasConflict) {
             toast({
                 variant: 'destructive',
                 title: 'Dates No Longer Available',
                 description: 'Someone just booked these dates. Please try different dates.'
             });
+            setIsSubmitting(false);
             router.back();
             return;
         }
 
-        const bookingStatus = isInstant ? 'confirmed' : 'pending';
-
-        const bookingData = {
-          guestId: user.uid,
-          hostId: property.ownerId,
-          listingId: property.id,
-          checkInDate: Timestamp.fromDate(checkinDate),
-          checkOutDate: Timestamp.fromDate(checkoutDate),
-          guests: parseInt(guestsStr, 10),
-          totalPrice,
-          status: bookingStatus,
-          paymentMethodId: selectedPaymentId,
-          createdAt: serverTimestamp(),
-          listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
-          guest: { name: user.displayName || user.email, photoURL: user.photoURL },
-          host: { name: property.host?.name ?? null, photoURL: property.host?.photoURL ?? null },
-        };
-
-        const newBookingRef = await addDoc(bookingsColRef, bookingData);
-        
-        if (isInstant) {
-            await sendAutomatedMessage(
-                newBookingRef.id, 
-                property.ownerId, 
-                user.uid, 
-                property.id, 
-                `Hello! Your instant booking for "${property.title}" has been confirmed. I'll be in touch with check-in details soon.`
-            );
-        }
-
-        toast({
-          title: isInstant ? 'Reservation Confirmed!' : 'Request Sent to Host!',
-          description: isInstant
-            ? 'Your booking is confirmed. Enjoy your trip!'
-            : 'The host will review your request shortly.',
+        // Initialize Paystack Payment Flow
+        initializePayment({
+            onSuccess: (reference: any) => {
+                // reference.reference is the transaction ID from Paystack
+                saveBookingToFirestore(reference.reference);
+            },
+            onClose: () => {
+                setIsSubmitting(false);
+                toast({ title: "Payment Cancelled", description: "Your transaction was not completed." });
+            }
         });
-        
-        router.push('/profile?tab=bookings');
+
     } catch (error: any) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: bookingsColRef.path,
-        operation: 'create',
-        requestResourceData: { listingId: property.id },
-      }));
-    } finally {
+      console.error(error);
       setIsSubmitting(false);
     }
   };
@@ -310,7 +335,7 @@ export default function BookPage() {
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-bold">Your reservation won't be confirmed yet</p>
-                <p className="text-sm">The host has 24 hours to accept or decline your request. You won't be charged until they approve.</p>
+                <p className="text-sm">The host has 24 hours to accept or decline your request. Your payment will be processed via Paystack immediately.</p>
               </div>
             </div>
           )}
@@ -337,7 +362,7 @@ export default function BookPage() {
 
           <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Pay with</h2>
+              <h2 className="text-2xl font-semibold">Pay with Paystack</h2>
               <div className="flex gap-2">
                 <PaymentIcon brand="VISA" />
                 <PaymentIcon brand="MC" />
@@ -461,18 +486,20 @@ export default function BookPage() {
 
           <section className="space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              By selecting the button below, I agree to the <span className="underline cursor-pointer">Host's House Rules</span>, <span className="underline cursor-pointer">StayNest's Ground Rules for Guests</span>, and that StayNest can charge my payment method if I'm responsible for damage.
+              By selecting the button below, I agree to the <span className="underline cursor-pointer">Host's House Rules</span> and <span className="underline cursor-pointer">StayNest's Ground Rules</span>. Your payment will be processed securely through Paystack.
             </p>
             <Button 
               className="w-full md:w-auto px-12 py-6 text-lg bg-pink-600 hover:bg-pink-700 text-white font-bold shadow-lg" 
               onClick={handleConfirmAndBook}
               disabled={isSubmitting || !selectedPaymentId}
             >
-              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Book' : 'Request to Book')}
+              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Pay' : 'Pay and Request')}
             </Button>
-            <p className="text-center text-[10px] text-muted-foreground">
-                {isInstant ? "Your payment will be processed immediately upon confirmation." : "You won't be charged until the host accepts your request."}
-            </p>
+            
+            <div className="flex items-center justify-center gap-2 mt-4 text-green-600 font-bold text-[10px] uppercase tracking-widest">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Secured by Paystack</span>
+            </div>
           </section>
         </div>
 
