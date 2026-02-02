@@ -12,51 +12,128 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History } from 'lucide-react';
+import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // Rich text editor dynamic import to prevent hydration issues
-// Switched to react-quill-new for React 19 compatibility
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
-// Import CSS from the base quill package to ensure build resolution
 import 'quill/dist/quill.snow.css';
 
-const quillModules = {
-  toolbar: [
-    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-    ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-    [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-    ['link', 'image', 'color', 'background'],
-    ['clean']
-  ],
+const toolbarTooltips: Record<string, string> = {
+  '.ql-header': 'Text Heading Level',
+  '.ql-bold': 'Bold (Ctrl+B)',
+  '.ql-italic': 'Italic (Ctrl+I)',
+  '.ql-underline': 'Underline (Ctrl+U)',
+  '.ql-strike': 'Strikethrough',
+  '.ql-blockquote': 'Blockquote',
+  '.ql-list[value="ordered"]': 'Numbered List',
+  '.ql-list[value="bullet"]': 'Bullet List',
+  '.ql-indent[value="-1"]': 'Decrease Indent',
+  '.ql-indent[value="+1"]': 'Increase Indent',
+  '.ql-link': 'Insert Link',
+  '.ql-image': 'Upload & Insert Image',
+  '.ql-color': 'Text Color',
+  '.ql-background': 'Highlight Color',
+  '.ql-clean': 'Clear All Formatting'
 };
 
-const quillFormats = [
-  'header',
-  'bold', 'italic', 'underline', 'strike', 'blockquote',
-  'list', 'indent',
-  'link', 'image', 'color', 'background'
-];
+async function uploadImage(imageFile: File): Promise<string | null> {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9';
+
+  try {
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await response.json();
+    if (result.success) {
+      return result.data.url;
+    }
+    return null;
+  } catch (error) {
+    console.error("Image upload failed:", error);
+    return null;
+  }
+}
 
 export default function AdminContentPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user: currentUser } = useUser();
+  const quillRef = React.useRef<any>(null);
+  
   const [isSaving, setIsSaving] = React.useState(false);
   const [activePolicy, setActivePolicy] = React.useState('tos');
+  const [content, setContent] = React.useState('');
 
   const policyRef = useMemoFirebase(() => firestore ? doc(firestore, 'content', activePolicy) : null, [firestore, activePolicy]);
   const { data: policy, isLoading } = useDoc(policyRef);
-
-  const [content, setContent] = React.useState('');
 
   React.useEffect(() => {
     if (!isLoading) {
       setContent(policy?.text || '');
     }
-  }, [policy, isLoading, activePolicy]);
+  }, [policy, isLoading]);
+
+  // Apply tooltips to Quill toolbar
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      Object.entries(toolbarTooltips).forEach(([selector, title]) => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          if (!el.getAttribute('title')) {
+            el.setAttribute('title', title);
+          }
+        });
+      });
+    }, 1000); // Wait for Quill to render
+    return () => clearTimeout(timer);
+  }, [activePolicy]);
+
+  const quillModules = React.useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+        ['link', 'image', 'color', 'background'],
+        ['clean']
+      ],
+      handlers: {
+        image: function() {
+          const input = document.createElement('input');
+          input.setAttribute('type', 'file');
+          input.setAttribute('accept', 'image/*');
+          input.click();
+
+          input.onchange = async () => {
+            const file = input.files?.[0];
+            if (file) {
+              toast({ title: "Uploading image...", description: "Please wait while your image is hosted." });
+              const url = await uploadImage(file);
+              if (url) {
+                const quill = (quillRef.current as any).getEditor();
+                const range = quill.getSelection();
+                quill.insertEmbed(range ? range.index : 0, 'image', url);
+                toast({ title: "Image Uploaded", description: "Your image has been hosted and inserted." });
+              } else {
+                toast({ variant: 'destructive', title: "Upload Failed" });
+              }
+            }
+          };
+        }
+      }
+    }
+  }), [toast]);
+
+  const quillFormats = [
+    'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
+    'list', 'indent', 'link', 'image', 'color', 'background'
+  ];
 
   const handleSave = async () => {
     if (!policyRef) return;
@@ -69,8 +146,8 @@ export default function AdminContentPage() {
       }, { merge: true });
       
       toast({
-        title: "Content Updated",
-        description: `${getPolicyName(activePolicy)} has been published successfully.`,
+        title: "Content Published",
+        description: `${getPolicyName(activePolicy)} is now live for all users.`,
       });
     } catch (error: any) {
       toast({ variant: 'destructive', title: "Save Failed", description: error.message });
@@ -109,7 +186,6 @@ export default function AdminContentPage() {
           border-bottom-left-radius: 0.5rem;
           border-bottom-right-radius: 0.5rem;
         }
-        /* Ensure the editor background is always white regardless of theme */
         .quill-editor .ql-editor.ql-blank::before {
           color: rgba(0,0,0,0.6) !important;
         }
@@ -117,7 +193,7 @@ export default function AdminContentPage() {
 
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold font-headline">Content & Policies</h1>
-        <p className="text-muted-foreground">Manage the legal framework and help documentation using rich text formatting.</p>
+        <p className="text-muted-foreground">Draft and publish legal documents with rich text formatting.</p>
       </div>
 
       <Tabs value={activePolicy} onValueChange={setActivePolicy} className="space-y-4">
@@ -129,7 +205,7 @@ export default function AdminContentPage() {
             </TabsList>
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border">
                 <History className="h-3 w-3" />
-                <span>Last Published: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleDateString() : 'None'}</span>
+                <span>Last Published: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleDateString() : 'Never'}</span>
             </div>
         </div>
 
@@ -138,9 +214,11 @@ export default function AdminContentPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <CardTitle className="text-xl">{getPolicyName(activePolicy)} Editor</CardTitle>
-                    <CardDescription>Rich text editor with paste support from Word/Google Docs.</CardDescription>
+                    <CardDescription>Images are automatically hosted externally to keep documents lightweight.</CardDescription>
                 </div>
-                <div className="bg-background px-3 py-1 rounded-md border text-xs font-bold text-primary uppercase tracking-widest">WYSIWYG Mode</div>
+                <div className="flex items-center gap-2 bg-background px-3 py-1 rounded-md border text-[10px] font-bold text-primary uppercase tracking-widest">
+                  <ImageIcon className="h-3 w-3" /> External Hosting Active
+                </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -149,6 +227,7 @@ export default function AdminContentPage() {
             ) : (
               <div className="quill-editor">
                 <ReactQuill 
+                  ref={quillRef}
                   theme="snow"
                   value={content}
                   onChange={setContent}
@@ -164,20 +243,20 @@ export default function AdminContentPage() {
                 {policy?.lastUpdatedBy && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                         <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                        Updated by {policy.lastUpdatedBy}
+                        Last updated by {policy.lastUpdatedBy}
                     </div>
                 )}
                 <p className="text-[10px] text-muted-foreground italic">
-                    All formatting is preserved for public viewing.
+                    Hover over toolbar icons for help.
                 </p>
             </div>
             <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setContent(policy?.text || '')} disabled={isLoading}>
-                    Reset
+                    Discard Draft
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving || isLoading} className="min-w-[140px]">
+                <Button onClick={handleSave} disabled={isSaving || isLoading} className="min-w-[140px] bg-primary">
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Publish Changes
+                    Publish Content
                 </Button>
             </div>
           </CardFooter>
