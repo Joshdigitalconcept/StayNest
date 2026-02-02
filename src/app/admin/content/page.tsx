@@ -16,6 +16,7 @@ import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, ImageIcon } 
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { uploadImage } from '@/lib/image-upload';
 
 // Rich text editor dynamic import to prevent hydration issues
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -38,27 +39,6 @@ const toolbarTooltips: Record<string, string> = {
   '.ql-background': 'Highlight Color',
   '.ql-clean': 'Clear All Formatting'
 };
-
-async function uploadImage(imageFile: File): Promise<string | null> {
-  const formData = new FormData();
-  formData.append('image', imageFile);
-  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9';
-
-  try {
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-      method: 'POST',
-      body: formData,
-    });
-    const result = await response.json();
-    if (result.success) {
-      return result.data.url;
-    }
-    return null;
-  } catch (error) {
-    console.error("Image upload failed:", error);
-    return null;
-  }
-}
 
 export default function AdminContentPage() {
   const { toast } = useToast();
@@ -90,9 +70,9 @@ export default function AdminContentPage() {
           }
         });
       });
-    }, 1000); // Wait for Quill to render
+    }, 1000); 
     return () => clearTimeout(timer);
-  }, [activePolicy]);
+  }, [activePolicy, isLoading]);
 
   const quillModules = React.useMemo(() => ({
     toolbar: {
@@ -193,7 +173,7 @@ export default function AdminContentPage() {
 
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold font-headline">Content & Policies</h1>
-        <p className="text-muted-foreground">Draft and publish legal documents with rich text formatting.</p>
+        <p className="text-muted-foreground">Draft and publish formatted legal documents for the platform.</p>
       </div>
 
       <Tabs value={activePolicy} onValueChange={setActivePolicy} className="space-y-4">
@@ -214,7 +194,7 @@ export default function AdminContentPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <CardTitle className="text-xl">{getPolicyName(activePolicy)} Editor</CardTitle>
-                    <CardDescription>Images are automatically hosted externally to keep documents lightweight.</CardDescription>
+                    <CardDescription>Formatted content is saved directly to Firestore.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2 bg-background px-3 py-1 rounded-md border text-[10px] font-bold text-primary uppercase tracking-widest">
                   <ImageIcon className="h-3 w-3" /> External Hosting Active
@@ -247,7 +227,7 @@ export default function AdminContentPage() {
                     </div>
                 )}
                 <p className="text-[10px] text-muted-foreground italic">
-                    Hover over toolbar icons for help.
+                    Images are automatically hosted to keep documents lightweight.
                 </p>
             </div>
             <div className="flex gap-3">

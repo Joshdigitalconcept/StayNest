@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -34,24 +33,32 @@ export default function AdminTrustSafetyPage() {
   );
   const { data: users, isLoading } = useCollection<User>(usersQuery);
 
-  const alerts = [
-    { type: 'ID Verification', count: 12, icon: UserCheck, color: 'text-blue-600' },
-    { type: 'Fraud Flags', count: 3, icon: AlertTriangle, color: 'text-amber-600' },
-    { type: 'Pending Reviews', count: 8, icon: ShieldAlert, color: 'text-red-600' },
-  ];
+  const alerts = React.useMemo(() => {
+    if (!users) return [
+        { type: 'ID Verification', count: 0, icon: UserCheck, color: 'text-blue-600' },
+        { type: 'Active Profiles', count: 0, icon: ShieldCheck, color: 'text-green-600' },
+        { type: 'Suspended Accounts', count: 0, icon: ShieldAlert, color: 'text-red-600' },
+    ];
+    
+    return [
+        { type: 'Verification Requests', count: users.filter(u => !u.idVerified).length, icon: UserCheck, color: 'text-blue-600' },
+        { type: 'Active Profiles', count: users.filter(u => u.accountStatus === 'active' || !u.accountStatus).length, icon: ShieldCheck, color: 'text-green-600' },
+        { type: 'Account Flags', count: users.filter(u => u.accountStatus === 'suspended').length, icon: AlertTriangle, color: 'text-amber-600' },
+    ];
+  }, [users]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Trust & Safety</h1>
-        <p className="text-muted-foreground">Manage user verification, security flags, and identity protocols.</p>
+        <p className="text-muted-foreground">Manage user verification, account standing, and identity protocols.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {alerts.map(alert => (
           <Card key={alert.type}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{alert.type}</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-wider">{alert.type}</CardTitle>
               <alert.icon className={`h-4 w-4 ${alert.color}`} />
             </CardHeader>
             <CardContent>
@@ -63,14 +70,14 @@ export default function AdminTrustSafetyPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>User Verification Status</CardTitle>
-          <CardDescription>Review and validate user identity documents.</CardDescription>
+          <CardTitle>Security & Verification Roster</CardTitle>
+          <CardDescription>Live data reflecting current user compliance and verification status.</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div>
-          ) : !users ? (
-            <p className="text-center py-12 text-muted-foreground">No data found.</p>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
+          ) : !users || users.length === 0 ? (
+            <p className="text-center py-12 text-muted-foreground">No user data found.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -113,13 +120,13 @@ export default function AdminTrustSafetyPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 w-[15%]" />
+                          <div className={`h-full ${user.accountStatus === 'suspended' ? 'bg-red-500 w-[80%]' : 'bg-green-500 w-[15%]'}`} />
                         </div>
-                        <span className="text-[10px] font-bold">Low</span>
+                        <span className="text-[10px] font-bold uppercase">{user.accountStatus === 'suspended' ? 'High' : 'Low'}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="ghost">Verify Manually</Button>
+                      <Button size="sm" variant="ghost" className="hover:text-primary">Verify Manually</Button>
                     </TableCell>
                   </TableRow>
                 ))}

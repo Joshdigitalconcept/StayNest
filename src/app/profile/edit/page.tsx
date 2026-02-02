@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -29,10 +28,10 @@ import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
+import { uploadImage } from '@/lib/image-upload';
 
 const formSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -126,31 +125,6 @@ export default function EditProfilePage() {
     }
   };
 
-  async function uploadImage(image: File): Promise<string | null> {
-    const formData = new FormData();
-    formData.append('image', image);
-     const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9'; // Hardcoded public key
-    try {
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: 'POST',
-        body: formData,
-      });
-      const result = await response.json();
-      if (result.success) {
-        return result.data.url;
-      } else {
-        throw new Error(result.error.message || 'Image upload failed');
-      }
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Image Upload Failed',
-        description: error.message,
-      });
-      return null;
-    }
-  }
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user || !userDocRef) {
       toast({
@@ -171,8 +145,9 @@ export default function EditProfilePage() {
       if (uploadedUrl) {
         newProfilePictureUrl = uploadedUrl;
       } else {
+        toast({ variant: 'destructive', title: 'Image upload failed' });
         setIsSubmitting(false);
-        return; // Stop submission if image upload fails
+        return;
       }
     }
 

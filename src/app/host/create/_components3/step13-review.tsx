@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { addDoc, collection, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { uploadImage } from '@/lib/image-upload';
 
 // Simplified type for this component
 interface UploadedImage {
@@ -18,28 +19,6 @@ interface UploadedImage {
 interface Step13Props {
   formData: any;
   clearDraft: () => void;
-}
-
-async function uploadImage(imageFile: File): Promise<string | null> {
-  const formData = new FormData();
-  formData.append('image', imageFile);
-  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9';
-
-  try {
-    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-      method: 'POST',
-      body: formData,
-    });
-    const result = await response.json();
-    if (result.success) {
-      return result.data.url;
-    } else {
-      throw new Error(result.error.message || 'Image upload failed');
-    }
-  } catch (error) {
-    console.error("Image upload failed:", error);
-    return null;
-  }
 }
 
 export default function Step13_Review({ formData, clearDraft }: Step13Props) {
@@ -57,7 +36,7 @@ export default function Step13_Review({ formData, clearDraft }: Step13Props) {
     
     setIsPublishing(true);
     
-    // 1. Upload images
+    // 1. Upload images using the centralized utility
     const uploadedImageUrls: (string | null)[] = await Promise.all(
         (formData.images as UploadedImage[]).map(img => uploadImage(img.file))
     );
