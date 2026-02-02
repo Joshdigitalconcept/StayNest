@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -16,7 +15,6 @@ import { Loader2, Star, CreditCard, ChevronRight, Check, AlertCircle, Tag, Plus,
 import type { Property, User as UserType, Booking } from '@/lib/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { usePaystackPayment } from 'react-paystack';
 import {
   Dialog,
   DialogContent,
@@ -48,14 +46,6 @@ function InvalidBookingState() {
        </Card>
     </div>
   )
-}
-
-function PaymentIcon({ brand }: { brand: 'VISA' | 'MC' }) {
-  return (
-    <div className={brand === 'VISA' ? "bg-blue-800 text-white px-2 py-0.5 rounded text-[10px] font-black italic tracking-tighter" : "bg-orange-600 text-white px-2 py-0.5 rounded text-[10px] font-black italic tracking-tighter"}>
-      {brand}
-    </div>
-  );
 }
 
 export default function BookPage() {
@@ -146,16 +136,6 @@ export default function BookPage() {
     };
   }, [checkinStr, checkoutStr, guestsStr, property]);
 
-  const paystackConfig = {
-    reference: (new Date()).getTime().toString(),
-    email: user?.email || '',
-    amount: totalPrice * 100, // Paystack amount is in Kobo
-    publicKey: 'pk_test_YOUR_PAYSTACK_KEY', // Replace with your real test key
-    currency: 'NGN',
-  };
-
-  const initializePayment = usePaystackPayment(paystackConfig);
-
   const handleAddCard = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !paymentMethodsRef) return;
@@ -184,7 +164,7 @@ export default function BookPage() {
     }
   };
 
-  const saveBookingToFirestore = async (paymentRef?: string) => {
+  const saveBookingToFirestore = async () => {
     if (!user || !property || !checkinDate || !checkoutDate || !guestsStr) return;
 
     const bookingsColRef = collection(firestore, 'bookings');
@@ -201,7 +181,6 @@ export default function BookPage() {
       totalPrice,
       status: bookingStatus,
       paymentMethodId: selectedPaymentId,
-      paymentReference: paymentRef || null,
       createdAt: serverTimestamp(),
       listing: { id: property.id, title: property.title, location: property.location, imageUrl: property.imageUrl },
       guest: { name: user.displayName || user.email, photoURL: user.photoURL },
@@ -238,6 +217,8 @@ export default function BookPage() {
         operation: 'create',
         requestResourceData: { listingId: property.id },
       }));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -263,7 +244,7 @@ export default function BookPage() {
 
     setIsSubmitting(true);
     
-    // Check for double-booking conflicts before launching payment
+    // Check for double-booking conflicts
     const bookingsColRef = collection(firestore, 'bookings');
     const existingBookingsQuery = query(
         bookingsColRef,
@@ -292,17 +273,8 @@ export default function BookPage() {
             return;
         }
 
-        // Initialize Paystack Payment Flow
-        initializePayment({
-            onSuccess: (reference: any) => {
-                // reference.reference is the transaction ID from Paystack
-                saveBookingToFirestore(reference.reference);
-            },
-            onClose: () => {
-                setIsSubmitting(false);
-                toast({ title: "Payment Cancelled", description: "Your transaction was not completed." });
-            }
-        });
+        // Proceed to save the booking
+        await saveBookingToFirestore();
 
     } catch (error: any) {
       console.error(error);
@@ -335,7 +307,7 @@ export default function BookPage() {
               <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="font-bold">Your reservation won't be confirmed yet</p>
-                <p className="text-sm">The host has 24 hours to accept or decline your request. Your payment will be processed via Paystack immediately.</p>
+                <p className="text-sm">The host has 24 hours to accept or decline your request. You won't be charged until the request is accepted.</p>
               </div>
             </div>
           )}
@@ -362,11 +334,7 @@ export default function BookPage() {
 
           <section className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Pay with Paystack</h2>
-              <div className="flex gap-2">
-                <PaymentIcon brand="VISA" />
-                <PaymentIcon brand="MC" />
-              </div>
+              <h2 className="text-2xl font-semibold">Payment Method</h2>
             </div>
 
             {paymentMethods && paymentMethods.length > 0 ? (
@@ -486,20 +454,15 @@ export default function BookPage() {
 
           <section className="space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              By selecting the button below, I agree to the <span className="underline cursor-pointer">Host's House Rules</span> and <span className="underline cursor-pointer">StayNest's Ground Rules</span>. Your payment will be processed securely through Paystack.
+              By selecting the button below, I agree to the <span className="underline cursor-pointer">Host's House Rules</span> and <span className="underline cursor-pointer">StayNest's Ground Rules</span>.
             </p>
             <Button 
               className="w-full md:w-auto px-12 py-6 text-lg bg-pink-600 hover:bg-pink-700 text-white font-bold shadow-lg" 
               onClick={handleConfirmAndBook}
               disabled={isSubmitting || !selectedPaymentId}
             >
-              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Pay' : 'Pay and Request')}
+              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (isInstant ? 'Confirm and Book' : 'Request Stay')}
             </Button>
-            
-            <div className="flex items-center justify-center gap-2 mt-4 text-green-600 font-bold text-[10px] uppercase tracking-widest">
-                <ShieldCheck className="h-4 w-4" />
-                <span>Secured by Paystack</span>
-            </div>
           </section>
         </div>
 
