@@ -20,13 +20,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, ExternalLink, Trash2 } from 'lucide-react';
+import { Loader2, Search, ExternalLink, Trash2, MessageSquareText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function AdminListingsPage() {
   const firestore = useFirestore();
@@ -66,7 +67,7 @@ export default function AdminListingsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Listings Management</h1>
-          <p className="text-muted-foreground">Moderate property listings across the platform.</p>
+          <p className="text-muted-foreground">Moderate and monitor all property listings live on the platform.</p>
         </div>
       </div>
 
@@ -74,13 +75,13 @@ export default function AdminListingsPage() {
         <CardHeader>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex-1">
-              <CardTitle>All Listings</CardTitle>
-              <CardDescription>A total of {filteredListings?.length || 0} listings matching your criteria.</CardDescription>
+              <CardTitle>Inventory Overview</CardTitle>
+              <CardDescription>A total of {filteredListings?.length || 0} active properties.</CardDescription>
             </div>
             <div className="relative w-full md:w-auto">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search listings..."
+                placeholder="Filter by title, host, or location..."
                 className="pl-8 w-full md:w-[300px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -90,57 +91,72 @@ export default function AdminListingsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
           ) : !filteredListings || filteredListings.length === 0 ? (
             <p className="text-center py-12 text-muted-foreground">No listings found.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Listing</TableHead>
-                  <TableHead>Host</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Stats</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Host Details</TableHead>
+                  <TableHead>Pricing</TableHead>
+                  <TableHead>Engagement</TableHead>
+                  <TableHead>Listed On</TableHead>
+                  <TableHead className="text-right">Administration</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredListings.map(listing => (
-                  <TableRow key={listing.id}>
+                  <TableRow key={listing.id} className="group">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="relative h-10 w-16 rounded overflow-hidden flex-shrink-0">
-                          <Image src={listing.imageUrl} alt="" fill className="object-cover" />
+                        <div className="relative h-10 w-14 rounded overflow-hidden flex-shrink-0 bg-muted border">
+                          {listing.imageUrl ? (
+                            <Image src={listing.imageUrl} alt="" fill className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">NO IMG</div>
+                          )}
                         </div>
-                        <div className="max-w-[200px]">
-                          <p className="font-medium truncate">{listing.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">{listing.location}</p>
+                        <div className="max-w-[180px]">
+                          <p className="font-bold text-sm truncate">{listing.title}</p>
+                          <p className="text-[10px] text-muted-foreground truncate uppercase tracking-tighter font-semibold">{listing.location}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        <p>{listing.host?.name || 'Unknown'}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{listing.ownerId.slice(0, 8)}...</p>
+                      <div className="text-xs">
+                        <p className="font-semibold">{listing.host?.name || 'Unknown Host'}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{listing.ownerId.slice(0, 8)}</p>
                       </div>
                     </TableCell>
-                    <TableCell>₦{listing.pricePerNight?.toLocaleString()}/nt</TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Badge variant="outline">{listing.rating.toFixed(1)} ★</Badge>
-                        <Badge variant="outline">{listing.reviewCount} revs</Badge>
+                      <p className="text-sm font-bold text-primary">₦{listing.pricePerNight?.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">per night</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                          <span className="font-bold text-xs text-amber-700">{listing.rating.toFixed(1)}</span>
+                          <span className="text-[10px] text-amber-600 opacity-70">★</span>
+                        </div>
+                        <span className="text-[10px] font-medium text-muted-foreground">{listing.reviewCount} revs</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-xs text-muted-foreground">
                       {listing.createdAt ? format(listing.createdAt.toDate(), 'MMM d, yyyy') : 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => router.push(`/properties/${listing.id}`)}>
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="ghost" asChild className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600" title="Manage Reviews">
+                          <Link href={`/admin/reviews?listingId=${listing.id}`}>
+                            <MessageSquareText className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => router.push(`/properties/${listing.id}`)} className="h-8 w-8" title="View Public Page">
                           <ExternalLink className="h-4 w-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDelete(listing.id)}>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(listing.id)} title="Delete Listing">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
