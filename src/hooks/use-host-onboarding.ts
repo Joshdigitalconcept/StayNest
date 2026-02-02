@@ -11,7 +11,6 @@ export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
 
   // Initialize from localStorage safely after mount to prevent SSR errors
   useEffect(() => {
-    // Explicit window check for build-time safety
     if (typeof window === 'undefined') return;
     
     try {

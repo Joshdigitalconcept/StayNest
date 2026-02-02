@@ -27,13 +27,15 @@ function getFirebaseServices() {
   };
 }
 
-const { firebaseApp, auth, firestore } = getFirebaseServices();
+const services = getFirebaseServices();
 
-export { firebaseApp, auth, firestore };
+export const firebaseApp = services.firebaseApp;
+export const auth = services.auth;
+export const firestore = services.firestore;
 
 // Primary entry point for SDK initialization
 export function initializeFirebase() {
-  return { firebaseApp, auth, firestore };
+  return getFirebaseServices();
 }
 
 export function getSdks(app: FirebaseApp) {
