@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -14,6 +13,9 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+
+// Ensure admin panel is always dynamically rendered
+export const dynamic = 'force-dynamic';
 
 export default function AdminLayout({
   children,
@@ -95,7 +97,7 @@ export default function AdminLayout({
                     <ModeToggle />
                 </header>
 
-                {/* Desktop Top Nav (just for theme toggle) */}
+                {/* Desktop Top Nav */}
                 <header className="hidden md:flex h-14 items-center justify-end border-b bg-background px-6 lg:h-[60px] sticky top-0 z-40">
                     <ModeToggle />
                 </header>

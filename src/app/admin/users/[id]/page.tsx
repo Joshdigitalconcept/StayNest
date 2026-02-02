@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -33,6 +32,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+export const dynamic = 'force-dynamic';
+
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 1200;
 
@@ -51,17 +52,15 @@ export default function AdminUserProfilePage() {
   const router = useRouter();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const { user: adminUser } = useUser(); // The currently logged-in admin
+  const { user: adminUser } = useUser();
   const [retryCount, setRetryCount] = React.useState(0);
 
-  // Fetch the user being viewed
   const userDocRef = useMemoFirebase(
     () => (firestore && id) ? doc(firestore, 'users', id) : null,
     [firestore, id]
   );
   const { data: user, isLoading: isUserLoading, error, setData: setUser } = useDoc<UserType>(userDocRef);
 
-  // Check if the viewed user is an admin
   const adminRoleRef = useMemoFirebase(
     () => (firestore && id) ? doc(firestore, 'roles_admin', id) : null,
     [firestore, id]
@@ -71,7 +70,6 @@ export default function AdminUserProfilePage() {
 
 
    React.useEffect(() => {
-    // This effect handles the retry logic for fetching a user that might not be immediately available.
     if (!isUserLoading && !user && !error && retryCount < MAX_RETRIES) {
       const timer = setTimeout(() => {
         setRetryCount(prev => prev + 1);
@@ -123,7 +121,6 @@ export default function AdminUserProfilePage() {
 
     try {
         if (makeAdmin) {
-            // Include critical fields like email and name for consistency in Settings list
             await setDoc(adminRoleRef, { 
               grantedAt: serverTimestamp(), 
               by: adminUser?.email || 'Admin',

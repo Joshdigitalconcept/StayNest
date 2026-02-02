@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -14,6 +13,9 @@ import type { Booking, Message } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+
+// Ensure messages page is always dynamic
+export const dynamic = 'force-dynamic';
 
 interface Conversation {
     id: string; // Composite ID: listingId + otherPartyId

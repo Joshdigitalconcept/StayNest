@@ -11,6 +11,9 @@ export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
 
   // Initialize from localStorage safely after mount
   useEffect(() => {
+    // Explicit window check for build-time safety
+    if (typeof window === 'undefined') return;
+    
     try {
       const savedDraft = window.localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedDraft) {
@@ -32,7 +35,7 @@ export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
 
   // Persist changes to localStorage
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized || typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(formData));
     } catch (error) {
@@ -61,10 +64,12 @@ export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
   const clearDraft = useCallback(() => {
     setFormData({});
     setCurrentStep(1);
-    try {
-        window.localStorage.removeItem(LOCAL_STORAGE_KEY);
-    } catch (error) {
-        console.error("Failed to remove draft from localStorage", error);
+    if (typeof window !== 'undefined') {
+        try {
+            window.localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } catch (error) {
+            console.error("Failed to remove draft from localStorage", error);
+        }
     }
   }, []);
 

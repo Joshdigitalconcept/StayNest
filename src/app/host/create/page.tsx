@@ -24,6 +24,8 @@ import { doc } from 'firebase/firestore';
 import type { User as UserType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
+// Force dynamic rendering to ensure Firebase and LocalStorage access
+export const dynamic = 'force-dynamic';
 
 const steps = [
   { component: Step1_Structure, group: 1, title: 'Property Type' },
@@ -107,15 +109,15 @@ export default function CreateListingPage() {
       case 1: return !!formData.propertyType;
       case 2: return !!formData.guestSpace;
       case 3: return !!formData.location?.trim();
-      case 4: return formData.maxGuests > 0 && formData.beds > 0 && formData.bathrooms > 0 && !!formData.bathroomType;
-      case 5: return formData.amenities?.length > 0;
-      case 6: return formData.images?.length > 0;
+      case 4: return (formData.maxGuests || 0) > 0 && (formData.beds || 0) > 0 && (formData.bathrooms || 0) > 0 && !!formData.bathroomType;
+      case 5: return (formData.amenities || []).length > 0;
+      case 6: return (formData.images || []).length > 0;
       case 7: return !!formData.title?.trim();
       case 8: return !!formData.description?.trim();
       case 9: return !!formData.bookingSettings;
-      case 10: return formData.pricePerNight > 0;
+      case 10: return (formData.pricePerNight || 0) > 0;
       case 12: return !!formData.residentialAddress?.country && !!formData.residentialAddress?.street && !!formData.residentialAddress?.city && !!formData.hostingAsBusiness;
-      default: return true; // For optional steps like discounts or the final review
+      default: return true;
     }
   };
 

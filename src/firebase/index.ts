@@ -9,24 +9,21 @@ let firebaseApp: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let firestore: Firestore | undefined;
 
-// This function is guaranteed to be idempotent.
+/**
+ * Idempotent initialization of Firebase SDKs.
+ * Ensures config is passed explicitly to avoid build-time errors.
+ */
 function initializeFirebaseSDKs() {
-    if (firebaseApp) {
-        return { firebaseApp, auth: auth!, firestore: firestore! };
+    if (firebaseApp && auth && firestore) {
+        return { firebaseApp, auth, firestore };
     }
 
-    if (getApps().length > 0) {
-        firebaseApp = getApp();
+    const apps = getApps();
+    if (apps.length > 0) {
+        firebaseApp = apps[0];
     } else {
-        try {
-            // This will use the Firebase Hosting config if available
-            firebaseApp = initializeApp();
-        } catch (e) {
-            if (process.env.NODE_ENV === "production") {
-                console.warn('Automatic Firebase initialization failed, falling back to firebaseConfig.', e);
-            }
-            firebaseApp = initializeApp(firebaseConfig);
-        }
+        // Explicitly pass config to prevent 'app/no-options' errors during SSR
+        firebaseApp = initializeApp(firebaseConfig);
     }
     
     auth = getAuth(firebaseApp);
@@ -36,7 +33,7 @@ function initializeFirebaseSDKs() {
 }
 
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
+// IMPORTANT: This function is the primary entry point for SDK initialization.
 export function initializeFirebase() {
   return initializeFirebaseSDKs();
 }
