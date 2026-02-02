@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, Database, AlertCircle, Trash2 } from 'lucide-react';
+import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, AlertCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -44,7 +44,7 @@ const toolbarTooltips: Record<string, string> = {
   '.ql-indent[value="-1"]': 'Decrease Indent',
   '.ql-indent[value="+1"]': 'Increase Indent',
   '.ql-link': 'Insert Link',
-  '.ql-image': 'Insert Image (via ImgBB)',
+  '.ql-image': 'Insert Image',
   '.ql-color': 'Text Color',
   '.ql-background': 'Highlight Color',
   '.ql-clean': 'Clear All Formatting'
@@ -100,17 +100,17 @@ export default function AdminContentPage() {
     input.onchange = async () => {
       const file = input.files?.[0];
       if (file) {
-        toast({ title: "Uploading image...", description: "Please wait while we host your file." });
+        toast({ title: "Uploading image...", description: "Please wait while we process your file." });
         const url = await uploadImage(file);
         if (url) {
           const quill = quillRef.current?.getEditor();
           if (quill) {
             const range = quill.getSelection();
             quill.insertEmbed(range.index, 'image', url);
-            toast({ title: "Image Ready", description: "Your image has been hosted and inserted." });
+            toast({ title: "Image Ready", description: "Your image has been inserted." });
           }
         } else {
-          toast({ variant: 'destructive', title: "Upload Failed", description: "Could not host image on ImgBB." });
+          toast({ variant: 'destructive', title: "Upload Failed", description: "Could not upload image." });
         }
       }
     };
@@ -257,9 +257,6 @@ export default function AdminContentPage() {
                     <CardTitle className="text-xl">{getPolicyName(activePolicy)} Editor</CardTitle>
                     <CardDescription>Changes are protected until you explicitly publish.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 bg-background px-3 py-1 rounded-md border text-[10px] font-bold text-primary uppercase tracking-widest">
-                  <Database className="h-3 w-3" /> External Hosting (ImgBB)
-                </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -287,9 +284,6 @@ export default function AdminContentPage() {
                         Last updated by {policy.lastUpdatedBy}
                     </div>
                 )}
-                <p className="text-[10px] text-muted-foreground italic">
-                    Images are automatically hosted on ImgBB to keep your database lightweight.
-                </p>
             </div>
             <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setContent(policy?.text || '')} disabled={isLoading || !isDirty} className="gap-2">
