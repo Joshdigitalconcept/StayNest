@@ -12,11 +12,10 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, ImageIcon } from 'lucide-react';
+import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { uploadImage } from '@/lib/image-upload';
 
 // Rich text editor dynamic import to prevent hydration issues
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -34,7 +33,7 @@ const toolbarTooltips: Record<string, string> = {
   '.ql-indent[value="-1"]': 'Decrease Indent',
   '.ql-indent[value="+1"]': 'Increase Indent',
   '.ql-link': 'Insert Link',
-  '.ql-image': 'Upload & Insert Image',
+  '.ql-image': 'Insert Image (Embedded)',
   '.ql-color': 'Text Color',
   '.ql-background': 'Highlight Color',
   '.ql-clean': 'Clear All Formatting'
@@ -44,7 +43,6 @@ export default function AdminContentPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user: currentUser } = useUser();
-  const quillRef = React.useRef<any>(null);
   
   const [isSaving, setIsSaving] = React.useState(false);
   const [activePolicy, setActivePolicy] = React.useState('tos');
@@ -75,40 +73,14 @@ export default function AdminContentPage() {
   }, [activePolicy, isLoading]);
 
   const quillModules = React.useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-        [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-        ['link', 'image', 'color', 'background'],
-        ['clean']
-      ],
-      handlers: {
-        image: function() {
-          const input = document.createElement('input');
-          input.setAttribute('type', 'file');
-          input.setAttribute('accept', 'image/*');
-          input.click();
-
-          input.onchange = async () => {
-            const file = input.files?.[0];
-            if (file) {
-              toast({ title: "Uploading image...", description: "Please wait while your image is hosted." });
-              const url = await uploadImage(file);
-              if (url) {
-                const quill = (quillRef.current as any).getEditor();
-                const range = quill.getSelection();
-                quill.insertEmbed(range ? range.index : 0, 'image', url);
-                toast({ title: "Image Uploaded", description: "Your image has been hosted and inserted." });
-              } else {
-                toast({ variant: 'destructive', title: "Upload Failed" });
-              }
-            }
-          };
-        }
-      }
-    }
-  }), [toast]);
+    toolbar: [
+      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+      ['link', 'image', 'color', 'background'],
+      ['clean']
+    ]
+  }), []);
 
   const quillFormats = [
     'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
@@ -197,7 +169,7 @@ export default function AdminContentPage() {
                     <CardDescription>Formatted content is saved directly to Firestore.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2 bg-background px-3 py-1 rounded-md border text-[10px] font-bold text-primary uppercase tracking-widest">
-                  <ImageIcon className="h-3 w-3" /> External Hosting Active
+                  <Database className="h-3 w-3" /> Inline Storage Active
                 </div>
             </div>
           </CardHeader>
@@ -207,7 +179,6 @@ export default function AdminContentPage() {
             ) : (
               <div className="quill-editor">
                 <ReactQuill 
-                  ref={quillRef}
                   theme="snow"
                   value={content}
                   onChange={setContent}
@@ -227,7 +198,7 @@ export default function AdminContentPage() {
                     </div>
                 )}
                 <p className="text-[10px] text-muted-foreground italic">
-                    Images are automatically hosted to keep documents lightweight.
+                    Images are embedded directly in the document text for high portability.
                 </p>
             </div>
             <div className="flex gap-3">
