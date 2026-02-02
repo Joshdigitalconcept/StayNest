@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, FileText, HelpCircle, ShieldCheck, Loader2 } from 'lucide-react';
+import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -31,7 +31,6 @@ export default function AdminContentPage() {
   const [content, setContent] = React.useState('');
 
   React.useEffect(() => {
-    // Only update content when loading finishes to ensure state matches the current tab's document
     if (!isLoading) {
       setContent(policy?.text || '');
     }
@@ -49,7 +48,7 @@ export default function AdminContentPage() {
       
       toast({
         title: "Content Updated",
-        description: `${activePolicy.toUpperCase()} changes have been published successfully.`,
+        description: `${getPolicyName(activePolicy)} has been published successfully.`,
       });
     } catch (error: any) {
       toast({ variant: 'destructive', title: "Save Failed", description: error.message });
@@ -69,48 +68,67 @@ export default function AdminContentPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Content & Policies</h1>
-        <p className="text-muted-foreground">Edit official documents, help articles, and platform copy in real-time.</p>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-bold font-headline">Content & Policies</h1>
+        <p className="text-muted-foreground">Manage the legal framework and help documentation of the platform.</p>
       </div>
 
       <Tabs value={activePolicy} onValueChange={setActivePolicy} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="tos" className="gap-2"><FileText className="h-4 w-4" /> Terms of Service</TabsTrigger>
-          <TabsTrigger value="privacy" className="gap-2"><ShieldCheck className="h-4 w-4" /> Privacy Policy</TabsTrigger>
-          <TabsTrigger value="help" className="gap-2"><HelpCircle className="h-4 w-4" /> Help Center</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between">
+            <TabsList>
+                <TabsTrigger value="tos" className="gap-2"><FileText className="h-4 w-4" /> TOS</TabsTrigger>
+                <TabsTrigger value="privacy" className="gap-2"><ShieldCheck className="h-4 w-4" /> Privacy</TabsTrigger>
+                <TabsTrigger value="help" className="gap-2"><HelpCircle className="h-4 w-4" /> Help Center</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border">
+                <History className="h-3 w-3" />
+                <span>Last Published: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleDateString() : 'None'}</span>
+            </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{getPolicyName(activePolicy)} Editor</CardTitle>
-            <CardDescription>Published versions are timestamped and visible to all users via the platform footer.</CardDescription>
+        <Card className="border-2">
+          <CardHeader className="bg-muted/30 border-b">
+            <div className="flex items-center justify-between">
+                <div>
+                    <CardTitle className="text-xl">{getPolicyName(activePolicy)} Editor</CardTitle>
+                    <CardDescription>All changes are immediately live to users via the platform footer links.</CardDescription>
+                </div>
+                <div className="bg-background px-3 py-1 rounded-md border text-xs font-bold text-primary uppercase tracking-widest">Drafting Mode</div>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {isLoading ? (
-              <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
+              <div className="flex justify-center py-24"><Loader2 className="animate-spin h-12 w-12 text-primary opacity-50" /></div>
             ) : (
               <Textarea 
-                className="font-mono text-sm leading-relaxed min-h-[400px]" 
+                className="font-mono text-sm leading-relaxed min-h-[500px] border-none focus-visible:ring-0 shadow-none resize-none p-0" 
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder={`Start typing the official ${getPolicyName(activePolicy)} here...`}
+                placeholder={`Start typing the official ${getPolicyName(activePolicy)}... Use clear headings and sections for better readability.`}
               />
             )}
           </CardContent>
-          <CardFooter className="justify-between border-t p-6">
+          <CardFooter className="justify-between border-t bg-muted/10 p-6">
             <div className="space-y-1">
-                <p className="text-xs text-muted-foreground italic">
-                Last saved: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleString() : 'Never'}
-                </p>
                 {policy?.lastUpdatedBy && (
-                    <p className="text-[10px] text-muted-foreground">Updated by: {policy.lastUpdatedBy}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                        Updated by {policy.lastUpdatedBy}
+                    </div>
                 )}
+                <p className="text-[10px] text-muted-foreground italic">
+                    Internal Document ID: content/{activePolicy}
+                </p>
             </div>
-            <Button onClick={handleSave} disabled={isSaving || isLoading}>
-              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Publish Changes
-            </Button>
+            <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setContent(policy?.text || '')} disabled={isLoading}>
+                    Reset
+                </Button>
+                <Button onClick={handleSave} disabled={isSaving || isLoading} className="min-w-[140px]">
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Publish Changes
+                </Button>
+            </div>
           </CardFooter>
         </Card>
       </Tabs>
