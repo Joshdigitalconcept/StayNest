@@ -1,11 +1,10 @@
-
 'use client';
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import { Loader2, ArrowLeft, Clock, FileText, ShieldCheck, HelpCircle, Share2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Clock, FileText, ShieldCheck, HelpCircle, Share2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -68,13 +67,15 @@ export default function PolicyPage() {
                 <Button variant="ghost" onClick={() => router.back()} className="-ml-4 text-muted-foreground hover:text-foreground">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => window.print()} className="hidden md:flex">
-                    <Share2 className="mr-2 h-4 w-4" /> Print Copy
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => window.print()} className="hidden md:flex">
+                        <Printer className="mr-2 h-4 w-4" /> Print Copy
+                    </Button>
+                </div>
             </div>
 
-            <div className="bg-background border-2 shadow-2xl rounded-2xl overflow-hidden">
-                <div className="bg-primary/5 p-8 md:p-12 border-b-2">
+            <div className="bg-background border shadow-2xl rounded-2xl overflow-hidden print:border-none print:shadow-none">
+                <div className="bg-primary/5 p-8 md:p-12 border-b">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                         <div className="bg-primary p-4 rounded-2xl text-primary-foreground shadow-lg shrink-0">
                             <Icon className="h-10 w-10" />
@@ -94,17 +95,17 @@ export default function PolicyPage() {
                 </div>
 
                 <div className="p-8 md:p-12">
-                    <div className="max-w-none">
-                        <div className="whitespace-pre-wrap leading-loose text-lg text-foreground/80 font-medium">
-                            {policy.text || "This document is currently being drafted by the platform legal team. Please check back shortly for the full version."}
-                        </div>
+                    <div className="max-w-none prose dark:prose-invert prose-slate prose-lg md:prose-xl prose-headings:font-headline prose-headings:font-black prose-a:text-primary prose-strong:text-foreground">
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: policy.text || "<p>This document is currently being drafted.</p>" }} 
+                        />
                     </div>
                     
                     <Separator className="my-12" />
                     
                     <div className="bg-muted/30 p-6 rounded-xl border border-dashed text-center">
                         <p className="text-sm text-muted-foreground italic">
-                            This is an official document of the StayNest platform. If you have questions regarding these terms, please contact our support team via the Help Center.
+                            This is an official document of the StayNest platform. If you have questions regarding these terms, please contact our support team.
                         </p>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
-
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import {
   Card,
   CardContent,
@@ -10,13 +10,33 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+
+// Rich text editor dynamic import to prevent hydration issues
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+import 'react-quill/dist/quill.snow.css';
+
+const quillModules = {
+  toolbar: [
+    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+    ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+    ['link', 'image', 'color', 'background'],
+    ['clean']
+  ],
+};
+
+const quillFormats = [
+  'header',
+  'bold', 'italic', 'underline', 'strike', 'blockquote',
+  'list', 'bullet', 'indent',
+  'link', 'image', 'color', 'background'
+];
 
 export default function AdminContentPage() {
   const { toast } = useToast();
@@ -34,7 +54,7 @@ export default function AdminContentPage() {
     if (!isLoading) {
       setContent(policy?.text || '');
     }
-  }, [policy, isLoading]);
+  }, [policy, isLoading, activePolicy]);
 
   const handleSave = async () => {
     if (!policyRef) return;
@@ -68,9 +88,30 @@ export default function AdminContentPage() {
 
   return (
     <div className="space-y-6">
+      <style jsx global>{`
+        .quill-editor .ql-container {
+          min-height: 500px;
+          background-color: white !important;
+          color: black !important;
+          font-size: 16px;
+        }
+        .quill-editor .ql-editor {
+          min-height: 500px;
+        }
+        .quill-editor .ql-toolbar {
+          background-color: #f8fafc !important;
+          border-top-left-radius: 0.5rem;
+          border-top-right-radius: 0.5rem;
+        }
+        .quill-editor .ql-container {
+          border-bottom-left-radius: 0.5rem;
+          border-bottom-right-radius: 0.5rem;
+        }
+      `}</style>
+
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold font-headline">Content & Policies</h1>
-        <p className="text-muted-foreground">Manage the legal framework and help documentation of the platform.</p>
+        <p className="text-muted-foreground">Manage the legal framework and help documentation using rich text formatting.</p>
       </div>
 
       <Tabs value={activePolicy} onValueChange={setActivePolicy} className="space-y-4">
@@ -86,26 +127,30 @@ export default function AdminContentPage() {
             </div>
         </div>
 
-        <Card className="border-2">
+        <Card className="border-2 shadow-sm">
           <CardHeader className="bg-muted/30 border-b">
             <div className="flex items-center justify-between">
                 <div>
                     <CardTitle className="text-xl">{getPolicyName(activePolicy)} Editor</CardTitle>
-                    <CardDescription>All changes are immediately live to users via the platform footer links.</CardDescription>
+                    <CardDescription>Rich text editor with paste support from Word/Google Docs.</CardDescription>
                 </div>
-                <div className="bg-background px-3 py-1 rounded-md border text-xs font-bold text-primary uppercase tracking-widest">Drafting Mode</div>
+                <div className="bg-background px-3 py-1 rounded-md border text-xs font-bold text-primary uppercase tracking-widest">WYSIWYG Mode</div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
             {isLoading ? (
               <div className="flex justify-center py-24"><Loader2 className="animate-spin h-12 w-12 text-primary opacity-50" /></div>
             ) : (
-              <Textarea 
-                className="font-mono text-sm leading-relaxed min-h-[500px] border-none focus-visible:ring-0 shadow-none resize-none p-0" 
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={`Start typing the official ${getPolicyName(activePolicy)}... Use clear headings and sections for better readability.`}
-              />
+              <div className="quill-editor">
+                <ReactQuill 
+                  theme="snow"
+                  value={content}
+                  onChange={setContent}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder={`Start typing the official ${getPolicyName(activePolicy)}...`}
+                />
+              </div>
             )}
           </CardContent>
           <CardFooter className="justify-between border-t bg-muted/10 p-6">
@@ -117,7 +162,7 @@ export default function AdminContentPage() {
                     </div>
                 )}
                 <p className="text-[10px] text-muted-foreground italic">
-                    Internal Document ID: content/{activePolicy}
+                    All formatting is preserved for public viewing.
                 </p>
             </div>
             <div className="flex gap-3">
