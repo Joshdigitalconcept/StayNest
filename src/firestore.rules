@@ -15,16 +15,8 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
-    // -------------------------------------------------------------------------
-    // Collection Group Rules (Must be globally defined)
-    // -------------------------------------------------------------------------
-     
-    match /{path=**}/messages/{messageId} {
-       allow read: if isSignedIn();
-    }
-
-    match /{path=**}/reviews/{reviewId} {
-       allow read: if true;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // -------------------------------------------------------------------------
@@ -34,21 +26,21 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn();
       allow list: if isAdmin();
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
 
       match /favorites/{listingId} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
 
       match /payment_methods/{methodId} {
-        allow read, write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
 
     match /roles_admin/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
       allow write: if isAdmin();
     }
@@ -68,16 +60,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /notifications/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /listings/{listingId} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
       
-      match /reviews/{reviewId} {
-        allow read: if true;
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow update, delete: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      }
+      // Note: Review rules are now handled by the collectionGroup match below for cross-query compatibility.
     }
     
     match /bookings/{bookingId} {
@@ -97,6 +90,20 @@ service cloud.firestore {
            isAdmin()
          );
        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Group Rules (Recursive matching for subcollections)
+    // -------------------------------------------------------------------------
+     
+    match /{path=**}/messages/{messageId} {
+       allow read: if isSignedIn();
+    }
+
+    match /{path=**}/reviews/{reviewId} {
+       allow read: if true;
+       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+       allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
   }
 }
