@@ -71,6 +71,16 @@
         "globalInstantBook": { "type": "boolean" }
       }
     },
+    "StaticContent": {
+      "title": "StaticContent",
+      "type": "object",
+      "description": "Represents dynamic text content for platform pages like legal policies and help articles.",
+      "properties": {
+        "text": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastUpdatedBy": { "type": "string" }
+      }
+    },
     "Ticket": {
       "title": "Ticket",
       "type": "object",
@@ -136,14 +146,11 @@
       {
         "path": "/content/{docId}",
         "definition": {
-          "entityName": "PlatformConfig",
+          "entityName": "StaticContent",
           "schema": {
-            "type": "object",
-            "properties": {
-              "text": { "type": "string" }
-            }
+            "$ref": "#/backend/entities/StaticContent"
           },
-          "description": "Stores dynamic platform content like TOS and Privacy Policy."
+          "description": "Stores dynamic platform content like TOS, Privacy Policy, and Help Center articles."
         }
       }
     ]

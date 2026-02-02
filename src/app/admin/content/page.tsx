@@ -15,12 +15,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Save, FileText, HelpCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function AdminContentPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const { user: currentUser } = useUser();
   const [isSaving, setIsSaving] = React.useState(false);
   const [activePolicy, setActivePolicy] = React.useState('tos');
 
@@ -30,10 +31,11 @@ export default function AdminContentPage() {
   const [content, setContent] = React.useState('');
 
   React.useEffect(() => {
-    if (policy) {
-      setContent(policy.text || '');
+    // Only update content when loading finishes to ensure state matches the current tab's document
+    if (!isLoading) {
+      setContent(policy?.text || '');
     }
-  }, [policy]);
+  }, [policy, isLoading]);
 
   const handleSave = async () => {
     if (!policyRef) return;
@@ -42,16 +44,26 @@ export default function AdminContentPage() {
       await setDoc(policyRef, { 
         text: content, 
         updatedAt: serverTimestamp(),
-        lastUpdatedBy: 'Admin'
-      });
+        lastUpdatedBy: currentUser?.email || 'Admin'
+      }, { merge: true });
+      
       toast({
         title: "Content Updated",
-        description: "Policy changes have been published to the live site.",
+        description: `${activePolicy.toUpperCase()} changes have been published successfully.`,
       });
     } catch (error: any) {
       toast({ variant: 'destructive', title: "Save Failed", description: error.message });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const getPolicyName = (id: string) => {
+    switch (id) {
+      case 'tos': return 'Terms of Service';
+      case 'privacy': return 'Privacy Policy';
+      case 'help': return 'Help Center';
+      default: return 'Document';
     }
   };
 
@@ -71,8 +83,8 @@ export default function AdminContentPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>{activePolicy === 'tos' ? 'Terms of Service' : activePolicy === 'privacy' ? 'Privacy Policy' : 'Help Center'} Editor</CardTitle>
-            <CardDescription>Published versions are timestamped and visible to all users immediately.</CardDescription>
+            <CardTitle>{getPolicyName(activePolicy)} Editor</CardTitle>
+            <CardDescription>Published versions are timestamped and visible to all users via the platform footer.</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -82,14 +94,19 @@ export default function AdminContentPage() {
                 className="font-mono text-sm leading-relaxed min-h-[400px]" 
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Start typing the official platform content here..."
+                placeholder={`Start typing the official ${getPolicyName(activePolicy)} here...`}
               />
             )}
           </CardContent>
           <CardFooter className="justify-between border-t p-6">
-            <p className="text-xs text-muted-foreground italic">
-              Last saved: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleString() : 'Never'}
-            </p>
+            <div className="space-y-1">
+                <p className="text-xs text-muted-foreground italic">
+                Last saved: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleString() : 'Never'}
+                </p>
+                {policy?.lastUpdatedBy && (
+                    <p className="text-[10px] text-muted-foreground">Updated by: {policy.lastUpdatedBy}</p>
+                )}
+            </div>
             <Button onClick={handleSave} disabled={isSaving || isLoading}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Publish Changes
