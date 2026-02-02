@@ -6,33 +6,39 @@ const LOCAL_STORAGE_KEY = 'hostOnboardingDraft';
 
 export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState(() => {
+  const [formData, setFormData] = useState(initialDraft);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize from localStorage safely after mount
+  useEffect(() => {
     try {
       const savedDraft = window.localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedDraft) {
-        return JSON.parse(savedDraft);
+        setFormData(JSON.parse(savedDraft));
       }
-      return initialDraft;
     } catch (error) {
       console.error("Failed to parse draft from localStorage", error);
-      return initialDraft;
+    } finally {
+      setIsInitialized(true);
     }
-  });
+  }, []);
 
+  // Sync to initialDraft if formData is still empty (e.g. waiting for profile)
   useEffect(() => {
-    // Only set initial draft if the form data is empty
-    if (Object.keys(formData).length === 0 && Object.keys(initialDraft).length > 0) {
+    if (isInitialized && Object.keys(formData).length === 0 && Object.keys(initialDraft).length > 0) {
         setFormData(initialDraft);
     }
-  }, [initialDraft, formData]);
+  }, [initialDraft, formData, isInitialized]);
 
+  // Persist changes to localStorage
   useEffect(() => {
+    if (!isInitialized) return;
     try {
       window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(formData));
     } catch (error) {
       console.error("Failed to save draft to localStorage", error);
     }
-  }, [formData]);
+  }, [formData, isInitialized]);
 
   const goToNextStep = useCallback(() => {
     setCurrentStep((prev) => (prev < totalSteps ? prev + 1 : prev));
