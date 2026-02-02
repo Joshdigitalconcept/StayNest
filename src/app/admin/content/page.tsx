@@ -45,8 +45,6 @@ const toolbarTooltips: Record<string, string> = {
   '.ql-indent[value="+1"]': 'Increase Indent',
   '.ql-link': 'Insert Link',
   '.ql-image': 'Insert Image',
-  '.ql-color': 'Text Color',
-  '.ql-background': 'Highlight Color',
   '.ql-clean': 'Clear All Formatting'
 };
 
@@ -122,7 +120,7 @@ export default function AdminContentPage() {
         [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
         ['bold', 'italic', 'underline', 'strike', 'blockquote'],
         [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-        ['link', 'image', 'color', 'background'],
+        ['link', 'image'],
         ['clean']
       ],
       handlers: {
@@ -133,7 +131,7 @@ export default function AdminContentPage() {
 
   const quillFormats = [
     'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
-    'list', 'indent', 'link', 'image', 'color', 'background'
+    'list', 'indent', 'link', 'image'
   ];
 
   const handleSave = async () => {
