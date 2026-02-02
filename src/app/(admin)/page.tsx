@@ -1,16 +1,9 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import * as React from 'react';
+import { redirect } from 'next/navigation';
 
 /**
- * This route group was causing conflicts. 
- * We are redirecting to the explicit /admin dashboard.
+ * Server-side redirect to the consolidated admin dashboard.
+ * This prevents manifest conflicts during Vercel builds.
  */
 export default function AdminRootRedirect() {
-  const router = useRouter();
-  React.useEffect(() => {
-    router.push('/admin');
-  }, [router]);
-  return null;
+  redirect('/admin');
 }
