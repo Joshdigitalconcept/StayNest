@@ -12,10 +12,21 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, Database } from 'lucide-react';
+import { Save, FileText, HelpCircle, ShieldCheck, Loader2, History, Database, AlertCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { uploadImage } from '@/lib/image-upload';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Rich text editor dynamic import to prevent hydration issues
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -33,7 +44,7 @@ const toolbarTooltips: Record<string, string> = {
   '.ql-indent[value="-1"]': 'Decrease Indent',
   '.ql-indent[value="+1"]': 'Increase Indent',
   '.ql-link': 'Insert Link',
-  '.ql-image': 'Insert Image (Embedded)',
+  '.ql-image': 'Insert Image (via ImgBB)',
   '.ql-color': 'Text Color',
   '.ql-background': 'Highlight Color',
   '.ql-clean': 'Clear All Formatting'
@@ -43,13 +54,23 @@ export default function AdminContentPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { user: currentUser } = useUser();
+  const quillRef = React.useRef<any>(null);
   
   const [isSaving, setIsSaving] = React.useState(false);
   const [activePolicy, setActivePolicy] = React.useState('tos');
+  const [pendingPolicy, setPendingPolicy] = React.useState<string | null>(null);
   const [content, setContent] = React.useState('');
+  const [isConfirmOpen, setIsConfirmOpen] = React.useState(false);
 
   const policyRef = useMemoFirebase(() => firestore ? doc(firestore, 'content', activePolicy) : null, [firestore, activePolicy]);
   const { data: policy, isLoading } = useDoc(policyRef);
+
+  // Determine if there are unsaved changes
+  const isDirty = React.useMemo(() => {
+    if (isLoading) return false;
+    const original = policy?.text || '';
+    return content !== original && content !== '<p><br></p>';
+  }, [content, policy, isLoading]);
 
   React.useEffect(() => {
     if (!isLoading) {
@@ -57,30 +78,58 @@ export default function AdminContentPage() {
     }
   }, [policy, isLoading]);
 
-  // Apply tooltips to Quill toolbar
+  // Handle browser close/refresh protection
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      Object.entries(toolbarTooltips).forEach(([selector, title]) => {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
-          if (!el.getAttribute('title')) {
-            el.setAttribute('title', title);
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Custom Image Handler for ImgBB
+  const imageHandler = React.useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) {
+        toast({ title: "Uploading image...", description: "Please wait while we host your file." });
+        const url = await uploadImage(file);
+        if (url) {
+          const quill = quillRef.current?.getEditor();
+          if (quill) {
+            const range = quill.getSelection();
+            quill.insertEmbed(range.index, 'image', url);
+            toast({ title: "Image Ready", description: "Your image has been hosted and inserted." });
           }
-        });
-      });
-    }, 1000); 
-    return () => clearTimeout(timer);
-  }, [activePolicy, isLoading]);
+        } else {
+          toast({ variant: 'destructive', title: "Upload Failed", description: "Could not host image on ImgBB." });
+        }
+      }
+    };
+  }, [toast]);
 
   const quillModules = React.useMemo(() => ({
-    toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
-      ['link', 'image', 'color', 'background'],
-      ['clean']
-    ]
-  }), []);
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
+        ['link', 'image', 'color', 'background'],
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler
+      }
+    }
+  }), [imageHandler]);
 
   const quillFormats = [
     'header', 'bold', 'italic', 'underline', 'strike', 'blockquote',
@@ -108,6 +157,23 @@ export default function AdminContentPage() {
     }
   };
 
+  const handleTabChange = (newVal: string) => {
+    if (isDirty) {
+      setPendingPolicy(newVal);
+      setIsConfirmOpen(true);
+    } else {
+      setActivePolicy(newVal);
+    }
+  };
+
+  const confirmDiscard = () => {
+    if (pendingPolicy) {
+      setActivePolicy(pendingPolicy);
+      setPendingPolicy(null);
+    }
+    setIsConfirmOpen(false);
+  };
+
   const getPolicyName = (id: string) => {
     switch (id) {
       case 'tos': return 'Terms of Service';
@@ -116,6 +182,21 @@ export default function AdminContentPage() {
       default: return 'Document';
     }
   };
+
+  // Apply tooltips to Quill toolbar
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      Object.entries(toolbarTooltips).forEach(([selector, title]) => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+          if (!el.getAttribute('title')) {
+            el.setAttribute('title', title);
+          }
+        });
+      });
+    }, 1000); 
+    return () => clearTimeout(timer);
+  }, [activePolicy, isLoading]);
 
   return (
     <div className="space-y-6">
@@ -148,16 +229,24 @@ export default function AdminContentPage() {
         <p className="text-muted-foreground">Draft and publish formatted legal documents for the platform.</p>
       </div>
 
-      <Tabs value={activePolicy} onValueChange={setActivePolicy} className="space-y-4">
+      <Tabs value={activePolicy} onValueChange={handleTabChange} className="space-y-4">
         <div className="flex items-center justify-between">
             <TabsList>
                 <TabsTrigger value="tos" className="gap-2"><FileText className="h-4 w-4" /> TOS</TabsTrigger>
                 <TabsTrigger value="privacy" className="gap-2"><ShieldCheck className="h-4 w-4" /> Privacy</TabsTrigger>
                 <TabsTrigger value="help" className="gap-2"><HelpCircle className="h-4 w-4" /> Help Center</TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border">
-                <History className="h-3 w-3" />
-                <span>Last Published: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleDateString() : 'Never'}</span>
+            <div className="flex items-center gap-4">
+                {isDirty && (
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200 animate-pulse">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Unsaved Changes
+                    </div>
+                )}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border">
+                    <History className="h-3 w-3" />
+                    <span>Last Published: {policy?.updatedAt ? policy.updatedAt.toDate().toLocaleDateString() : 'Never'}</span>
+                </div>
             </div>
         </div>
 
@@ -166,10 +255,10 @@ export default function AdminContentPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <CardTitle className="text-xl">{getPolicyName(activePolicy)} Editor</CardTitle>
-                    <CardDescription>Formatted content is saved directly to Firestore.</CardDescription>
+                    <CardDescription>Changes are protected until you explicitly publish.</CardDescription>
                 </div>
                 <div className="flex items-center gap-2 bg-background px-3 py-1 rounded-md border text-[10px] font-bold text-primary uppercase tracking-widest">
-                  <Database className="h-3 w-3" /> Inline Storage Active
+                  <Database className="h-3 w-3" /> External Hosting (ImgBB)
                 </div>
             </div>
           </CardHeader>
@@ -179,6 +268,7 @@ export default function AdminContentPage() {
             ) : (
               <div className="quill-editor">
                 <ReactQuill 
+                  ref={quillRef}
                   theme="snow"
                   value={content}
                   onChange={setContent}
@@ -198,14 +288,15 @@ export default function AdminContentPage() {
                     </div>
                 )}
                 <p className="text-[10px] text-muted-foreground italic">
-                    Images are embedded directly in the document text for high portability.
+                    Images are automatically hosted on ImgBB to keep your database lightweight.
                 </p>
             </div>
             <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setContent(policy?.text || '')} disabled={isLoading}>
-                    Discard Draft
+                <Button variant="outline" onClick={() => setContent(policy?.text || '')} disabled={isLoading || !isDirty} className="gap-2">
+                    <Trash2 className="h-4 w-4" />
+                    Discard Edits
                 </Button>
-                <Button onClick={handleSave} disabled={isSaving || isLoading} className="min-w-[140px] bg-primary">
+                <Button onClick={handleSave} disabled={isSaving || isLoading || !isDirty} className="min-w-[140px] bg-primary">
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Publish Content
                 </Button>
@@ -213,6 +304,23 @@ export default function AdminContentPage() {
           </CardFooter>
         </Card>
       </Tabs>
+
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes Detected</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes in the {getPolicyName(activePolicy)} editor. Switching documents now will discard these edits. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingPolicy(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Discard Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
