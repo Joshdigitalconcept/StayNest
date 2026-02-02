@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { User } from '@/lib/types';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
