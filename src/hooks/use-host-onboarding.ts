@@ -9,7 +9,7 @@ export function useHostOnboarding(totalSteps: number, initialDraft = {}) {
   const [formData, setFormData] = useState(initialDraft);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize from localStorage safely after mount
+  // Initialize from localStorage safely after mount to prevent SSR errors
   useEffect(() => {
     // Explicit window check for build-time safety
     if (typeof window === 'undefined') return;
