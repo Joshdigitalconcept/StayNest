@@ -1,158 +1,45 @@
-
 {
   "entities": {
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the StayNest platform, whether they are a host or a guest.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the User entity."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "The user's first name."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "The user's last name."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's email address.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "The user's phone number."
-        },
-        "profilePictureUrl": {
-          "type": "string",
-          "description": "URL of the user's profile picture.",
-          "format": "uri"
-        },
-        "isHost": {
-          "type": "boolean",
-          "description": "Indicates if the user is a host."
-        },
-        "isGuest": {
-          "type": "boolean",
-          "description": "Indicates if the user is a guest."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "email",
-        "isHost",
-        "isGuest",
-        "createdAt",
-        "updatedAt"
-      ]
-    },
-    "PlatformConfig": {
-      "title": "PlatformConfig",
-      "type": "object",
-      "description": "Global settings for the platform.",
-      "properties": {
-        "maintenanceMode": { "type": "boolean" },
-        "autoApproveHosts": { "type": "boolean" },
-        "globalInstantBook": { "type": "boolean" }
+        "id": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "isHost": { "type": "boolean" },
+        "isGuest": { "type": "boolean" },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended", "banned"] },
+        "idVerified": { "type": "boolean" }
       }
     },
-    "StaticContent": {
-      "title": "StaticContent",
+    "AdminRecord": {
+      "title": "AdminRecord",
       "type": "object",
-      "description": "Represents dynamic text content for platform pages like legal policies and help articles.",
+      "description": "Administrative privileges and roles mapping.",
       "properties": {
-        "text": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time" },
-        "lastUpdatedBy": { "type": "string" }
-      }
-    },
-    "Ticket": {
-      "title": "Ticket",
-      "type": "object",
-      "description": "Support or dispute ticket.",
-      "properties": {
-        "userId": { "type": "string" },
-        "subject": { "type": "string" },
-        "status": { "type": "string", "enum": ["open", "pending", "closed"] },
-        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "isSuperAdmin": { "type": "boolean" },
+        "roles": { 
+          "type": "array", 
+          "items": { "type": "string", "enum": ["users", "listings", "content", "finance", "support", "super_admin"] } 
+        },
+        "grantedAt": { "type": "string", "format": "date-time" },
+        "by": { "type": "string" }
       }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous",
-      "google.com"
-    ]
+    "providers": ["password", "google.com"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles."
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Indicates admin privileges."
-        }
-      },
-      {
-        "path": "/settings/{settingId}",
-        "definition": {
-          "entityName": "PlatformConfig",
-          "schema": {
-            "$ref": "#/backend/entities/PlatformConfig"
-          },
-          "description": "Stores platform configuration."
-        }
-      },
-      {
-        "path": "/tickets/{ticketId}",
-        "definition": {
-          "entityName": "Ticket",
-          "schema": {
-            "$ref": "#/backend/entities/Ticket"
-          },
-          "description": "Stores dispute and support tickets."
-        }
-      },
-      {
-        "path": "/content/{docId}",
-        "definition": {
-          "entityName": "StaticContent",
-          "schema": {
-            "$ref": "#/backend/entities/StaticContent"
-          },
-          "description": "Stores dynamic platform content like TOS, Privacy Policy, and Help Center articles."
-        }
-      }
-    ]
+    "/users/{userId}": { "schema": { "$ref": "#/backend/entities/User" }, "description": "User profiles." },
+    "/roles_admin/{userId}": { "schema": { "$ref": "#/backend/entities/AdminRecord" }, "description": "Admin access control." },
+    "/listings/{listingId}": { "schema": "object", "description": "Property listings." },
+    "/bookings/{bookingId}": { "schema": "object", "description": "Reservations." },
+    "/settings/platform": { "schema": "object", "description": "Global config." }
   }
 }

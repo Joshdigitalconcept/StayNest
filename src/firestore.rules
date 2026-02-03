@@ -15,6 +15,10 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
+    function isSuperAdmin() {
+      return isAdmin() && get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.isSuperAdmin == true;
+    }
+    
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -42,7 +46,8 @@ service cloud.firestore {
     match /roles_admin/{userId} {
       allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow write: if isAdmin();
+      // Only Super Admins can create or delete admin records
+      allow write: if isSuperAdmin();
     }
 
     match /settings/{docId} {
@@ -69,8 +74,6 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
-      
-      // Note: Review rules are now handled by the collectionGroup match below for cross-query compatibility.
     }
     
     match /bookings/{bookingId} {
@@ -93,7 +96,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // Collection Group Rules (Recursive matching for subcollections)
+    // Collection Group Rules
     // -------------------------------------------------------------------------
      
     match /{path=**}/messages/{messageId} {

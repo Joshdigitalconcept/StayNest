@@ -67,6 +67,18 @@ export interface Booking {
   }
 }
 
+export type AdminRole = 'users' | 'listings' | 'content' | 'finance' | 'support' | 'super_admin';
+
+export interface AdminRecord {
+  id: string;
+  name: string;
+  email: string;
+  roles: AdminRole[];
+  isSuperAdmin: boolean;
+  grantedAt: Timestamp;
+  by: string;
+}
+
 export interface User {
   id: string;
   firstName: string;
@@ -175,3 +187,11 @@ export const whoElseOptions = [
     { id: 'roommates', label: 'Roommates' },
     { id: 'other_guests', label: 'Other guests' },
 ];
+
+export const ADMIN_ROLES_LIST = [
+  { id: 'users', label: 'User Management', description: 'Suspend, ban, and verify users.' },
+  { id: 'listings', label: 'Listing Management', description: 'Moderate and delete property listings.' },
+  { id: 'content', label: 'Content & Policies', description: 'Edit TOS, Privacy, and Help articles.' },
+  { id: 'finance', label: 'Finance & Payouts', description: 'View payment history and revenue.' },
+  { id: 'support', label: 'Disputes & Support', description: 'Manage and resolve support tickets.' },
+] as const;

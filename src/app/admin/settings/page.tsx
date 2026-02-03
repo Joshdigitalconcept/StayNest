@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -8,39 +7,54 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Shield, Settings, Key, UserPlus, Loader2, Trash2, Search, Mail } from 'lucide-react';
+import { Shield, Settings, Key, UserPlus, Loader2, Trash2, Search, Mail, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, query, doc, setDoc, deleteDoc, serverTimestamp, where, getDocs, limit } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { ADMIN_ROLES_LIST, type AdminRole, type AdminRecord } from '@/lib/types';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function AdminSettingsPage() {
   const firestore = useFirestore();
   const { user: currentUser } = useUser();
   const { toast } = useToast();
+  
   const [searchEmail, setSearchEmail] = React.useState('');
   const [isAddingAdmin, setIsAddingAdmin] = React.useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+  const [selectedRoles, setSelectedRoles] = React.useState<AdminRole[]>(['support']);
+  const [isSuperAdminSelected, setIsSuperAdminSelected] = React.useState(false);
 
   // 1. Admin Roles Management
   const adminsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'roles_admin')) : null, [firestore]);
-  const { data: admins, isLoading: isAdminsLoading } = useCollection(adminsQuery);
+  const { data: admins, isLoading: isAdminsLoading } = useCollection<AdminRecord>(adminsQuery);
 
   // 2. Platform Config (Real-time)
   const platformConfigRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'platform') : null, [firestore]);
   const { data: config, isLoading: isConfigLoading } = useDoc(platformConfigRef);
+
+  const currentUserAdminRecord = React.useMemo(() => {
+    return admins?.find(a => a.id === currentUser?.uid);
+  }, [admins, currentUser]);
 
   const handleToggleConfig = async (key: string, value: boolean) => {
     if (!platformConfigRef) return;
@@ -52,18 +66,30 @@ export default function AdminSettingsPage() {
     }
   };
 
-  const handleRevokeAdmin = async (userId: string) => {
-    if (userId === currentUser?.uid) {
+  const handleRevokeAdmin = async (admin: AdminRecord) => {
+    if (admin.id === currentUser?.uid) {
       toast({ variant: 'destructive', title: "Action Denied", description: "You cannot revoke your own admin status." });
       return;
     }
+    
+    if (admin.isSuperAdmin && !currentUserAdminRecord?.isSuperAdmin) {
+      toast({ variant: 'destructive', title: "Permission Denied", description: "Only Super Admins can remove other Super Admins." });
+      return;
+    }
+
     if (!firestore) return;
     try {
-      await deleteDoc(doc(firestore, 'roles_admin', userId));
+      await deleteDoc(doc(firestore, 'roles_admin', admin.id));
       toast({ title: "Admin Revoked", description: "The user no longer has administrative access." });
     } catch (error: any) {
       toast({ variant: 'destructive', title: "Revocation Failed", description: error.message });
     }
+  };
+
+  const handleRoleToggle = (roleId: AdminRole) => {
+    setSelectedRoles(prev => 
+      prev.includes(roleId) ? prev.filter(r => r !== roleId) : [...prev, roleId]
+    );
   };
 
   const handleAddAdminByEmail = async () => {
@@ -72,7 +98,6 @@ export default function AdminSettingsPage() {
     
     setIsAddingAdmin(true);
     try {
-      // Search for user in the users collection
       const usersRef = collection(firestore, 'users');
       const q = query(usersRef, where('email', '==', email), limit(1));
       const snap = await getDocs(q);
@@ -81,25 +106,28 @@ export default function AdminSettingsPage() {
         toast({ 
           variant: 'destructive', 
           title: "User Not Found", 
-          description: `No profile exists for ${email}. Note: users must log in at least once to create a profile. Search is case-sensitive.` 
+          description: `No profile exists for ${email}. Users must log in once to create a profile.` 
         });
       } else {
         const targetUser = snap.docs[0];
         const userData = targetUser.data();
         
-        // Add to roles_admin collection
         await setDoc(doc(firestore, 'roles_admin', targetUser.id), {
           grantedAt: serverTimestamp(),
           by: currentUser?.email || 'System',
           email: userData.email || email,
-          name: `${userData.firstName} ${userData.lastName}`.trim()
+          name: `${userData.firstName} ${userData.lastName}`.trim(),
+          roles: isSuperAdminSelected ? ['super_admin'] : selectedRoles,
+          isSuperAdmin: isSuperAdminSelected
         });
         
         toast({ title: "Admin Added", description: `${email} is now an administrator.` });
         setSearchEmail('');
+        setSelectedRoles(['support']);
+        setIsSuperAdminSelected(false);
+        setIsAddDialogOpen(false);
       }
     } catch (error: any) {
-      console.error("Add admin error:", error);
       toast({ 
         variant: 'destructive', 
         title: "Operation Failed", 
@@ -129,23 +157,80 @@ export default function AdminSettingsPage() {
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <CardTitle>Authorized Administrators</CardTitle>
-                <CardDescription>Users with full access to the admin panel.</CardDescription>
+                <CardDescription>Users with administrative access. Super Admins can manage other admins.</CardDescription>
               </div>
-              <div className="flex gap-2 w-full md:w-auto">
-                <div className="relative">
-                  <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="User Email (case-sensitive)..." 
-                    value={searchEmail} 
-                    onChange={(e) => setSearchEmail(e.target.value)} 
-                    className="max-w-[250px] pl-9"
-                  />
-                </div>
-                <Button onClick={handleAddAdminByEmail} disabled={isAddingAdmin || !searchEmail}>
-                  {isAddingAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                  Add Admin
-                </Button>
-              </div>
+              
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    New Admin
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Add New Administrator</DialogTitle>
+                    <DialogDescription>
+                      Assign roles and privileges to a platform user. They must have already registered.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-6 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">User Email (case-sensitive)</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          id="email"
+                          placeholder="admin@example.com" 
+                          value={searchEmail} 
+                          onChange={(e) => setSearchEmail(e.target.value)} 
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/5 border-primary/20">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-bold flex items-center gap-2">
+                            <ShieldAlert className="h-4 w-4 text-primary" />
+                            Assign as Super Admin
+                          </Label>
+                          <p className="text-xs text-muted-foreground">Full access to everything, including managing other admins.</p>
+                        </div>
+                        <Switch checked={isSuperAdminSelected} onCheckedChange={setIsSuperAdminSelected} />
+                      </div>
+
+                      {!isSuperAdminSelected && (
+                        <div className="space-y-3">
+                          <Label className="text-sm font-bold">Specific Privileges</Label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {ADMIN_ROLES_LIST.map(role => (
+                              <div key={role.id} className="flex items-start space-x-3 p-2 rounded hover:bg-muted/50 transition-colors">
+                                <Checkbox 
+                                  id={role.id} 
+                                  checked={selectedRoles.includes(role.id as AdminRole)} 
+                                  onCheckedChange={() => handleRoleToggle(role.id as AdminRole)}
+                                />
+                                <div className="grid gap-1 leading-none">
+                                  <label htmlFor={role.id} className="text-sm font-medium cursor-pointer">{role.label}</label>
+                                  <p className="text-[10px] text-muted-foreground">{role.description}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={handleAddAdminByEmail} disabled={isAddingAdmin || !searchEmail}>
+                      {isAddingAdmin ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                      Confirm Access
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               {isAdminsLoading ? (
@@ -153,15 +238,15 @@ export default function AdminSettingsPage() {
               ) : !admins || admins.length === 0 ? (
                 <div className="text-center py-12 border rounded-lg border-dashed">
                   <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
-                  <p className="text-muted-foreground">No administrators found in the system.</p>
+                  <p className="text-muted-foreground">No administrators found.</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Administrator</TableHead>
-                      <TableHead>User ID</TableHead>
-                      <TableHead>Granted At</TableHead>
+                      <TableHead>Roles & Status</TableHead>
+                      <TableHead>Granted</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -170,22 +255,41 @@ export default function AdminSettingsPage() {
                       <TableRow key={admin.id}>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="font-bold">{admin.name || 'Admin User'}</span>
-                            <span className="text-xs text-muted-foreground">{admin.email || 'Legacy Profile'}</span>
+                            <span className="font-bold flex items-center gap-2">
+                              {admin.name || 'Admin User'}
+                              {admin.isSuperAdmin && (
+                                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                                  SUPER
+                                </Badge>
+                              )}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{admin.email}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-[10px] text-muted-foreground">{admin.id}</TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {admin.isSuperAdmin ? (
+                              <Badge className="text-[9px] uppercase font-bold">ALL ACCESS</Badge>
+                            ) : (
+                              admin.roles?.map(r => (
+                                <Badge key={r} variant="secondary" className="text-[9px] uppercase font-bold">
+                                  {r}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-[10px] text-muted-foreground">
                           {admin.grantedAt ? format(admin.grantedAt.toDate(), 'PPP') : 'N/A'}
-                          {admin.by && <p className="text-[10px] text-muted-foreground italic">by {admin.by}</p>}
+                          {admin.by && <p className="italic">by {admin.by}</p>}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button 
                             size="sm" 
                             variant="ghost" 
                             className="text-destructive hover:bg-destructive/10"
-                            onClick={() => handleRevokeAdmin(admin.id)}
-                            disabled={admin.id === currentUser?.uid}
+                            onClick={() => handleRevokeAdmin(admin)}
+                            disabled={admin.id === currentUser?.uid || (admin.isSuperAdmin && !currentUserAdminRecord?.isSuperAdmin)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Revoke
@@ -204,7 +308,7 @@ export default function AdminSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Platform Configuration</CardTitle>
-              <CardDescription>Global settings for StayNest operations. Changes are saved instantly.</CardDescription>
+              <CardDescription>Global operational settings. Changes are saved instantly.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {isConfigLoading ? (
@@ -214,7 +318,7 @@ export default function AdminSettingsPage() {
                   <div className="flex items-center justify-between space-x-2 border-b pb-4">
                     <div className="flex flex-col space-y-1">
                       <Label htmlFor="maintenanceMode" className="text-base font-bold">Maintenance Mode</Label>
-                      <p className="text-sm text-muted-foreground">Disable all bookings and listings temporarily for all users.</p>
+                      <p className="text-sm text-muted-foreground">Temporarily disable public site access.</p>
                     </div>
                     <Switch 
                       id="maintenanceMode" 
@@ -225,23 +329,12 @@ export default function AdminSettingsPage() {
                   <div className="flex items-center justify-between space-x-2 border-b pb-4">
                     <div className="flex flex-col space-y-1">
                       <Label htmlFor="autoApproveHosts" className="text-base font-bold">Auto-approve Hosts</Label>
-                      <p className="text-sm text-muted-foreground">Automatically grant host privileges to new applicants without manual review.</p>
+                      <p className="text-sm text-muted-foreground">Automatically grant host status to new sign-ups.</p>
                     </div>
                     <Switch 
                       id="autoApproveHosts" 
                       checked={!!config?.autoApproveHosts} 
                       onCheckedChange={(v) => handleToggleConfig('autoApproveHosts', v)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between space-x-2 pb-4">
-                    <div className="flex flex-col space-y-1">
-                      <Label htmlFor="globalInstantBook" className="text-base font-bold">Enforce Instant Book</Label>
-                      <p className="text-sm text-muted-foreground">Force all new property listings to use "Instant Book" by default.</p>
-                    </div>
-                    <Switch 
-                      id="globalInstantBook" 
-                      checked={!!config?.globalInstantBook} 
-                      onCheckedChange={(v) => handleToggleConfig('globalInstantBook', v)}
                     />
                   </div>
                 </>
@@ -254,12 +347,12 @@ export default function AdminSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>API & Security Protocols</CardTitle>
-              <CardDescription>Configure external integrations and security headers.</CardDescription>
+              <CardDescription>Manage keys and advanced infrastructure settings.</CardDescription>
             </CardHeader>
             <CardContent>
                <div className="p-8 border-2 border-dashed rounded-lg text-center">
                   <Key className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
-                  <p className="text-muted-foreground font-medium">Advanced security configurations are managed via Firebase Console.</p>
+                  <p className="text-muted-foreground font-medium">Infrastructure settings are managed via the Firebase Cloud Console.</p>
                   <Button variant="outline" className="mt-4" asChild>
                     <a href="https://console.firebase.google.com" target="_blank">Open Console</a>
                   </Button>
