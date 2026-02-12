@@ -18,6 +18,9 @@ const ptSans = PT_Sans({
 export const metadata: Metadata = {
   title: 'StayNest - Find Your Perfect Getaway',
   description: 'Book unique homes and experiences all over the world.',
+  icons: {
+    icon: '/logo.jpg',
+  },
 };
 
 export default function RootLayout({
