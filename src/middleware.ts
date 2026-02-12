@@ -2,13 +2,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === '/admin') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-  }
+  // Removed the incorrect redirect to /admin/dashboard.
+  // The Admin Dashboard is located at /admin/page.tsx.
   return NextResponse.next();
 }
 
-// Match only the /admin route
+// Match all routes except for static files and APIs
 export const config = {
-  matcher: ['/admin'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
