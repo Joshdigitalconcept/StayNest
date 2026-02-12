@@ -27,6 +27,7 @@ import { useAuth, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc } from 'firebase/firestore';
+import { ArrowLeft } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -68,7 +69,7 @@ export default function LoginPage() {
     });
     const redirectPath = await checkAdminAndRedirect(user);
     router.push(redirectPath);
-    router.refresh(); // Force a refresh to ensure all states are updated
+    router.refresh();
   };
 
 
@@ -101,11 +102,21 @@ export default function LoginPage() {
 
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+      <div className="w-full max-w-md mb-4">
+        <Button variant="ghost" asChild size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+          <Link href="/">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+      </div>
+      <Card className="w-full max-w-md shadow-lg border-muted">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
-            <Logo className="h-12 w-12" />
+            <Link href="/" className="hover:opacity-80 transition-opacity">
+              <Logo className="h-12 w-12" />
+            </Link>
           </div>
           <CardTitle className="text-2xl font-headline">Welcome Back</CardTitle>
           <CardDescription>
@@ -159,7 +170,7 @@ export default function LoginPage() {
           </Button>
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="underline">
+            <Link href="/signup" className="underline font-bold text-primary">
               Sign up
             </Link>
           </div>

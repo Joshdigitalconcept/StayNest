@@ -27,6 +27,7 @@ import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendEmailVerification } from 'firebase/auth';
 import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft } from 'lucide-react';
 
 const formSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required.' }),
@@ -60,7 +61,6 @@ export default function SignupPage() {
       );
       const user = userCredential.user;
       
-      // Send verification email
       await sendEmailVerification(user);
       toast({
         title: 'Verification Email Sent',
@@ -130,11 +130,21 @@ export default function SignupPage() {
 
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+      <div className="w-full max-w-md mb-4">
+        <Button variant="ghost" asChild size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+          <Link href="/">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
+        </Button>
+      </div>
+      <Card className="w-full max-w-md shadow-lg border-muted">
         <CardHeader className="text-center">
           <div className="flex justify-center items-center mb-4">
-            <Logo className="h-12 w-12" />
+            <Link href="/" className="hover:opacity-80 transition-opacity">
+              <Logo className="h-12 w-12" />
+            </Link>
           </div>
           <CardTitle className="text-2xl font-headline">Create an Account</CardTitle>
           <CardDescription>
@@ -208,7 +218,7 @@ export default function SignupPage() {
           </Button>
           <div className="mt-4 text-center text-sm">
             Already have an account?{' '}
-            <Link href="/login" className="underline">
+            <Link href="/login" className="underline font-bold text-primary">
               Log in
             </Link>
           </div>
