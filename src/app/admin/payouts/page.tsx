@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Booking } from '@/lib/types';
 import {
@@ -27,11 +27,12 @@ import { Button } from '@/components/ui/button';
 
 export default function AdminPayoutsPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   // Fetch confirmed bookings as they represent scheduled payouts
   const payoutsQuery = useMemoFirebase(
-    () => firestore ? query(collection(firestore, 'bookings'), where('status', '==', 'confirmed'), orderBy('createdAt', 'desc')) : null,
-    [firestore]
+    () => (firestore && user) ? query(collection(firestore, 'bookings'), where('status', '==', 'confirmed'), orderBy('createdAt', 'desc')) : null,
+    [firestore, user]
   );
   const { data: payouts, isLoading } = useCollection<Booking>(payoutsQuery);
 

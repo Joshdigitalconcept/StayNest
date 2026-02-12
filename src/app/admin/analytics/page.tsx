@@ -16,7 +16,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import { Loader2, TrendingUp, Users, BookOpen, Wallet } from 'lucide-react';
 import { subMonths, format, isSameMonth, startOfMonth } from 'date-fns';
@@ -35,10 +35,20 @@ const chartConfig = {
 
 export default function AdminAnalyticsPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
   
-  const bookingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bookings')) : null, [firestore]);
-  const usersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users')) : null, [firestore]);
-  const listingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'listings')) : null, [firestore]);
+  const bookingsQuery = useMemoFirebase(
+    () => (firestore && user) ? query(collection(firestore, 'bookings')) : null, 
+    [firestore, user]
+  );
+  const usersQuery = useMemoFirebase(
+    () => (firestore && user) ? query(collection(firestore, 'users')) : null, 
+    [firestore, user]
+  );
+  const listingsQuery = useMemoFirebase(
+    () => (firestore && user) ? query(collection(firestore, 'listings')) : null, 
+    [firestore, user]
+  );
   
   const { data: bookings, isLoading: bookingsLoading } = useCollection<Booking>(bookingsQuery);
   const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);

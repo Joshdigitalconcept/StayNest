@@ -77,7 +77,12 @@ service cloud.firestore {
     }
     
     match /bookings/{bookingId} {
-      allow read: if isSignedIn();
+      // Allow reading specific booking or listing for everyone authorized
+      allow get, list: if isSignedIn() && (
+        isAdmin() || 
+        resource.data.guestId == request.auth.uid || 
+        resource.data.hostId == request.auth.uid
+      );
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.guestId == request.auth.uid || 
@@ -106,7 +111,7 @@ service cloud.firestore {
     match /{path=**}/reviews/{reviewId} {
        allow read: if true;
        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-       allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+       allow update, delete: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
     }
   }
 }

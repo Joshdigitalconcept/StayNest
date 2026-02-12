@@ -9,16 +9,26 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Users, Home, BookCheck, AlertTriangle, ShieldCheck, FileText, BarChart2, Loader2 } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
-  // Statistics queries - note: these will only succeed if firestore.rules allow unfiltered list for admins
-  const usersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users')) : null, [firestore]);
-  const listingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'listings')) : null, [firestore]);
-  const bookingsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bookings')) : null, [firestore]);
+  // Statistics queries - only run when authenticated to satisfy firestore rules
+  const usersQuery = useMemoFirebase(
+    () => (firestore && user) ? query(collection(firestore, 'users')) : null, 
+    [firestore, user]
+  );
+  const listingsQuery = useMemoFirebase(
+    () => (firestore && user) ? query(collection(firestore, 'listings')) : null, 
+    [firestore, user]
+  );
+  const bookingsQuery = useMemoFirebase(
+    () => (firestore && user) ? query(collection(firestore, 'bookings')) : null, 
+    [firestore, user]
+  );
 
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
   const { data: listings, isLoading: listingsLoading } = useCollection(listingsQuery);

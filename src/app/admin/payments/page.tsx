@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import type { Booking } from '@/lib/types';
 import {
@@ -26,10 +26,11 @@ import { format } from 'date-fns';
 
 export default function AdminPaymentsPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const bookingsQuery = useMemoFirebase(
-    () => firestore ? query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'), limit(50)) : null,
-    [firestore]
+    () => (firestore && user) ? query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'), limit(50)) : null,
+    [firestore, user]
   );
   const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
 
