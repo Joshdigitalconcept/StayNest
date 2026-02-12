@@ -9,8 +9,8 @@ export async function uploadImage(imageFile: File): Promise<string | null> {
   const formData = new FormData();
   formData.append('image', imageFile);
   
-  // Public API key for the platform's image hosting
-  const apiKey = 'ed5db0bd942fd835bfbbce28c31bc2b9';
+  // Use ImgBB API key from environment variable
+  const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY!;
 
   try {
     const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
