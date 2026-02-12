@@ -8,7 +8,6 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
 /**
  * Robust Firebase initialization for Next.js.
  * Ensures the app is only initialized once and always with the config object.
- * Explicit initialization prevents 'app/no-options' errors during Vercel builds.
  */
 function getFirebaseServices() {
   let app: FirebaseApp;
@@ -16,7 +15,7 @@ function getFirebaseServices() {
   if (getApps().length > 0) {
     app = getApp();
   } else {
-    // Explicitly passing config here prevents errors during static generation
+    // Explicitly passing config here ensures the SDK doesn't try to auto-initialize
     app = initializeApp(firebaseConfig);
   }
 
@@ -27,6 +26,7 @@ function getFirebaseServices() {
   };
 }
 
+// Initializing here for standard exports
 const services = getFirebaseServices();
 
 export const firebaseApp = services.firebaseApp;
