@@ -192,7 +192,7 @@ function ChatWindow({ activeConvo, onBack }: { activeConvo: Conversation | null,
                 </Button>
             </div>
             
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-slate-50/30">
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-muted/10">
                 {isLoading && <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" /></div>}
                 {!isLoading && messages?.map(msg => {
                     const isSender = msg.senderId === user?.uid;
@@ -206,7 +206,11 @@ function ChatWindow({ activeConvo, onBack }: { activeConvo: Conversation | null,
                                     </Avatar>
                                 </Link>
                             )}
-                            <div className={`group relative p-3 rounded-2xl max-w-[80%] shadow-sm ${isSender ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-white border rounded-bl-none'}`}>
+                            <div className={`group relative p-3 rounded-2xl max-w-[80%] shadow-sm transition-colors ${
+                                isSender 
+                                    ? 'bg-primary text-primary-foreground rounded-br-none' 
+                                    : 'bg-muted text-muted-foreground border rounded-bl-none dark:bg-accent/10'
+                            }`}>
                                 <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                                 <div className={`flex items-center gap-1 mt-1 ${isSender ? 'justify-end' : 'justify-start'}`}>
                                      <p className="text-[10px] opacity-60">
@@ -227,7 +231,7 @@ function ChatWindow({ activeConvo, onBack }: { activeConvo: Conversation | null,
                 <form onSubmit={handleSendMessage} className="relative flex gap-2">
                     <Input
                         placeholder="Type a message..."
-                        className="rounded-full bg-accent/30 border-none focus-visible:ring-1"
+                        className="rounded-full bg-accent/10 border-none focus-visible:ring-1"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                     />
