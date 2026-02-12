@@ -77,12 +77,23 @@ service cloud.firestore {
     }
     
     match /bookings/{bookingId} {
+      // Allow everyone to see confirmed booking dates for availability (required for calendar)
+      allow list: if resource.data.status == 'confirmed';
+
       // Allow reading specific booking or listing for everyone authorized
-      allow get, list: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         isAdmin() || 
         resource.data.guestId == request.auth.uid || 
         resource.data.hostId == request.auth.uid
       );
+
+      // Allow users to see their own list of bookings
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        resource.data.guestId == request.auth.uid || 
+        resource.data.hostId == request.auth.uid
+      );
+
       allow create: if isSignedIn() && request.resource.data.guestId == request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.guestId == request.auth.uid || 
@@ -101,7 +112,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // Collection Group Rules
+    // Collection Group Rules (Must be globally defined)
     // -------------------------------------------------------------------------
      
     match /{path=**}/messages/{messageId} {
