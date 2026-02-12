@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-static';
+import { redirect } from 'next/navigation';
 
 /**
  * Pure server-side redirect to the primary admin dashboard.
